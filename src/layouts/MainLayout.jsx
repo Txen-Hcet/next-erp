@@ -83,7 +83,7 @@ export default function MainLayout(props) {
   return (
     <div class="flex h-screen">
       {/* Sidebar */}
-      <aside class="w-64 bg-gray-800 text-white flex flex-col">
+      <aside class="w-64 bg-gray-800 text-white flex flex-col flex-shrink-0">
         <div class="p-4 text-xl font-bold">ERP Textile</div>
         <nav class="flex-1">
           <ul>

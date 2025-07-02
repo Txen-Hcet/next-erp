@@ -52,7 +52,9 @@ export default function CustomerList() {
   const handleGetAllCustomers = async (tok) => {
     const getDataCustomers = await getAllCustomers(tok);
 
-    setCustomers(getDataCustomers);
+    const sortedData = getDataCustomers.sort((a, b) => a.id - b.id);
+
+    setCustomers(sortedData);
   };
 
   function formatPhoneNumber(phone) {
@@ -82,8 +84,8 @@ export default function CustomerList() {
         </button>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-white shadow-md rounded">
+      <div class="w-full overflow-x-auto">
+        <table class="w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>

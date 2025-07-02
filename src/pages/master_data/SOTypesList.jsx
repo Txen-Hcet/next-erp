@@ -51,9 +51,11 @@ export default function SOTypesList() {
   const handleGetAllSOTypes = async (tok) => {
     const getDataSOTypes = await getAllSOTypes(tok);
 
-    setSOTypes(getDataSOTypes);
+    const sortedData = getDataSOTypes.sort((a, b) => a.id - b.id);
+
+    setSOTypes(sortedData);
     if (getDataSOTypes.status === 200) {
-      setSOTypes(getDataSOTypes.jenis);
+      setSOTypes(sortedData);
     }
   };
 

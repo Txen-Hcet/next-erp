@@ -11,8 +11,16 @@ import Swal from "sweetalert2";
 export default function CurrenciesList() {
   const navigate = useNavigate();
   const tokUser = getUser();
-
   const [currencies, setCurrencies] = createSignal([]);
+  const [currentPage, setCurrentPage] = createSignal(1);
+  const pageSize = 15;
+  const totalPages = Math.ceil(currencies().length / pageSize);
+
+  const paginatedData = () => {
+    const startIndex = (currentPage() - 1) * pageSize;
+
+    return currencies().slice(startIndex, startIndex + pageSize);
+  };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -55,9 +63,11 @@ export default function CurrenciesList() {
   const handleGetAllCurrencies = async (tok) => {
     const getDataCurrencies = await getAllCurrenciess(tok);
 
-    setCurrencies(getDataCurrencies);
+    const sortedData = getDataCurrencies.sort((a, b) => a.id - b.id);
+
+    setCurrencies(sortedData);
     if (getDataCurrencies.status === 200) {
-      setCurrencies(getDataCurrencies.jenis);
+      setCurrencies(sortedData);
     }
   };
 
@@ -88,7 +98,7 @@ export default function CurrenciesList() {
             </tr>
           </thead>
           <tbody>
-            {currencies().map((curr) => (
+            {paginatedData().map((curr) => (
               <tr class="border-b" key={curr.id}>
                 <td class="py-2 px-4">{curr.id}</td>
                 <td class="py-2 px-4">{curr.name}</td>
@@ -110,6 +120,25 @@ export default function CurrenciesList() {
             ))}
           </tbody>
         </table>
+        <div class="w-full mt-4 flex justify-between space-x-2">
+          <button
+            class="px-3 py-1 bg-gray-200 rounded"
+            onClick={() => setCurrentPage(currentPage() - 1)}
+            disabled={currentPage() === 1}
+          >
+            Prev
+          </button>
+          <span>
+            Page {currentPage()} of {totalPages}
+          </span>
+          <button
+            class="px-3 py-1 bg-gray-200 rounded"
+            onClick={() => setCurrentPage(currentPage() + 1)}
+            disabled={currentPage() === totalPages}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </MainLayout>
   );

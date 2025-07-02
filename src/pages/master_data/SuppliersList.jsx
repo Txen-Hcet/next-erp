@@ -1,14 +1,26 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import { getAllSuppliers, getUser, softDeleteSupplier } from "../../utils/auth";
 import Swal from "sweetalert2";
 
 export default function SuppliersList() {
+  const [suppliers, setSuppliers] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
+  const [currentPage, setCurrentPage] = createSignal(1);
+  const pageSize = 10;
 
-  const [suppliers, setSuppliers] = createSignal([]);
+  // ✅ FIX #1: tambahin return di createMemo, biar ga undefined
+  const totalPages = createMemo(() => {
+    return Math.max(1, Math.ceil(suppliers().length / pageSize));
+  });
+
+  // ✅ FIX #2: bikin paginatedData reactive
+  const paginatedData = () => {
+    const startIndex = (currentPage() - 1) * pageSize;
+    return suppliers().slice(startIndex, startIndex + pageSize);
+  };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -33,8 +45,17 @@ export default function SuppliersList() {
           confirmButtonColor: "#6496df",
         });
 
-        // Optional: update UI setelah hapus
-        setSuppliers(suppliers().filter((s) => s.id !== id));
+        // ✅ FIX #3: reset ke page 1 kalau data dihapus, biar ga error kalau page jadi kosong
+        setSuppliers((prev) => {
+          const newData = prev.filter((s) => s.id !== id);
+          if (
+            (currentPage() - 1) * pageSize >= newData.length &&
+            currentPage() > 1
+          ) {
+            setCurrentPage(currentPage() - 1);
+          }
+          return newData;
+        });
       } catch (error) {
         console.error(error);
         Swal.fire({
@@ -52,13 +73,14 @@ export default function SuppliersList() {
   const handleGetAllSuppliers = async (tok) => {
     const getDataSuppliers = await getAllSuppliers(tok);
 
-    setSuppliers(getDataSuppliers);
+    const sortedData = getDataSuppliers.sort((a, b) => a.id - b.id);
+
+    setSuppliers(sortedData);
   };
 
   function formatPhoneNumber(phone) {
     if (!phone) return "";
 
-    // Ambil kode area (3 digit pertama)
     const area = phone.slice(0, 3);
     const number = phone.slice(3);
 
@@ -70,6 +92,7 @@ export default function SuppliersList() {
       handleGetAllSuppliers(tokUser?.token);
     }
   });
+
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
@@ -82,7 +105,8 @@ export default function SuppliersList() {
         </button>
       </div>
 
-      <div class="overflow-x-auto">
+      {/* ✅ FIX #4: tambahin min-height biar table stabil walau data sedikit */}
+      <div class="overflow-x-auto min-h-[400px]">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
@@ -97,16 +121,19 @@ export default function SuppliersList() {
             </tr>
           </thead>
           <tbody>
-            {suppliers().map((supp) => (
+            {paginatedData().map((supp) => (
               <tr class="border-b" key={supp.id}>
-                <td class="py-2 px-4">{supp.id}</td>
-                <td class="py-2 px-4">{supp.kode}</td>
-                <td class="py-2 px-4">{supp.alias}</td>
-                <td class="py-2 px-4">{supp.nama}</td>
-                <td class="py-2 px-4">{formatPhoneNumber(supp.no_telp)}</td>
-                <td class="py-2 px-4">{supp.no_hp}</td>
-                <td class="py-2 px-4">{supp.alamat}</td>
-                <td class="py-2 px-4 space-x-2">
+                {/* ✅ FIX #5: tambahin align-top supaya baris table stabil */}
+                <td class="py-2 px-4 align-top">{supp.id}</td>
+                <td class="py-2 px-4 align-top">{supp.kode}</td>
+                <td class="py-2 px-4 align-top">{supp.alias}</td>
+                <td class="py-2 px-4 align-top">{supp.nama}</td>
+                <td class="py-2 px-4 align-top">
+                  {formatPhoneNumber(supp.no_telp)}
+                </td>
+                <td class="py-2 px-4 align-top">{supp.no_hp}</td>
+                <td class="py-2 px-4 align-top">{supp.alamat}</td>
+                <td class="py-2 px-4 align-top space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/suppliers/form?id=${supp.id}`)}
@@ -124,6 +151,28 @@ export default function SuppliersList() {
             ))}
           </tbody>
         </table>
+
+        {/* ✅ FIX #6: tambahin mt-8 biar pagination ga mepet table */}
+        {/* ✅ FIX #7: tambahin min-w supaya tombol ga loncat-loncat */}
+        <div class="w-full mt-8 flex justify-between space-x-2">
+          <button
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() - 1)}
+            disabled={currentPage() === 1}
+          >
+            Prev
+          </button>
+          <span>
+            Page {currentPage()} of {totalPages()}
+          </span>
+          <button
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() + 1)}
+            disabled={currentPage() === totalPages()}
+          >
+            Next
+          </button>
+        </div>
       </div>
     </MainLayout>
   );
