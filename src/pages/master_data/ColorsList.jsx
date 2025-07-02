@@ -51,9 +51,8 @@ export default function ColorsList() {
   const handleGetAllColors = async (tok) => {
     const getDataColors = await getAllColors(tok);
 
-    const sortedData = getDataColors.warna.sort((a, b) => a.id - b.id);
-
     if (getDataColors.status === 200) {
+      const sortedData = getDataColors.warna.sort((a, b) => a.id - b.id);
       setColors(sortedData);
     }
   };

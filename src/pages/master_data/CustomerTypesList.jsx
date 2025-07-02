@@ -56,11 +56,10 @@ export default function CustomerTypesList() {
   const handleGetAllCustomerTypes = async (tok) => {
     const getDataCustomerTypes = await getAllCustomerTypes(tok);
 
-    const sortedData = getDataCustomerTypes.sort((a, b) => a.id - b.id);
-
-    setCustomerTypes(sortedData);
     if (getDataCustomerTypes.status === 200) {
-      setCustomerTypes(sortedData.jenis);
+      const sortedData = getDataCustomerTypes.data.sort((a, b) => a.id - b.id);
+
+      setCustomerTypes(sortedData);
     }
   };
 

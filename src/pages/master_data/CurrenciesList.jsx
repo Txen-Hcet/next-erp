@@ -63,10 +63,9 @@ export default function CurrenciesList() {
   const handleGetAllCurrencies = async (tok) => {
     const getDataCurrencies = await getAllCurrenciess(tok);
 
-    const sortedData = getDataCurrencies.sort((a, b) => a.id - b.id);
-
-    setCurrencies(sortedData);
     if (getDataCurrencies.status === 200) {
+      const sortedData = getDataCurrencies.data.sort((a, b) => a.id - b.id);
+
       setCurrencies(sortedData);
     }
   };

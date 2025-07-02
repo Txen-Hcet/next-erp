@@ -52,9 +52,10 @@ export default function CustomerList() {
   const handleGetAllCustomers = async (tok) => {
     const getDataCustomers = await getAllCustomers(tok);
 
-    const sortedData = getDataCustomers.sort((a, b) => a.id - b.id);
-
-    setCustomers(sortedData);
+    if (getDataCustomers.status === 200) {
+      const sortedData = getDataCustomers.customers.sort((a, b) => a.id - b.id);
+      setCustomers(sortedData);
+    }
   };
 
   function formatPhoneNumber(phone) {

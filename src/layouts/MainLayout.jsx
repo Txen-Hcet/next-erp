@@ -8,6 +8,7 @@ export default function MainLayout(props) {
   const tokUser = getUser();
   const location = useLocation();
   const [isOpen, setIsOpen] = createSignal(false);
+  const [isTransactionOpen, setTransactionIsOpen] = createSignal(false);
 
   createEffect(() => {
     const interval = setInterval(async () => {
@@ -19,21 +20,59 @@ export default function MainLayout(props) {
     }, 60 * 60 * 1000);
 
     // logic untuk buka sidebar
-    const inMaster =
-      location.pathname.startsWith("/dashboard") ||
-      location.pathname.startsWith("/orders") ||
-      location.pathname.startsWith("/transactions") ||
-      location.pathname.startsWith("/users") ||
-      location.pathname.startsWith("/customers") ||
-      location.pathname.startsWith("/suppliers") ||
-      location.pathname.startsWith("/colors") ||
-      location.pathname.startsWith("/fabrics") ||
-      location.pathname.startsWith("/so-type") ||
-      location.pathname.startsWith("/customer-type") ||
-      location.pathname.startsWith("/currencies");
+    // const inMaster =
+    //   location.pathname.startsWith("/dashboard") ||
+    //   location.pathname.startsWith("/orders") ||
+    //   location.pathname.startsWith("/transactions") ||
+    //   location.pathname.startsWith("/users") ||
+    //   location.pathname.startsWith("/customers") ||
+    //   location.pathname.startsWith("/suppliers") ||
+    //   location.pathname.startsWith("/colors") ||
+    //   location.pathname.startsWith("/fabrics") ||
+    //   location.pathname.startsWith("/so-type") ||
+    //   location.pathname.startsWith("/customer-type") ||
+    //   location.pathname.startsWith("/currencies");
 
-    if (inMaster) {
-      setIsOpen(true);
+    // const inTransaction =
+    //   location.pathname.startsWith("/dashboard") ||
+    //   location.pathname.startsWith("/orders");
+
+    // // if (inMaster) {
+    // //   setIsOpen(true);
+    // // }
+
+    function getRouteType(pathname) {
+      if (
+        [
+          "/users",
+          "/customers",
+          "/suppliers",
+          "/colors",
+          "/fabrics",
+          "/so-type",
+          "/customer-type",
+          "/currencies",
+        ].some((p) => pathname.startsWith(p))
+      ) {
+        return "master";
+      }
+
+      if (["/dashboard", "/orders"].some((p) => pathname.startsWith(p))) {
+        return "transaction";
+      }
+
+      return "unknown";
+    }
+
+    switch (getRouteType(location.pathname)) {
+      case "master":
+        setIsOpen(true);
+        break;
+      case "transaction":
+        setTransactionIsOpen(true);
+        break;
+      default:
+      // logic unknown
     }
 
     // idle detection
@@ -112,16 +151,49 @@ export default function MainLayout(props) {
               </A>
             </li>
             <li>
-              <A
-                href="/transactions"
-                class={`block p-4 hover:bg-gray-700 ${
-                  location.pathname === "/transactions"
-                    ? "bg-gray-700 text-white"
-                    : ""
-                }`}
+              <button
+                class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                onClick={() => setTransactionIsOpen(!isTransactionOpen())}
               >
                 Transaksi
-              </A>
+                <span class="text-xs">{isTransactionOpen() ? "▲" : "▼"}</span>
+              </button>
+            </li>
+
+            {/* Submenu with smooth transition */}
+            <li
+              class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                isTransactionOpen()
+                  ? "max-h-fit opacity-100"
+                  : "max-h-0 opacity-0"
+              }`}
+            >
+              <ul>
+                <li>
+                  <A
+                    href="/suppliers"
+                    class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                      location.pathname === "/suppliers"
+                        ? "bg-gray-700 text-white"
+                        : ""
+                    }`}
+                  >
+                    Suppliers
+                  </A>
+                </li>
+                <li>
+                  <A
+                    href="/customers"
+                    class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                      location.pathname === "/customers"
+                        ? "bg-gray-700 text-white"
+                        : ""
+                    }`}
+                  >
+                    Customer
+                  </A>
+                </li>
+              </ul>
             </li>
             <li>
               <A

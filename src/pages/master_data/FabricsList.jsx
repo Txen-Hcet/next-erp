@@ -50,10 +50,9 @@ export default function FabricsList() {
   const handleGetAllFabrics = async (tok) => {
     const getDataFabrics = await getAllFabrics(tok);
 
-    const sortedData = getDataFabrics.sort((a, b) => a.id - b.id);
 
-    setFabrics(sortedData);
     if (getDataFabrics.status === 200) {
+    const sortedData = getDataFabrics.kain.sort((a, b) => a.id - b.id);
       setFabrics(sortedData);
     }
   };

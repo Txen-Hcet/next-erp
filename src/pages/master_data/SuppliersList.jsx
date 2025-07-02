@@ -73,9 +73,10 @@ export default function SuppliersList() {
   const handleGetAllSuppliers = async (tok) => {
     const getDataSuppliers = await getAllSuppliers(tok);
 
-    const sortedData = getDataSuppliers.sort((a, b) => a.id - b.id);
-
-    setSuppliers(sortedData);
+    if (getDataSuppliers.status === 200) {
+      const sortedData = getDataSuppliers.suppliers.sort((a, b) => a.id - b.id);
+      setSuppliers(sortedData);
+    }
   };
 
   function formatPhoneNumber(phone) {
