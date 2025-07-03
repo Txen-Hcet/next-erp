@@ -1264,6 +1264,147 @@ export async function softDeleteCurrencies(id, token) {
 
 // #endregion CURRENCIES FUNCTION
 
+// #region SALES CONTRACT FUNCTION
+
+export async function createSalesContract(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-sales-contract`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat Sales Contract");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllSalesContracts(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/sales-contracts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengambil data jenis so");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getSalesContracts(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/sales-contracts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal mengambil jenis so dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataSalesContract(token, id, name) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-sales-contract/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({ name: name }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah data jenis so");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteSalesContract(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-sales-contract/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal menghapus data jenis so dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion SALES CONTRACT FUNCTION
+
 export function logout() {
   localStorage.removeItem("user");
 }

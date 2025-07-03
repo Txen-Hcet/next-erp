@@ -57,7 +57,7 @@ export default function MainLayout(props) {
         return "master";
       }
 
-      if (["/dashboard", "/orders"].some((p) => pathname.startsWith(p))) {
+      if (["/salescontract", "/salesorder"].some((p) => pathname.startsWith(p))) {
         return "transaction";
       }
 
@@ -171,26 +171,26 @@ export default function MainLayout(props) {
               <ul>
                 <li>
                   <A
-                    href="/suppliers"
+                    href="/salescontract"
                     class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                      location.pathname === "/suppliers"
+                      location.pathname === "/salescontract"
                         ? "bg-gray-700 text-white"
                         : ""
                     }`}
                   >
-                    Suppliers
+                    Sales Contract
                   </A>
                 </li>
                 <li>
                   <A
-                    href="/customers"
+                    href="/salescontract"
                     class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                      location.pathname === "/customers"
+                      location.pathname === "/salescontract"
                         ? "bg-gray-700 text-white"
                         : ""
                     }`}
                   >
-                    Customer
+                    Sales Order
                   </A>
                 </li>
               </ul>

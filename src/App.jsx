@@ -7,6 +7,9 @@ import UsersList from "./pages/UsersList";
 import UserForm from "./pages/UserForm";
 import TransactionsList from "./pages/TransactionsList";
 import TransactionForm from "./pages/TransactionForm";
+// TRANSACTIONS
+import SalesContractForm from "./pages/transactions/SalesContractForm";
+import SalesContractList from "./pages/transactions/SalesContractList";
 // MASTER DATA
 import CustomerList from "./pages/master_data/CustomersList";
 import CustomerForm from "./pages/master_data/CustomerForm";
@@ -38,6 +41,12 @@ function App() {
       <Route path="/users" component={UsersList} />
       <Route path="/users/form" component={UserForm} />
 
+      {/* TRANSACTIONS */}
+      <Route path="/salescontract" component={SalesContractList} />
+      <Route path="/salescontract/form" component={SalesContractForm} />
+      {/* TRANSACTIONS */}
+
+      {/* MASTER DATA */}
       <Route path="/suppliers" component={SuppliersList} />
       <Route path="/suppliers/form" component={SuppliersListForm} />
 
@@ -58,6 +67,7 @@ function App() {
 
       <Route path="/currencies" component={CurrenciesList} />
       <Route path="/currencies/form" component={CurrencyForm} />
+      {/* MASTER DATA */}
     </Router>
   );
 }
