@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
+  createSalesContract,
   getAllCurrenciess,
   getAllCustomers,
   getCustomer,
   getSalesContracts,
   getUser,
+  updateDataSalesContract,
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { produce } from "solid-js/store";
@@ -84,10 +86,10 @@ export default function SalesContractForm() {
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
 
-      console.log("🚀 FORM DATA:", {
-        ...salesContracts,
-        items: normalizedItems,
-      });
+      // console.log("🚀 FORM DATA:", {
+      //   ...salesContracts,
+      //   items: normalizedItems,
+      // });
     }
   });
 
@@ -185,6 +187,11 @@ export default function SalesContractForm() {
 
       const payload = {
         ...form(),
+        no_pesan: form().no_pesan,
+        po_cust: form().po_cust,
+        tanggal: form().tanggal,
+        customer_id: parseInt(form().customer_id),
+        currency_id: parseInt(form().currency_id),
         kurs: toNum(form().kurs),
         termin: toNum(form().termin),
         ppn_percent: toNum(form().ppn_percent),
@@ -205,12 +212,10 @@ export default function SalesContractForm() {
         })),
       };
 
-      console.log("Payload:", payload);
-
       if (isEdit) {
-        // await updateSC(params.id, payload);
+        await updateDataSalesContract(user?.token, params.id, payload);
       } else {
-        // await createSC(payload);
+        await createSalesContract(user?.token, payload);
       }
 
       Swal.fire({
@@ -220,7 +225,7 @@ export default function SalesContractForm() {
           ? "Berhasil mengupdate Sales Contract"
           : "Berhasil membuat Sales Contract baru",
         confirmButtonColor: "#6496df",
-      }).then(() => navigate("/sales-contract"));
+      }).then(() => navigate("/salescontract"));
     } catch (error) {
       console.error(error);
       Swal.fire({

@@ -1348,7 +1348,7 @@ export async function getSalesContracts(id, token) {
   }
 }
 
-export async function updateDataSalesContract(token, id, name) {
+export async function updateDataSalesContract(token, id, payload) {
   try {
     const response = await fetch(
       `https://nexttechenterprise.site/api/update-sales-contract/${id}`,
@@ -1359,7 +1359,7 @@ export async function updateDataSalesContract(token, id, name) {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
         },
-        body: JSON.stringify({ name: name }),
+        body: JSON.stringify(payload),
       }
     );
 
