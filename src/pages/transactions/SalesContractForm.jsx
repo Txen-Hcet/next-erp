@@ -14,7 +14,7 @@ import {
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { produce } from "solid-js/store";
-import { Trash2 } from "lucide-solid";
+import { Trash } from "lucide-solid";
 // import { createSC, updateSC, getSC } from "../../utils/auth";
 // --> ganti sesuai endpoint lu
 

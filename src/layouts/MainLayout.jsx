@@ -63,6 +63,10 @@ export default function MainLayout(props) {
           "/customer-type/form",
           "/currencies",
           "/currencies/form",
+          "/grade",
+          "/grade/form",
+          "/units",
+          "/units/form",
         ].some((p) => pathname.startsWith(p))
       ) {
         return "master";
@@ -213,91 +217,6 @@ export default function MainLayout(props) {
                     Pesanan
                   </A>
                 </li> */}
-                <li>
-                  <button
-                    class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
-                    onClick={() => setTransactionIsOpen(!isTransactionOpen())}
-                  >
-                    Transaksi
-                    <span class="text-xs">
-                      {isTransactionOpen() ? "▲" : "▼"}
-                    </span>
-                  </button>
-                </li>
-
-                {/* Submenu with smooth transition */}
-                <li
-                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isTransactionOpen()
-                      ? "max-h-fit opacity-100"
-                      : "max-h-0 opacity-0"
-                  }`}
-                >
-                  <ul>
-                    <li>
-                      <A
-                        href="/salescontract"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salescontract" ||
-                          location.pathname === "/salescontract/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Sales Contract
-                      </A>
-                    </li>
-                    <li>
-                      <A
-                        href="/salesorder"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salesorder" ||
-                          location.pathname === "/salesorder/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Sales Order
-                      </A>
-                    </li>
-                  </ul>
-                </li>
-                <li>
-                  <button
-                    class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
-                    onClick={() => setWarehouseIsOpen(!isWarehouseIsOpen())}
-                  >
-                    Gudang
-                    <span class="text-xs">
-                      {isWarehouseIsOpen() ? "▲" : "▼"}
-                    </span>
-                  </button>
-                </li>
-
-                {/* Submenu with smooth transition */}
-                <li
-                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isWarehouseIsOpen()
-                      ? "max-h-fit opacity-100"
-                      : "max-h-0 opacity-0"
-                  }`}
-                >
-                  <ul>
-                    <li>
-                      <A
-                        href="/packingorder"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/packingorder" ||
-                          location.pathname === "/packingorder/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Packing Order
-                      </A>
-                    </li>
-                  </ul>
-                </li>
                 {/* Master Data Toggle */}
                 <li>
                   <button
@@ -405,6 +324,153 @@ export default function MainLayout(props) {
                         }`}
                       >
                         Currencies
+                      </A>
+                    </li>
+                    <li>
+                      <A
+                        href="/grade"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/grade" ||
+                          location.pathname === "/grade/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Grade
+                      </A>
+                    </li>
+                    <li>
+                      <A
+                        href="/units"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/units" ||
+                          location.pathname === "/units/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Satuan Unit
+                      </A>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <button
+                    class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                    onClick={() => setTransactionIsOpen(!isTransactionOpen())}
+                  >
+                    Pembelian
+                    <span class="text-xs">
+                      {isTransactionOpen() ? "▲" : "▼"}
+                    </span>
+                  </button>
+                </li>
+
+                {/* Submenu with smooth transition */}
+                <li
+                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    isTransactionOpen()
+                      ? "max-h-fit opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <ul>
+                    <li>
+                      <A
+                        href="/salescontract"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/salescontract" ||
+                          location.pathname === "/salescontract/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Purchase Order
+                      </A>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <button
+                    class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                    onClick={() => setTransactionIsOpen(!isTransactionOpen())}
+                  >
+                    Penjualan
+                    <span class="text-xs">
+                      {isTransactionOpen() ? "▲" : "▼"}
+                    </span>
+                  </button>
+                </li>
+
+                {/* Submenu with smooth transition */}
+                <li
+                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    isTransactionOpen()
+                      ? "max-h-fit opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <ul>
+                    <li>
+                      <A
+                        href="/salescontract"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/salescontract" ||
+                          location.pathname === "/salescontract/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Sales Contract
+                      </A>
+                    </li>
+                    <li>
+                      <A
+                        href="/salesorder"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/salesorder" ||
+                          location.pathname === "/salesorder/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Sales Order
+                      </A>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <button
+                    class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                    onClick={() => setWarehouseIsOpen(!isWarehouseIsOpen())}
+                  >
+                    Gudang
+                    <span class="text-xs">
+                      {isWarehouseIsOpen() ? "▲" : "▼"}
+                    </span>
+                  </button>
+                </li>
+
+                {/* Submenu with smooth transition */}
+                <li
+                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    isWarehouseIsOpen()
+                      ? "max-h-fit opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <ul>
+                    <li>
+                      <A
+                        href="/packingorder"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/packingorder" ||
+                          location.pathname === "/packingorder/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Packing Order
                       </A>
                     </li>
                   </ul>

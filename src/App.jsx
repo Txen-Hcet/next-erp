@@ -29,6 +29,10 @@ import SalesOrderList from "./pages/transactions/SalesOrderList";
 import SalesOrderForm from "./pages/transactions/SalesOrderForm";
 import PackingOrderList from "./pages/warehouse/PackingOrderList";
 import PackingOrderForm from "./pages/warehouse/PackingOrderForm";
+import GradeList from "./pages/master_data/GradeList";
+import GradeForm from "./pages/master_data/GradeForm";
+import UnitsList from "./pages/master_data/UnitsList";
+import UnitsForm from "./pages/master_data/UnitsForm";
 
 function App() {
   return (
@@ -48,7 +52,7 @@ function App() {
       {/* TRANSACTIONS */}
       <Route path="/salescontract" component={SalesContractList} />
       <Route path="/salescontract/form" component={SalesContractForm} />
-      
+
       <Route path="/salesorder" component={SalesOrderList} />
       <Route path="/salesorder/form" component={SalesOrderForm} />
       {/* TRANSACTIONS */}
@@ -78,7 +82,13 @@ function App() {
       <Route path="/customer-type/form" component={CustomerTypeForm} />
 
       <Route path="/currencies" component={CurrenciesList} />
-      <Route path="/currencies/form" component={CurrencyForm} />
+      <Route path="/currencies" component={CurrenciesList} />
+
+      <Route path="/grade" component={GradeList} />
+      <Route path="/grade/form" component={GradeForm} />
+
+      <Route path="/units" component={UnitsList} />
+      <Route path="/units/form" component={UnitsForm} />
       {/* MASTER DATA */}
     </Router>
   );
