@@ -2,33 +2,32 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllSalesContracts,
+  getAllPackingOrders,
   getUser,
-  softDeleteCustomer,
-  softDeleteSalesContract,
+  softDeletePackingOrder,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 
 export default function PackingOrderList() {
-  const [salesContracts, setSalesContracts] = createSignal([]);
+  const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 10;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(salesContracts().length / pageSize));
+    return Math.max(1, Math.ceil(packingOrders().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return salesContracts().slice(startIndex, startIndex + pageSize);
+    return packingOrders().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus sales contract?",
-      text: `Apakah kamu yakin ingin menghapus sales contract dengan ID ${id}?`,
+      title: "Hapus packing order?",
+      text: `Apakah kamu yakin ingin menghapus packing order dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -39,27 +38,24 @@ export default function PackingOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeleteSalesContract(
-          id,
-          tokUser?.token
-        );
+        const deleteCustomer = await softDeletePackingOrder(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data sales contract dengan ID ${id} berhasil dihapus.`,
+          text: `Data packing order dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
 
         // Optional: update UI setelah hapus
-        setSalesContracts(salesContracts().filter((s) => s.id !== id));
+        setPackingOrders(packingOrders().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
           title: "Gagal",
           text:
             error.message ||
-            `Gagal menghapus data sales contract dengan ID ${id}`,
+            `Gagal menghapus data packing order dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",
@@ -68,16 +64,16 @@ export default function PackingOrderList() {
     }
   };
 
-  const handleGetAllSalesContracts = async (tok) => {
-    const getDataSalesContracts = await getAllSalesContracts(tok);
+  const handleGetAllpackingOrders = async (tok) => {
+    const getDatapackingOrders = await getAllPackingOrders(tok);
 
-    console.log(getDataSalesContracts);
+    console.log(getDatapackingOrders);
 
-    if (getDataSalesContracts.status === 200) {
-      const sortedData = getDataSalesContracts.contracts.sort(
+    if (getDatapackingOrders.status === 200) {
+      const sortedData = getDatapackingOrders.contracts.sort(
         (a, b) => a.id - b.id
       );
-      setSalesContracts(sortedData);
+      setPackingOrders(sortedData);
     }
   };
 
@@ -107,19 +103,19 @@ export default function PackingOrderList() {
 
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllSalesContracts(tokUser?.token);
+      handleGetAllpackingOrders(tokUser?.token);
     }
   });
 
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Sales Contract</h1>
+        <h1 class="text-2xl font-bold">Daftar Packing Order</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/salescontract/form")}
+          onClick={() => navigate("/packingorder/form")}
         >
-          + Tambah Sales Contract
+          + Tambah Packing Order
         </button>
       </div>
 
@@ -128,9 +124,9 @@ export default function PackingOrderList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Pesanan</th>
-              <th class="py-2 px-2">Tanggal</th>
-              <th class="py-2 px-2">Nama Customer</th>
+              <th class="py-2 px-2">No Sales Order</th>
+              <th class="py-2 px-2">Col</th>
+              <th class="py-2 px-2">Catatan</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -144,7 +140,7 @@ export default function PackingOrderList() {
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
+                    onClick={() => navigate(`/packingorder/form?id=${sc.id}`)}
                   >
                     Edit
                   </button>

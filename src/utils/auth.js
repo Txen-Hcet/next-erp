@@ -12,7 +12,7 @@ import { users } from "../data/users";
 //   }
 // }
 
-// LOGIN, REGISTER AND REGISTER
+// #region LOGIN, REGISTER AND REGISTER
 
 export async function login(username, password) {
   try {
@@ -96,9 +96,9 @@ export async function getTokenStatus(token) {
   }
 }
 
-// LOGIN, REGISTER AND REGISTER
+// #endregion LOGIN, REGISTER AND REGISTER
 
-// USERS FUNCTION
+// #region USERS FUNCTION
 
 export async function getDataUser(id, token) {
   try {
@@ -218,9 +218,9 @@ export function getUser() {
   return JSON.parse(localStorage.getItem("user"));
 }
 
-// USERS FUNCTION
+// #endregion USERS FUNCTION
 
-// SUPPLIERS FUNCTION
+// #region SUPPLIERS FUNCTION
 
 export async function createSupplier(
   token,
@@ -389,9 +389,9 @@ export async function softDeleteSupplier(id, token) {
   }
 }
 
-// SUPPLIERS FUNCTION
+// #endregion SUPPLIERS FUNCTION
 
-// CUSTOMERS FUNCTION
+// #region CUSTOMERS FUNCTION
 
 export async function createCustomer(
   token,
@@ -572,9 +572,9 @@ export async function softDeleteCustomer(id, token) {
   }
 }
 
-// CUSTOMERS FUNCTION
+// #endregion CUSTOMERS FUNCTION
 
-// COLORS FUNCTION
+// #region COLORS FUNCTION
 
 export async function createColor(token, kode, jenis) {
   try {
@@ -707,9 +707,9 @@ export async function softDeleteColor(id, token) {
   }
 }
 
-// COLORS FUNCTION
+// #endregion COLORS FUNCTION
 
-// FABRICS FUNCTION
+// #region FABRICS FUNCTION
 
 export async function createFabric(token, kode, jenis) {
   try {
@@ -842,7 +842,7 @@ export async function softDeleteFabric(id, token) {
   }
 }
 
-// FABRICS FUNCTION
+// #endregion FABRICS FUNCTION
 
 // #region SO TYPE FUNCTION
 
@@ -1548,6 +1548,153 @@ export async function softDeleteSalesOrder(id, token) {
 }
 
 // #endregion SALES ORDER FUNCTION
+
+// #region PACKING ORDER FUNCTION
+
+export async function createPackingOrder(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-packing-list`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat packing list order");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllPackingOrders(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/packing-lists`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data packing list order"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getPackingOrders(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/packing-lists/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis packing list order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataPackingOrder(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-packing-list/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah data packing list order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeletePackingOrder(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-packing-list/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis packing list order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion PACKING ORDER FUNCTION
 
 export function logout() {
   localStorage.removeItem("user");

@@ -3,14 +3,14 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
-  createSalesContract,
+  createPackingOrder,
   getAllColors,
   getAllCurrenciess,
   getAllCustomers,
   getAllFabrics,
-  getSalesContracts,
+  getPackingOrders,
   getUser,
-  updateDataSalesContract,
+  updateDataPackingOrder,
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { produce } from "solid-js/store";
@@ -72,7 +72,7 @@ export default function PackingOrderForm() {
     setCustomersList(getCustomers.customers);
 
     if (isEdit) {
-      const res = await getSalesContracts(params.id, user?.token);
+      const res = await getPackingOrders(params.id, user?.token);
       const salesContracts = res.response; // karena dari console lu, response-nya di dalam `response`
 
       // Safety check
@@ -250,9 +250,9 @@ export default function PackingOrderForm() {
       };
 
       if (isEdit) {
-        await updateDataSalesContract(user?.token, params.id, payload);
+        await updateDataPackingOrder(user?.token, params.id, payload);
       } else {
-        await createSalesContract(user?.token, payload);
+        await createPackingOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -279,13 +279,13 @@ export default function PackingOrderForm() {
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
-        {isEdit ? "Edit" : "Tambah"} Sales Contract
+        {isEdit ? "Edit" : "Tambah"} Packing Order
       </h1>
 
       <form class="flex flex-col space-y-4 " onSubmit={handleSubmit}>
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block mb-1 font-medium">No Sales Contract</label>
+            <label class="block mb-1 font-medium">No Packing Order</label>
             <input
               class="w-full border p-2 rounded"
               value={form().no_pesan}
