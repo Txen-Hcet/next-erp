@@ -13,7 +13,7 @@ export default function FabricForm() {
   const [form, setForm] = createSignal({
     id: "",
     kode: "",
-    jenis: "",
+    konstruksi: "",
   });
   const [params] = useSearchParams();
   const isEdit = !!params.id;
@@ -26,7 +26,7 @@ export default function FabricForm() {
       setForm({
         id: params.id,
         kode: colorData.kode,
-        jenis: colorData.jenis,
+        konstruksi: colorData.konstruksi,
       });
     }
   });
@@ -40,10 +40,10 @@ export default function FabricForm() {
           user?.token,
           params.id,
           form().kode,
-          form().jenis
+          form().konstruksi
         );
       } else {
-        await createFabric(user?.token, form().kode, form().jenis);
+        await createFabric(user?.token, form().kode, form().konstruksi);
       }
 
       Swal.fire({
@@ -85,12 +85,12 @@ export default function FabricForm() {
           />
         </div>
         <div>
-          <label class="block mb-1 font-medium">Jenis</label>
+          <label class="block mb-1 font-medium">konstruksi</label>
           <input
             type="text"
             class="w-full border p-2 rounded"
-            value={form().jenis}
-            onInput={(e) => setForm({ ...form(), jenis: e.target.value })}
+            value={form().konstruksi}
+            onInput={(e) => setForm({ ...form(), konstruksi: e.target.value })}
             required
           />
         </div>

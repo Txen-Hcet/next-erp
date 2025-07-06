@@ -1,29 +1,34 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { getAllColors, getUser, softDeleteColor } from "../../utils/auth";
+import {
+  getAllSalesContracts,
+  getUser,
+  softDeleteCustomer,
+  softDeleteSalesContract,
+} from "../../utils/auth";
 import Swal from "sweetalert2";
 
-export default function ColorsList() {
-  const [colors, setColors] = createSignal([]);
+export default function SalesContractList() {
+  const [salesContracts, setSalesContracts] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 10;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(colors().length / pageSize));
+    return Math.max(1, Math.ceil(salesContracts().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return colors().slice(startIndex, startIndex + pageSize);
+    return salesContracts().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus warna?",
-      text: `Apakah kamu yakin ingin menghapus warna dengan ID ${id}?`,
+      title: "Hapus sales contract?",
+      text: `Apakah kamu yakin ingin menghapus sales contract dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -34,22 +39,27 @@ export default function ColorsList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeleteColor(id, tokUser?.token);
+        const deleteCustomer = await softDeleteSalesContract(
+          id,
+          tokUser?.token
+        );
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data warna dengan ID ${id} berhasil dihapus.`,
+          text: `Data sales contract dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
 
         // Optional: update UI setelah hapus
-        setColors(colors().filter((s) => s.id !== id));
+        setSalesContracts(salesContracts().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
           title: "Gagal",
-          text: error.message || `Gagal menghapus data warna dengan ID ${id}`,
+          text:
+            error.message ||
+            `Gagal menghapus data sales contract dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",
@@ -58,58 +68,89 @@ export default function ColorsList() {
     }
   };
 
-  const handleGetAllColors = async (tok) => {
-    const getDataColors = await getAllColors(tok);
+  const handleGetAllSalesContracts = async (tok) => {
+    const getDataSalesContracts = await getAllSalesContracts(tok);
 
-    if (getDataColors.status === 200) {
-      const sortedData = getDataColors.warna.sort((a, b) => a.id - b.id);
-      setColors(sortedData);
+    console.log(getDataSalesContracts);
+
+    if (getDataSalesContracts.status === 200) {
+      const sortedData = getDataSalesContracts.contracts.sort(
+        (a, b) => a.id - b.id
+      );
+      setSalesContracts(sortedData);
     }
   };
 
+  function formatTanggalIndo(tanggalString) {
+    const tanggal = new Date(tanggalString);
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+
+    const tanggalNum = tanggal.getDate();
+    const bulan = bulanIndo[tanggal.getMonth()];
+    const tahun = tanggal.getFullYear();
+
+    return `${tanggalNum} ${bulan} ${tahun}`;
+  }
+
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllColors(tokUser?.token);
+      handleGetAllSalesContracts(tokUser?.token);
     }
   });
+
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Warna</h1>
+        <h1 class="text-2xl font-bold">Daftar Sales Contract</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/colors/form")}
+          onClick={() => navigate("/salescontract/form")}
         >
-          + Tambah Warna
+          + Tambah Sales Contract
         </button>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-white shadow-md rounded">
+      <div class="w-full overflow-x-auto">
+        <table class="w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">Kode</th>
-              <th class="py-2 px-2">Deskripsi</th>
-              <th class="py-2 px-2">Aksi</th>
+              <th class="py-2 px-2">No Pesanan</th>
+              <th class="py-2 px-2">Tanggal</th>
+              <th class="py-2 px-2">Nama Customer</th>
+              <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedData().map((color) => (
-              <tr class="border-b" key={color.id}>
-                <td class="py-2 px-4">{color.id}</td>
-                <td class="py-2 px-4">{color.kode}</td>
-                <td class="py-2 px-4">{color.deskripsi}</td>
+            {paginatedData().map((sc, index) => (
+              <tr class="border-b" key={sc.id}>
+                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">{sc.no_pesan}</td>
+                <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
+                <td class="py-2 px-4">{sc.customer_name}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/colors/form?id=${color.id}`)}
+                    onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
                   >
                     Edit
                   </button>
                   <button
                     class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(color.id)}
+                    onClick={() => handleDelete(sc.id)}
                   >
                     Hapus
                   </button>

@@ -97,8 +97,8 @@ export default function FabricsList() {
             {paginatedData().map((fabric) => (
               <tr class="border-b" key={fabric.id}>
                 <td class="py-2 px-4">{fabric.id}</td>
-                <td class="py-2 px-4">{fabric.kode}</td>
-                <td class="py-2 px-4">{fabric.jenis}</td>
+                <td class="py-2 px-4">{fabric.corak}</td>
+                <td class="py-2 px-4">{fabric.konstruksi}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
