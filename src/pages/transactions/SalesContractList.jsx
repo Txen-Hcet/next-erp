@@ -8,13 +8,14 @@ import {
   softDeleteSalesContract,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function SalesContractList() {
   const [salesContracts, setSalesContracts] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(salesContracts().length / pageSize));
@@ -70,8 +71,6 @@ export default function SalesContractList() {
 
   const handleGetAllSalesContracts = async (tok) => {
     const getDataSalesContracts = await getAllSalesContracts(tok);
-
-    console.log(getDataSalesContracts);
 
     if (getDataSalesContracts.status === 200) {
       const sortedData = getDataSalesContracts.contracts.sort(
@@ -131,28 +130,36 @@ export default function SalesContractList() {
               <th class="py-2 px-2">No Pesanan</th>
               <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">Nama Customer</th>
+              <th class="py-2 px-2">Corak</th>
+              <th class="py-2 px-2">Qty</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {paginatedData().map((sc, index) => (
               <tr class="border-b" key={sc.id}>
-                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{sc.no_pesan}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
                 <td class="py-2 px-4">{sc.customer_name}</td>
+                <td class="py-2 px-4">PE-304</td>
+                <td class="py-2 px-4 text-red-500">
+                  20.000 <span class="text-black">/ 50.000</span>
+                </td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(sc.id)}
                   >
-                    Hapus
+                    <Trash size={25} />
                   </button>
                 </td>
               </tr>

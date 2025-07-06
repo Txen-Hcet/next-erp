@@ -66,13 +66,13 @@ export default function OrdersList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/orders/form?id=${order.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(order.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

@@ -7,13 +7,14 @@ import {
   softDeleteSalesOrder,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function SalesOrderList() {
   const [salesOrders, setSalesOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(salesOrders().length / pageSize));
@@ -98,15 +99,11 @@ export default function SalesOrderList() {
       "Desember",
     ];
 
-    const hari = hariIndo[tanggal.getDay()];
     const tanggalNum = tanggal.getDate();
     const bulan = bulanIndo[tanggal.getMonth()];
     const tahun = tanggal.getFullYear();
 
-    const jam = tanggal.getHours().toString().padStart(2, "0");
-    const menit = tanggal.getMinutes().toString().padStart(2, "0");
-
-    return `${hari}, ${tanggalNum} ${bulan} ${tahun} pk ${jam}:${menit}`;
+    return `${tanggalNum} ${bulan} ${tahun}`;
   }
 
   createEffect(() => {
@@ -134,10 +131,8 @@ export default function SalesOrderList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Sales Order</th>
               <th class="py-2 px-2">Tanggal Pembuatan SO</th>
-              <th class="py-2 px-2">Tanggal Pengiriman</th>
-              <th class="py-2 px-2">No Pesanan</th>
+              <th class="py-2 px-2">No Sales Contract</th>
               <th class="py-2 px-4">Nama Customer</th>
-              <th class="py-2 px-4">Dibuat Oleh</th>
               <th class="py-2 px-4">Total Nilai</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
@@ -145,13 +140,13 @@ export default function SalesOrderList() {
           <tbody>
             {paginatedData().map((so, index) => (
               <tr class="border-b" key={so.id}>
-                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{so.no_so}</td>
-                <td class="py-2 px-4">{formatTanggalIndo(so.tanggal)}</td>
-                <td class="py-2 px-4">{formatTanggalIndo(so.delivery_date)}</td>
+                <td class="py-2 px-4">{formatTanggalIndo(so.created_at)}</td>
                 <td class="py-2 px-4">{so.no_pesan}</td>
                 <td class="py-2 px-4">{so.customer_name}</td>
-                <td class="py-2 px-4">{so.created_by_name}</td>
                 <td class="py-2 px-4">
                   {new Intl.NumberFormat("id-ID", {
                     style: "currency",
@@ -164,13 +159,13 @@ export default function SalesOrderList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/salesorder/form?id=${so.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(so.id)}
                   >
-                    Hapus
+                    <Trash size={25} />
                   </button>
                 </td>
               </tr>

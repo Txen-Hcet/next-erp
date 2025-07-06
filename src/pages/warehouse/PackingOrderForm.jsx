@@ -535,7 +535,7 @@ export default function PackingOrderForm() {
                     class="text-red-600 hover:text-red-800 text-xs"
                     onClick={() => removeItem(i)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

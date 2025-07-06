@@ -7,13 +7,14 @@ import {
   softDeletePackingOrder,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function PackingOrderList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(packingOrders().length / pageSize));
@@ -133,7 +134,9 @@ export default function PackingOrderList() {
           <tbody>
             {paginatedData().map((sc, index) => (
               <tr class="border-b" key={sc.id}>
-                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{sc.no_pesan}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
                 <td class="py-2 px-4">{sc.customer_name}</td>
@@ -142,13 +145,13 @@ export default function PackingOrderList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/packingorder/form?id=${sc.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(sc.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

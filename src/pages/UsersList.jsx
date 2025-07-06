@@ -9,7 +9,7 @@ export default function UsersList() {
   const navigate = useNavigate();
   const user = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(users().length / pageSize));

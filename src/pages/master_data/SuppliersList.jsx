@@ -3,13 +3,14 @@ import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import { getAllSuppliers, getUser, softDeleteSupplier } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function SuppliersList() {
   const [suppliers, setSuppliers] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(suppliers().length / pageSize));
@@ -111,7 +112,6 @@ export default function SuppliersList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-4">Kode Supplier</th>
-              <th class="py-2 px-4">Alias</th>
               <th class="py-2 px-4">Nama</th>
               <th class="py-2 px-4">No Telp</th>
               <th class="py-2 px-4">No HP</th>
@@ -120,30 +120,65 @@ export default function SuppliersList() {
             </tr>
           </thead>
           <tbody>
-            {paginatedData().map((supp) => (
+            {paginatedData().map((supp, index) => (
               <tr class="border-b" key={supp.id}>
                 {/* ✅ FIX #5: tambahin align-top supaya baris table stabil */}
-                <td class="py-2 px-4 align-top">{supp.id}</td>
-                <td class="py-2 px-4 align-top">{supp.kode}</td>
-                <td class="py-2 px-4 align-top">{supp.alias}</td>
-                <td class="py-2 px-4 align-top">{supp.nama}</td>
                 <td class="py-2 px-4 align-top">
-                  {formatPhoneNumber(supp.no_telp)}
+                  {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4 align-top">{supp.no_hp}</td>
-                <td class="py-2 px-4 align-top">{supp.alamat}</td>
+                <td class="py-2 px-4 align-top">{supp.kode}</td>
+                <td
+                  class="py-2 px-4 align-top max-w-[150px] tooltip-container"
+                  data-full-text={supp.nama}
+                >
+                  <span class="truncate-text">
+                    {supp.nama.length > 20
+                      ? supp.nama.substring(0, 17) + "..."
+                      : supp.nama}
+                  </span>
+                </td>
+                <td
+                  class="py-2 px-4 align-top max-w-[150px] tooltip-container"
+                  data-full-text={formatPhoneNumber(supp.no_telp)}
+                >
+                  <span class="truncate-text">
+                    {formatPhoneNumber(supp.no_telp).length > 20
+                      ? formatPhoneNumber(supp.no_telp).substring(0, 17) + "..."
+                      : formatPhoneNumber(supp.no_telp)}
+                  </span>
+                </td>
+                <td
+                  class="py-2 px-4 align-top max-w-[150px] tooltip-container"
+                  data-full-text={supp.no_hp}
+                >
+                  <span class="truncate-text">
+                    {supp.no_hp.length > 20
+                      ? supp.no_hp.substring(0, 17) + "..."
+                      : supp.no_hp}
+                  </span>
+                </td>
+                <td
+                  class="py-2 px-4 align-top max-w-[150px] tooltip-container"
+                  data-full-text={supp.alamat}
+                >
+                  <span class="truncate-text">
+                    {supp.alamat.length > 20
+                      ? supp.alamat.substring(0, 17) + "..."
+                      : supp.alamat}
+                  </span>
+                </td>
                 <td class="py-2 px-4 align-top space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/suppliers/form?id=${supp.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(supp.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

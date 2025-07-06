@@ -13,3 +13,64 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* Tooltip Container (td) - Hapus overflow: hidden dari sini */
+.tooltip-container {
+  position: relative; /* Penting untuk posisi tooltip */
+  cursor: help;
+  /* max-w-[150px] sudah di Tailwind class, jadi tidak perlu di sini */
+}
+
+/* Styling untuk teks yang terpotong di dalam <td> */
+.truncate-text {
+  display: block; /* atau inline-block */
+  white-space: nowrap; /* Mencegah teks membungkus */
+  overflow: hidden; /* Menyembunyikan bagian teks yang meluap */
+  text-overflow: ellipsis; /* Menambahkan '...' pada teks yang terpotong */
+  /* Penting: max-width ini bisa kamu sesuaikan atau biarkan max-w-[150px] di td yang mengontrol */
+  /* Kalau mau lebih presisi, tambahkan max-width di sini juga, misalnya: */
+  /* max-width: 140px; */ /* Sedikit kurang dari 150px td agar ada padding */
+}
+
+/* Tooltip Text (hidden by default) - ini tetap sama */
+.tooltip-container::before {
+  content: attr(data-full-text);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 1000; /* Pastikan z-index tinggi agar muncul di atas segalanya */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  pointer-events: none; /* Penting agar tidak menghalangi interaksi */
+}
+
+/* Tooltip Arrow (optional) - ini tetap sama */
+.tooltip-container::after {
+  content: "";
+  position: absolute;
+  bottom: calc(100% - 5px);
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background-color: #333;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  pointer-events: none;
+}
+
+/* Show tooltip on hover - ini tetap sama */
+.tooltip-container:hover::before,
+.tooltip-container:hover::after {
+  opacity: 1;
+  visibility: visible;
+}

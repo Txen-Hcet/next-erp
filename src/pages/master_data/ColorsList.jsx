@@ -3,13 +3,14 @@ import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import { getAllColors, getUser, softDeleteColor } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function ColorsList() {
   const [colors, setColors] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(colors().length / pageSize));
@@ -95,9 +96,11 @@ export default function ColorsList() {
             </tr>
           </thead>
           <tbody>
-            {paginatedData().map((color) => (
+            {paginatedData().map((color, index) => (
               <tr class="border-b" key={color.id}>
-                <td class="py-2 px-4">{color.id}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{color.kode}</td>
                 <td class="py-2 px-4">{color.deskripsi}</td>
                 <td class="py-2 px-4 space-x-2">
@@ -105,13 +108,13 @@ export default function ColorsList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/colors/form?id=${color.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(color.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

@@ -47,13 +47,13 @@ export default function TransactionsList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/transactions/form?id=${tx.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(tx.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

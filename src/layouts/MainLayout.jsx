@@ -149,7 +149,7 @@ export default function MainLayout(props) {
   };
 
   return (
-    <div class="flex h-screen">
+    <div class="flex h-screen font-mono">
       {/* Sidebar */}
 
       <aside
@@ -191,6 +191,18 @@ export default function MainLayout(props) {
                 </li>
                 <li>
                   <A
+                    href="/users"
+                    class={`block p-4 hover:bg-gray-700 ${
+                      location.pathname === "/users"
+                        ? "bg-gray-700 text-white"
+                        : ""
+                    }`}
+                  >
+                    Users
+                  </A>
+                </li>
+                {/* <li>
+                  <A
                     href="/orders"
                     class={`block p-4 hover:bg-gray-700 ${
                       location.pathname === "/orders"
@@ -200,7 +212,7 @@ export default function MainLayout(props) {
                   >
                     Pesanan
                   </A>
-                </li>
+                </li> */}
                 <li>
                   <button
                     class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
@@ -226,7 +238,8 @@ export default function MainLayout(props) {
                       <A
                         href="/salescontract"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salescontract"
+                          location.pathname === "/salescontract" ||
+                          location.pathname === "/salescontract/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -238,7 +251,8 @@ export default function MainLayout(props) {
                       <A
                         href="/salesorder"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salesorder"
+                          location.pathname === "/salesorder" ||
+                          location.pathname === "/salesorder/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -273,7 +287,8 @@ export default function MainLayout(props) {
                       <A
                         href="/packingorder"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/packingorder"
+                          location.pathname === "/packingorder" ||
+                          location.pathname === "/packingorder/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -283,19 +298,6 @@ export default function MainLayout(props) {
                     </li>
                   </ul>
                 </li>
-                <li>
-                  <A
-                    href="/users"
-                    class={`block p-4 hover:bg-gray-700 ${
-                      location.pathname === "/users"
-                        ? "bg-gray-700 text-white"
-                        : ""
-                    }`}
-                  >
-                    Users
-                  </A>
-                </li>
-
                 {/* Master Data Toggle */}
                 <li>
                   <button
@@ -318,7 +320,8 @@ export default function MainLayout(props) {
                       <A
                         href="/suppliers"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/suppliers"
+                          location.pathname === "/suppliers" ||
+                          location.pathname === "/suppliers/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -330,7 +333,8 @@ export default function MainLayout(props) {
                       <A
                         href="/customers"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/customers"
+                          location.pathname === "/customers" ||
+                          location.pathname === "/customers/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -342,7 +346,8 @@ export default function MainLayout(props) {
                       <A
                         href="/colors"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/colors"
+                          location.pathname === "/colors" ||
+                          location.pathname === "/colors/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -354,7 +359,8 @@ export default function MainLayout(props) {
                       <A
                         href="/fabrics"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/fabrics"
+                          location.pathname === "/fabrics" ||
+                          location.pathname === "/fabrics/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -366,7 +372,8 @@ export default function MainLayout(props) {
                       <A
                         href="/so-type"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/so-type"
+                          location.pathname === "/so-type" ||
+                          location.pathname === "/so-type/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -378,7 +385,8 @@ export default function MainLayout(props) {
                       <A
                         href="/customer-type"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/customer-type"
+                          location.pathname === "/customer-type" ||
+                          location.pathname === "/customer-type/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -390,7 +398,8 @@ export default function MainLayout(props) {
                       <A
                         href="/currencies"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/currencies"
+                          location.pathname === "/currencies" ||
+                          location.pathname === "/currencies/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}

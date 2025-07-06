@@ -7,13 +7,14 @@ import {
   softDeleteCurrencies,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function CurrenciesList() {
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currencies, setCurrencies] = createSignal([]);
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(currencies().length / pageSize));
@@ -101,20 +102,22 @@ export default function CurrenciesList() {
           <tbody>
             {paginatedData().map((curr, index) => (
               <tr class="border-b" key={curr.id}>
-                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{curr.name}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/currencies/form?id=${curr.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(curr.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>

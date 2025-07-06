@@ -3,13 +3,14 @@ import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import { getAllCustomers, getUser, softDeleteCustomer } from "../../utils/auth";
 import Swal from "sweetalert2";
+import { Edit, Trash } from "lucide-solid";
 
 export default function CustomerList() {
   const [customers, setCustomers] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const pageSize = 10;
+  const pageSize = 20;
 
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(customers().length / pageSize));
@@ -114,7 +115,9 @@ export default function CustomerList() {
           <tbody>
             {paginatedData().map((cust, index) => (
               <tr class="border-b" key={cust.id}>
-                <td class="py-2 px-4">{index + 1}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{cust.alias}</td>
                 <td class="py-2 px-4">{cust.nama}</td>
                 <td class="py-2 px-4">{cust.customer_type_id}</td>
@@ -134,13 +137,13 @@ export default function CustomerList() {
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/customers/form?id=${cust.id}`)}
                   >
-                    Edit
+                    <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(cust.id)}
                   >
-                    Hapus
+                   <Trash size={25} />
                   </button>
                 </td>
               </tr>
