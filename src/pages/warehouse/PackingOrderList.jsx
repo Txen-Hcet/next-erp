@@ -68,7 +68,8 @@ export default function PackingOrderList() {
   const handleGetAllpackingOrders = async (tok) => {
     const getDatapackingOrders = await getAllPackingOrders(tok);
 
-    console.log(getDatapackingOrders);
+    const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
+    setPackingOrders(sortedData);
 
     if (getDatapackingOrders.status === 200) {
       const sortedData = getDatapackingOrders.contracts.sort(
@@ -126,7 +127,9 @@ export default function PackingOrderList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Sales Order</th>
+              <th class="py-2 px-2">No Packing List</th>
               <th class="py-2 px-2">Col</th>
+              <th class="py-2 px-2">Tanggal Dibuat</th>
               <th class="py-2 px-2">Catatan</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
@@ -137,9 +140,11 @@ export default function PackingOrderList() {
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_pesan}</td>
+                <td class="py-2 px-4">{sc.no_so}</td>
+                <td class="py-2 px-4">{sc.no_pl}</td>
+                <td class="py-2 px-4">{sc.col}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
-                <td class="py-2 px-4">{sc.customer_name}</td>
+                <td class="py-2 px-4">{sc.catatan}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
@@ -151,7 +156,7 @@ export default function PackingOrderList() {
                     class="text-red-600 hover:underline"
                     onClick={() => handleDelete(sc.id)}
                   >
-                   <Trash size={25} />
+                    <Trash size={25} />
                   </button>
                 </td>
               </tr>

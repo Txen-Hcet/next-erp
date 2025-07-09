@@ -4,6 +4,9 @@ import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
   createSalesOrder,
+  getAllColors,
+  getAllFabrics,
+  getAllGrades,
   getAllSalesContracts,
   getAllSatuanUnits,
   getAllSOTypes,
@@ -49,6 +52,50 @@ export default function SalesOrderForm() {
     items: [],
   });
 
+  createEffect(async () => {
+    const fabrics = await getAllFabrics(user?.token);
+    const colors = await getAllColors(user?.token);
+    const grades = await getAllGrades(user?.token);
+
+    setFabricOptions(
+      fabrics?.kain.map((f) => ({
+        value: f.id,
+        label: f.corak + " | " + f.konstruksi,
+      })) || ["Pilih"]
+    );
+
+    setColorOptions(
+      colors?.warna.map((c) => ({
+        value: c.id,
+        label: c.kode + " | " + c.deskripsi,
+      })) || ["Pilih"]
+    );
+
+    setGradeOptions(
+      grades?.data.map((g) => ({
+        value: g.id,
+        label: g.grade,
+      })) || ["Pilih"]
+    );
+
+    const no_so = form().no_so;
+
+    if (no_so) {
+      const huruf = no_so.split("/")[1];
+      const angka = no_so.split("/")[3]?.split("-")[1];
+
+      console.log("huruf ➔", huruf);
+      console.log("angka ➔", angka);
+
+      // contoh masukkan ke form
+      setForm({
+        ...form(),
+        type: huruf,
+        sequence_number: angka,
+      });
+    }
+  });
+
   onMount(async () => {
     const getSalesContracts = await getAllSalesContracts(user?.token);
     setSalesContracts(getSalesContracts.contracts);
@@ -62,7 +109,7 @@ export default function SalesOrderForm() {
     setSalesOrderNumber(getLatestDataSalesContract.last_sequence);
 
     const getDataUnitTypes = await getAllSatuanUnits(user?.token);
-    setUnitsType(getDataUnitTypes);
+    setUnitsType(getDataUnitTypes.data);
 
     if (isEdit) {
       const res = await getSalesOrders(params.id, user?.token);
@@ -74,8 +121,8 @@ export default function SalesOrderForm() {
       // Normalize items
       const normalizedItems = (salesOrders.items || []).map((item, idx) => ({
         id: idx + 1,
-        kain_id: item.kain_id ?? null,
-        warna_id: item.warna_id ?? null,
+        kain_id: item.kain_id ?? "",
+        warna_id: item.warna_id ?? "",
         keterangan: item.keterangan ?? "",
         grade: item.grade ?? "",
         lebar: item.lebar ? parseFloat(item.lebar) : null,
@@ -85,7 +132,7 @@ export default function SalesOrderForm() {
         kilogram_total: item.kilogram_total
           ? parseFloat(item.kilogram_total)
           : null,
-        harga: item.harga ? parseInt(item.harga) : null,
+        harga: item.harga ? parseFloat(item.harga) : null,
         status: item.status ?? "",
       }));
 
@@ -105,6 +152,8 @@ export default function SalesOrderForm() {
         catatan: salesOrders.termin ?? "",
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
+
+      fetchSalesContractDetail(salesOrders.sales_contract_id);
 
       // console.log("🚀 FORM DATA:", {
       //   ...salesOrders,
@@ -131,11 +180,14 @@ export default function SalesOrderForm() {
   const isYard = () => selectedUnitId() === 2;
   const isKilogram = () => selectedUnitId() === 3;
 
-  const isFieldEditable = (field) => {
-    if (field === "meter_total") return isMeter();
-    if (field === "yard_total") return isYard();
-    if (field === "kilogram_total") return isKilogram();
-    return true;
+  const isItemFieldEditable = (field) => {
+    if (field === "warna_id") return true;
+
+    if (field === "meter_total" && isMeter()) return true;
+    if (field === "yard_total" && isYard()) return true;
+    if (field === "kilogram_total" && isKilogram()) return true;
+
+    return false;
   };
 
   const fetchSalesContractDetail = async (id) => {
@@ -147,17 +199,34 @@ export default function SalesOrderForm() {
     try {
       const res = await getSalesContracts(id, user.token);
 
-      console.log(res.response);
-
       const custDetail = res.response || "";
 
       const { huruf, nomor } = parseNoPesan(res.response?.no_pesan);
 
+      // --- NEW: Map items from Sales Contract ---
+      const scItems = (custDetail.items || []).map((item, index) => ({
+        id: index + 1,
+        kain_id: item.kain_id ?? null,
+        warna_id: item.warna_id ?? null,
+        keterangan: item.keterangan ?? "",
+        grade: item.grade ?? "",
+        lebar: item.lebar ? parseFloat(item.lebar) : null,
+        gramasi: item.gramasi ? parseFloat(item.gramasi) : null,
+        meter_total: isMeter() ? 0 : null,
+        yard_total: isYard() ? 0 : null,
+        kilogram_total: isKilogram() ? 0 : null,
+        harga: item.harga ? parseFloat(item.harga) : null,
+        status: "",
+      }));
+
+      // Update detail SC
       setSelectedContractDetail({
         data: res.response,
         jenis_cust_sc: huruf,
         nomor_sc: nomor,
       });
+
+      // Set header fields + items
       handleSalesContractChange(
         huruf,
         nomor,
@@ -167,7 +236,8 @@ export default function SalesOrderForm() {
         Number(custDetail.termin),
         Number(custDetail.ppn_percent),
         custDetail.satuan_unit_id,
-        custDetail.catatan
+        custDetail.catatan,
+        scItems // <<< kirim scItems ke handleSalesContractChange
       );
     } catch (err) {
       console.error("❌ Error fetchSalesContractDetail:", err);
@@ -183,7 +253,8 @@ export default function SalesOrderForm() {
     termin,
     ppn,
     satuanUnitId,
-    catatan
+    catatan,
+    items = [] // <<< default empty
   ) => {
     const now = new Date();
     const bulan = String(now.getMonth() + 1).padStart(2, "0");
@@ -192,10 +263,9 @@ export default function SalesOrderForm() {
     const lastNumber = salesOrderNumber();
     const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
 
-    // Bentuk nomor sales contract
     const noSalesOrder = `SO/${jenisCust}/${bulan}${tahun.slice(
       2
-    )}/${nomorSc}/${nextNumber}`;
+    )}/${nomorSc}-${nextNumber}`;
 
     setForm({
       ...form(),
@@ -207,6 +277,7 @@ export default function SalesOrderForm() {
       ppn: ppn,
       satuan_unit: satuanUnitId,
       catatan: catatan,
+      items: items.length > 0 ? items : [], // <<< masukkan items ke form
     });
   };
 
@@ -547,10 +618,12 @@ export default function SalesOrderForm() {
             </div>
           </div>
           <div>
-            <label class="block mb-1 font-medium">Satuan Unit</label>
+            <label class="block mb-1 font-medium">
+              Satuan Unit {String(form().satuan_unit)}
+            </label>
             <select
-              class="w-full border p-2 rounded"
-              value={form().satuan_unit}
+              class="w-full border p-2 rounded bg-gray-300"
+              value={String(form().satuan_unit)}
               onChange={(e) => {
                 const satuan_unit = parseInt(e.target.value);
 
@@ -560,20 +633,17 @@ export default function SalesOrderForm() {
 
                     f.items.forEach((itm) => {
                       if (satuan_unit === 1) {
-                        // Meter
                         itm.meter_total = 0;
-                        itm.yard_total = meterToYard(0);
-                        itm.kilogram_total = 0;
+                        itm.yard_total = null;
+                        itm.kilogram_total = null;
                       } else if (satuan_unit === 2) {
-                        // Yard
                         itm.yard_total = 0;
-                        itm.meter_total = yardToMeter(0);
-                        itm.kilogram_total = 0;
+                        itm.meter_total = null;
+                        itm.kilogram_total = null;
                       } else if (satuan_unit === 3) {
-                        // Kilogram
                         itm.kilogram_total = 0;
-                        itm.meter_total = 0;
-                        itm.yard_total = 0;
+                        itm.meter_total = null;
+                        itm.yard_total = null;
                       }
                     });
                   })
@@ -661,36 +731,47 @@ export default function SalesOrderForm() {
                     type: "number",
                     step: "0.01",
                   },
-                  { label: "Harga", field: "harga", type: "number" },
+                  { label: "Harga", field: "harga", type: "text" },
                 ].map(({ label, field, type, step }) => (
                   <td class="border px-2 py-1">
                     {["kain_id", "warna_id", "grade"].includes(field) ? (
-                      <select
-                        class="border p-1 rounded w-full text-sm"
-                        value={item[field] ?? ""}
-                        onChange={(e) =>
-                          handleItemChange(
-                            i,
-                            field,
-                            field === "grade"
-                              ? e.target.value
-                              : Number(e.target.value)
-                          )
-                        }
-                        required
-                      >
-                        <option value="">Pilih Item</option>
-                        {getDropdownOptions(field).map((opt) => (
-                          <option value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
+                      <div>
+                        <select
+                          class="border p-1 rounded w-full text-sm"
+                          value={item[field] ?? ""}
+                          onChange={(e) =>
+                            handleItemChange(
+                              i,
+                              field,
+                              field === "grade"
+                                ? e.target.value
+                                : Number(e.target.value)
+                            )
+                          }
+                          required
+                          disabled={!isItemFieldEditable(field)}
+                        >
+                          <option value="">Pilih Item</option>
+                          {getDropdownOptions(field).map((opt) => (
+                            <option value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+
+                        {!isItemFieldEditable(field) && (
+                          <input
+                            type="hidden"
+                            name={`items[${i}][${field}]`}
+                            value={item[field] ?? ""}
+                          />
+                        )}
+                      </div>
                     ) : (
                       <input
                         type={type}
                         step={step}
                         placeholder={label}
                         class={`border p-1 rounded w-full text-sm ${
-                          !isFieldEditable(field)
+                          !isItemFieldEditable(field)
                             ? "bg-gray-200 text-gray-500"
                             : ""
                         }`}
@@ -705,9 +786,9 @@ export default function SalesOrderForm() {
                             ? formatIDR(item[field])
                             : item[field] ?? ""
                         }
-                        readOnly={!isFieldEditable(field)}
+                        readOnly={!isItemFieldEditable(field)}
                         onInput={(e) => {
-                          if (isFieldEditable(field)) {
+                          if (isItemFieldEditable(field)) {
                             handleItemChange(
                               i,
                               field,
