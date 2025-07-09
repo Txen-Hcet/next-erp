@@ -67,12 +67,8 @@ export default function GradeList() {
   const handleGetAllgrade = async (tok) => {
     const getDataGrades = await getAllGrades(tok);
 
-    const sortedData = getDataGrades.sort((a, b) => a.id - b.id);
-
-    setGrade(sortedData);
-
     if (getDataGrades.status === 200) {
-      const sortedData = getDataGrades.warna.sort((a, b) => a.id - b.id);
+      const sortedData = getDataGrades.data.sort((a, b) => a.id - b.id);
       setGrade(sortedData);
     }
   };

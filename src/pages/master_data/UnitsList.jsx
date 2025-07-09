@@ -65,13 +65,10 @@ export default function UnitsList() {
   };
 
   const handleGetAllUnits = async (tok) => {
-    const getDataColors = await getAllSatuanUnits(tok);
+    const getDataSatuanUnits = await getAllSatuanUnits(tok);
 
-    const sortedData = getDataColors.sort((a, b) => a.id - b.id);
-    setUnits(sortedData);
-
-    if (getDataColors.status === 200) {
-      const sortedData = getDataColors.satuan.sort((a, b) => a.id - b.id);
+    if (getDataSatuanUnits.status === 200) {
+      const sortedData = getDataSatuanUnits.data.sort((a, b) => a.id - b.id);
       setUnits(sortedData);
     }
   };

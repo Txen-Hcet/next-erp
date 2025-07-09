@@ -72,6 +72,8 @@ export default function SalesContractList() {
   const handleGetAllSalesContracts = async (tok) => {
     const getDataSalesContracts = await getAllSalesContracts(tok);
 
+    console.log(getDataSalesContracts)
+
     if (getDataSalesContracts.status === 200) {
       const sortedData = getDataSalesContracts.contracts.sort(
         (a, b) => a.id - b.id

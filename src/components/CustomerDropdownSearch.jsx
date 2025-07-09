@@ -74,7 +74,7 @@ export default function CustomerDropdownSearch({
                 class="p-2 hover:bg-blue-100 cursor-pointer"
                 onClick={() => selectCustomer(cust)}
               >
-                {cust.kode} - {cust.alias} - {cust.nama}
+                {cust.kode} - {cust.kode} - {cust.nama}
               </div>
             ))
           ) : (

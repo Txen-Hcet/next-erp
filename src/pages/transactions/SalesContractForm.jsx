@@ -59,7 +59,7 @@ export default function SalesContractForm() {
     );
 
     setGradeOptions(
-      grades?.map((g) => ({
+      grades?.data.map((g) => ({
         value: g.id,
         label: g.grade,
       })) || ["Pilih"]
@@ -69,9 +69,10 @@ export default function SalesContractForm() {
   const [form, setForm] = createSignal({
     no_pesan: "",
     po_cust: "-",
+    validity_contract: "",
     tanggal: "",
     customer_id: "",
-    customer_type_id: "",
+    type: "",
     currency_id: "",
     kurs: "",
     termin: "",
@@ -97,7 +98,7 @@ export default function SalesContractForm() {
     setCustomerType(getDataCustomerTypes.data);
 
     const getDataUnitTypes = await getAllSatuanUnits(user?.token);
-    setUnitsType(getDataUnitTypes);
+    setUnitsType(getDataUnitTypes.data);
 
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
@@ -124,13 +125,17 @@ export default function SalesContractForm() {
         status: item.status ?? "",
       }));
 
+      // console.log(salesContracts);
+
       // Set form
       setForm({
+        type: parseInt(salesContracts.type) ?? "",
         no_pesan: salesContracts.no_pesan ?? "",
         po_cust: salesContracts.po_cust ?? "",
+        validity_contract: salesContracts.validity_contract ?? "",
         tanggal: salesContracts.tanggal?.split("T")[0] ?? "",
         customer_id: salesContracts.customer_id ?? "",
-        customer_type_id: salesContracts.customer_type_id ?? "",
+        type: salesContracts.type ?? "",
         currency_id: salesContracts.currency_id ?? "",
         kurs: parseFloat(salesContracts.kurs) ?? "",
         termin: parseInt(salesContracts.termin) ?? "",
@@ -173,26 +178,43 @@ export default function SalesContractForm() {
   };
 
   const handleCustomerTypeChange = async (customerTypeId) => {
-    let huruf = "";
+    let huruf = "-";
     if (customerTypeId === 1) huruf = "D";
     else if (customerTypeId === 2) huruf = "E";
-    else huruf = "-";
 
-    const now = new Date();
-    const bulan = String(now.getMonth() + 1).padStart(2, "0");
-    const tahun = String(now.getFullYear());
+    let noSalesContract = "";
 
-    const lastNumber = salesContractNumber();
-    const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
+    if (isEdit) {
+      // Ambil no_pesan lama
+      const oldNoPesan = form().no_pesan;
 
-    // Bentuk nomor sales contract
-    const noSalesContract = `SC/${huruf}/${bulan}${tahun.slice(
-      2
-    )}/${nextNumber}`;
+      if (oldNoPesan) {
+        const parts = oldNoPesan.split("/");
+        // contoh: SC/D/0725/00099 → ["SC","D","0725","00099"]
+
+        parts[1] = huruf; // hanya ubah huruf D/E
+
+        noSalesContract = parts.join("/");
+      } else {
+        // fallback kalau no_pesan lama kosong
+        noSalesContract = `SC/${huruf}/-/-`;
+      }
+    } else {
+      // BUAT BARU
+      const now = new Date();
+      const bulan = String(now.getMonth() + 1).padStart(2, "0");
+      const tahun = String(now.getFullYear());
+      const bulanTahun = `${bulan}${tahun.slice(2)}`;
+
+      const lastNumber = salesContractNumber();
+      const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
+
+      noSalesContract = `SC/${huruf}/${bulanTahun}/${nextNumber}`;
+    }
 
     setForm({
       ...form(),
-      customer_type_id: customerTypeId,
+      type: customerTypeId,
       no_pesan: noSalesContract,
     });
   };
@@ -314,11 +336,12 @@ export default function SalesContractForm() {
 
       const payload = {
         ...form(),
-        no_pesan: form().no_pesan,
+        sequence_number: form().sequence_number,
         po_cust: form().po_cust,
+        validity_contract: form().validity_contract,
         tanggal: form().tanggal,
         customer_id: parseInt(form().customer_id),
-        customer_type_id: parseInt(form().customer_type_id),
+        type: parseInt(form().type),
         currency_id: parseInt(form().currency_id),
         kurs: toNum(form().kurs),
         termin: toNum(form().termin),
@@ -339,6 +362,8 @@ export default function SalesContractForm() {
           status: item.status || "",
         })),
       };
+
+      console.log(payload);
 
       if (isEdit) {
         await updateDataSalesContract(user?.token, params.id, payload);
@@ -405,20 +430,20 @@ export default function SalesContractForm() {
             <label class="block mb-1 font-medium">Tipe Customer</label>
             <select
               class="w-full border p-2 rounded"
-              value={form().customer_type_id}
+              value={form().type}
               onChange={(e) => {
                 const customerTypeId = e.target.value;
                 const curr = customerType().find((c) => c.id == customerTypeId);
                 setForm({
                   ...form(),
-                  customer_type_id: customerTypeId,
+                  type: customerTypeId,
                   jenis: curr?.name === "IDR" ? 0 : form().jenis,
                 });
                 handleCustomerTypeChange(Number(e.target.value));
               }}
               required
             >
-              <option value="" disabled hidden={!!form().customer_type_id}>
+              <option value="" disabled hidden={!!form().type}>
                 Pilih Tipe Customer
               </option>
               {customerType().map((curr) => (
@@ -548,6 +573,17 @@ export default function SalesContractForm() {
                 <option value={type.id}>{type.satuan}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label class="block mb-1 font-medium">Validity Contract</label>
+            <input
+              type="date"
+              class="w-full border p-2 rounded"
+              value={form().validity_contract}
+              onInput={(e) =>
+                setForm({ ...form(), validity_contract: e.target.value })
+              }
+            />
           </div>
         </div>
         <div>
