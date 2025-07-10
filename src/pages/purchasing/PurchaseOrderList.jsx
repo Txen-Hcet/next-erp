@@ -9,7 +9,7 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
-export default function DeliveryNoteList() {
+export default function PurchaseOrderList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
@@ -112,7 +112,7 @@ export default function DeliveryNoteList() {
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Surat Jalan</h1>
+        <h1 class="text-2xl font-bold">Daftar Purchase Order</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           onClick={() => navigate("/packingorder/form")}

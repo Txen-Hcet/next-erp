@@ -16,7 +16,7 @@ import {
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { Trash2 } from "lucide-solid";
 
-export default function DeliveryNoteForm() {
+export default function PurchaseOrderForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const navigate = useNavigate();
@@ -247,7 +247,7 @@ export default function DeliveryNoteForm() {
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
-        {isEdit ? "Edit" : "Tambah"} Purchase Order
+        {isEdit ? "Edit" : "Tambah"} Surat Jalan
       </h1>
 
       <form class="space-y-4" onSubmit={handleSubmit}>

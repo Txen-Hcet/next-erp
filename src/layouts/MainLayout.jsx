@@ -11,6 +11,7 @@ export default function MainLayout(props) {
   const [isOpen, setIsOpen] = createSignal(false);
   const [isTransactionOpen, setTransactionIsOpen] = createSignal(false);
   const [isWarehouseIsOpen, setWarehouseIsOpen] = createSignal(false);
+  const [isPurchasingIsOpen, setPurchasingIsOpen] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
   createEffect(() => {
@@ -84,11 +85,22 @@ export default function MainLayout(props) {
       }
 
       if (
-        ["/packingorder", "/packingorder/form"].some((p) =>
+        [
+          "/packingorder",
+          "/packingorder/form",
+          "/deliverynote",
+          "/deliverynote/form",
+        ].some((p) => pathname.startsWith(p))
+      ) {
+        return "warehouse";
+      }
+
+      if (
+        ["/purchaseorder", "/purchaseorder/form"].some((p) =>
           pathname.startsWith(p)
         )
       ) {
-        return "warehouse";
+        return "purchasing";
       }
 
       return "unknown";
@@ -103,6 +115,9 @@ export default function MainLayout(props) {
         break;
       case "warehouse":
         setWarehouseIsOpen(true);
+        break;
+      case "purchasing":
+        setPurchasingIsOpen(true);
         break;
       default:
       // logic unknown
@@ -357,11 +372,11 @@ export default function MainLayout(props) {
                 <li>
                   <button
                     class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
-                    onClick={() => setTransactionIsOpen(!isTransactionOpen())}
+                    onClick={() => setPurchasingIsOpen(!isPurchasingIsOpen())}
                   >
                     Pembelian
                     <span class="text-xs">
-                      {isTransactionOpen() ? "▲" : "▼"}
+                      {isPurchasingIsOpen() ? "▲" : "▼"}
                     </span>
                   </button>
                 </li>
@@ -369,7 +384,7 @@ export default function MainLayout(props) {
                 {/* Submenu with smooth transition */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isTransactionOpen()
+                    isPurchasingIsOpen()
                       ? "max-h-fit opacity-100"
                       : "max-h-0 opacity-0"
                   }`}
@@ -377,10 +392,10 @@ export default function MainLayout(props) {
                   <ul>
                     <li>
                       <A
-                        href="/salescontract"
+                        href="/purchaseorder"
                         class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salescontract" ||
-                          location.pathname === "/salescontract/form"
+                          location.pathname === "/purchaseorder" ||
+                          location.pathname === "/purchaseorder/form"
                             ? "bg-gray-700 text-white"
                             : ""
                         }`}
@@ -471,6 +486,19 @@ export default function MainLayout(props) {
                         }`}
                       >
                         Packing Order
+                      </A>
+                    </li>
+                    <li>
+                      <A
+                        href="/deliverynote"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/deliverynote" ||
+                          location.pathname === "/deliverynote/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Surat Jalan
                       </A>
                     </li>
                   </ul>

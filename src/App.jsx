@@ -33,6 +33,10 @@ import GradeList from "./pages/master_data/GradeList";
 import GradeForm from "./pages/master_data/GradeForm";
 import UnitsList from "./pages/master_data/UnitsList";
 import UnitsForm from "./pages/master_data/UnitsForm";
+import DeliveryNoteList from "./pages/warehouse/DeliveryNoteList";
+import DeliveryNoteForm from "./pages/warehouse/DeliveryNoteForm";
+import PurchaseOrderList from "./pages/purchasing/PurchaseOrderList";
+import PurchaseOrderForm from "./pages/purchasing/PurchaseOrderForm";
 
 function App() {
   return (
@@ -60,7 +64,15 @@ function App() {
       {/* WAREHOUSE */}
       <Route path="/packingorder" component={PackingOrderList} />
       <Route path="/packingorder/form" component={PackingOrderForm} />
+
+      <Route path="/deliverynote" component={DeliveryNoteList} />
+      <Route path="/deliverynote/form" component={DeliveryNoteForm} />
       {/* WAREHOUSE */}
+
+      {/* PURCHASING */}
+      <Route path="/purchaseorder" component={PurchaseOrderList} />
+      <Route path="/purchaseorder/form" component={PurchaseOrderForm} />
+      {/* PURCHASING */}
 
       {/* MASTER DATA */}
       <Route path="/suppliers" component={SuppliersList} />
