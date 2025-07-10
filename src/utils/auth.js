@@ -1676,7 +1676,7 @@ export async function updateDataPackingOrder(token, id, payload) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
-        },
+        }, 
         body: JSON.stringify(payload),
       }
     );
@@ -1713,6 +1713,34 @@ export async function softDeletePackingOrder(id, token) {
       throw new Error(
         data.message ||
           `Gagal menghapus data jenis packing list order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getLastPackingOrder(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/last-packing-list`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data terakhir packing list order"
       );
     }
 
