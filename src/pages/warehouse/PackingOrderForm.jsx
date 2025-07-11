@@ -12,10 +12,12 @@ import {
   getUser,
   getAllSalesOrders,
   getLastPackingOrder,
+  getSalesOrders,
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { Trash2 } from "lucide-solid";
 import PackingOrderPrint from "../print_function/PackingOrderPrint";
+import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
 
 export default function PackingOrderForm() {
   const [params] = useSearchParams();
@@ -30,14 +32,19 @@ export default function PackingOrderForm() {
   const [openStates, setOpenStates] = createSignal([]);
   const [printData, setPrintData] = createSignal(null);
   const [showPreview, setShowPreview] = createSignal(false);
+  const [lastNumberSequence, setLastNumberSequence] = createSignal(false);
+  const [nextSequenceNumber, setNextSequenceNumber] = createSignal(null);
+  const [generatedNoPL, setGeneratedNoPL] = createSignal("");
 
   const [form, setForm] = createSignal({
     type: "",
+    no_pl: "",
     sequence_number: "",
     sales_order_id: "",
     col: "",
     catatan: "",
     itemGroups: [],
+    sales_order_items: [],
   });
 
   // Load dropdowns on mount
@@ -46,10 +53,10 @@ export default function PackingOrderForm() {
     const colors = await getAllColors(user?.token);
     const customers = await getAllCustomers(user?.token);
     const salesOrders = await getAllSalesOrders(user?.token);
-    const getPackingOrderNumber = getLastPackingOrder(user?.token);
+    const getPackingOrderNumber = await getLastPackingOrder(user?.token);
     const currentForm = form();
 
-    console.log(getPackingOrderNumber);
+    setLastNumberSequence(getPackingOrderNumber);
 
     if (currentForm) {
       localStorage.setItem("packing_order_draft", JSON.stringify(currentForm));
@@ -70,7 +77,7 @@ export default function PackingOrderForm() {
     );
 
     setCustomersList(customers?.customers || []);
-    setSalesOrderList(salesOrders?.data || []);
+    setSalesOrderList(salesOrders?.orders || []);
 
     localStorage.setItem("packing_order_draft", JSON.stringify(form()));
   });
@@ -86,27 +93,78 @@ export default function PackingOrderForm() {
       const packingOrder = res?.response;
       if (!packingOrder) return;
 
-      const normalizedItems = (packingOrder.itemGroups || []).map(
-        (group, idx) => ({
-          id: idx + 1,
+      const items = packingOrder.sales_order_items || [];
+
+      setForm((prev) => ({
+        ...prev,
+        sales_order_items: items,
+        sales_order_id: packingOrder.sales_order_id,
+        no_pl: packingOrder.no_pl,
+        sequence_number: packingOrder.sequence_number,
+        type:
+          packingOrder.type === "domestik"
+            ? 1
+            : packingOrder.type === "ekspor"
+            ? 2
+            : "",
+        col: packingOrder.col,
+        catatan: packingOrder.catatan,
+        itemGroups: (packingOrder.itemGroups || []).map((group) => ({
           sales_order_item_id: group.sales_order_item_id,
           rolls: group.rolls.map((r) => ({
             meter_total: r.meter_total,
             yard_total: r.yard_total,
           })),
-        })
-      );
-
-      setForm({
-        type: packingOrder.type,
-        sequence_number: packingOrder.sequence_number,
-        sales_order_id: packingOrder.sales_order_id,
-        col: packingOrder.col,
-        catatan: packingOrder.catatan,
-        itemGroups: normalizedItems,
-      });
+        })),
+      }));
     }
   });
+
+  const handleSalesOrderChange = async (selectedSO) => {
+    if (!selectedSO?.no_so || !lastNumberSequence()?.last_sequence) return;
+
+    const soTypeLetter = selectedSO.no_so.split("/")[1];
+    let typeValue = "";
+    if (soTypeLetter === "E") {
+      typeValue = 2;
+    } else if (soTypeLetter === "D") {
+      typeValue = 1;
+    }
+
+    const nextSequence = (lastNumberSequence()?.last_sequence || 0) + 1;
+    const generatedNoPL = generatePackingListNumber(typeValue, nextSequence);
+
+    // ⬇️ Ambil detail sales order by ID
+    const res = await getSalesOrders(selectedSO.id, user?.token);
+    const selectedOrder = res?.response;
+    const salesOrderItems = selectedOrder?.items || [];
+
+    console.log(salesOrderItems);
+
+    setForm({
+      ...form(),
+      sales_order_id: selectedSO.id,
+      type: typeValue,
+      no_pl: generatedNoPL,
+      sequence_number: nextSequence,
+      sales_order_items: salesOrderItems,
+    });
+  };
+
+  const generatePackingListNumber = (type, sequence) => {
+    if (!type) return "";
+
+    const typeLetter = type == 1 ? "D" : type == 2 ? "E" : "";
+
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = String(now.getFullYear()).slice(-2);
+
+    const mmyy = `${month}${year}`;
+    const nextNumber = String(sequence).padStart(5, "0");
+
+    return `PL/${typeLetter}/${mmyy}-${nextNumber}`;
+  };
 
   const meterToYard = (m) => {
     if (!m || isNaN(m)) return "";
@@ -210,10 +268,14 @@ export default function PackingOrderForm() {
     e.preventDefault();
 
     const payload = {
-      ...form(),
-      sequence_number: Number(form().sequence_number),
+      type: form().type == 1 ? "domestik" : form().type == 2 ? "ekspor" : "",
+      sequence_number:
+        form().sequence_number === "" || form().sequence_number == null
+          ? null
+          : Number(form().sequence_number),
       sales_order_id: Number(form().sales_order_id),
       col: Number(form().col),
+      catatan: form().catatan,
       itemGroups: form().itemGroups.map((g) => ({
         sales_order_item_id: Number(g.sales_order_item_id),
         rolls: g.rolls.map((r) => ({
@@ -247,6 +309,17 @@ export default function PackingOrderForm() {
     }
   };
 
+  const handleItemChange = (index, field, value) => {
+    let processedValue = value === "" ? 0 : parseFloat(value);
+
+    setForm(
+      produce((f) => {
+        f.items[index][field] = processedValue;
+        f.items = [...f.items]; // trigger reactivity
+      })
+    );
+  };
+  
   const handlePrint = () => {
     const content = document.getElementById("print-section").innerHTML;
     const printWindow = window.open("", "", "width=800,height=600");
@@ -303,46 +376,41 @@ export default function PackingOrderForm() {
       </Show>
 
       <form class="space-y-4" onSubmit={handleSubmit}>
-        <div class="grid grid-cols-4 gap-4">
+        <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm mb-1">Tipe</label>
-            <select
-              class="w-full border p-2 rounded"
-              value={form().type}
-              onChange={(e) => setForm({ ...form(), type: e.target.value })}
-              required
-            >
-              <option value="">Pilih Tipe</option>
-              <option value="domestik">Domestik</option>
-              <option value="ekspor">Ekspor</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm mb-1">Sequence Number</label>
+            <label class="block text-sm mb-1">No Packing List</label>
             <input
               class="w-full border p-2 rounded"
-              value={form().sequence_number}
-              onInput={(e) =>
-                setForm({ ...form(), sequence_number: e.target.value })
-              }
-              required
+              value={form().no_pl || ""}
+              onInput={(e) => setForm({ ...form(), no_pl: e.target.value })}
+              readOnly
             />
           </div>
           <div>
             <label class="block text-sm mb-1">Sales Order</label>
-            <select
+            <SearchableSalesOrderSelect
+              salesOrders={salesOrderList}
+              form={form}
+              setForm={setForm}
+              onChange={handleSalesOrderChange}
+            />
+          </div>
+          <div hidden>
+            <label class="block text-sm mb-1">Type</label>
+            <input
+              type="text"
               class="w-full border p-2 rounded"
-              value={form().sales_order_id}
-              onChange={(e) =>
-                setForm({ ...form(), sales_order_id: e.target.value })
+              value={
+                form().type === ""
+                  ? ""
+                  : form().type == 1
+                  ? "Domestik"
+                  : form().type == 2
+                  ? "Ekspor"
+                  : ""
               }
-              required
-            >
-              <option value="">Pilih Sales Order</option>
-              {salesOrderList().map((so) => (
-                <option value={so.id}>{so.no_so}</option>
-              ))}
-            </select>
+              readOnly
+            />
           </div>
           <div>
             <label class="block text-sm mb-1">Col</label>
@@ -410,10 +478,9 @@ export default function PackingOrderForm() {
                     <label class="block text-sm mb-1">
                       Sales Order Item ID
                     </label>
-                    <input
-                      type="number"
+                    <select
                       class="w-full border p-2 rounded"
-                      value={group.sales_order_item_id}
+                      value={group.sales_order_item_id || ""}
                       onInput={(e) =>
                         handleGroupChange(
                           i(),
@@ -422,7 +489,16 @@ export default function PackingOrderForm() {
                         )
                       }
                       required
-                    />
+                    >
+                      <option value="">Pilih Item</option>
+                      <For each={form().sales_order_items || []}>
+                        {(item) => (
+                          <option value={item.id}>
+                            {item.name || `Item #${item.id}`}
+                          </option>
+                        )}
+                      </For>
+                    </select>
                   </div>
 
                   <table class="w-full border border-gray-300 text-sm mb-3">
@@ -446,26 +522,31 @@ export default function PackingOrderForm() {
                                 type="number"
                                 step="0.01"
                                 class="w-full border p-1 rounded"
-                                value={roll.meter_total}
-                                onInput={(e) =>
+                                value={roll.meter_total || ""}
+                                onInput={(e) => {
                                   handleRollChange(
                                     i(),
                                     j(),
                                     "meter_total",
                                     e.target.value
-                                  )
-                                }
-                                onBlur={() => {
-                                  const meterVal =
-                                    form().itemGroups[i()].rolls[j()]
-                                      .meter_total;
-                                  if (meterVal !== "") {
-                                    const converted = meterToYard(meterVal);
+                                  );
+                                }}
+                                onBlur={(e) => {
+                                  const val = e.target.value;
+                                  if (val !== "") {
+                                    const converted = meterToYard(val);
                                     handleRollChange(
                                       i(),
                                       j(),
                                       "yard_total",
                                       converted
+                                    );
+                                  } else {
+                                    handleRollChange(
+                                      i(),
+                                      j(),
+                                      "yard_total",
+                                      ""
                                     );
                                   }
                                 }}
@@ -476,26 +557,31 @@ export default function PackingOrderForm() {
                                 type="number"
                                 step="0.01"
                                 class="w-full border p-1 rounded"
-                                value={roll.yard_total}
-                                onInput={(e) =>
+                                value={roll.yard_total || ""}
+                                onInput={(e) => {
                                   handleRollChange(
                                     i(),
                                     j(),
                                     "yard_total",
                                     e.target.value
-                                  )
-                                }
-                                onBlur={() => {
-                                  const yardVal =
-                                    form().itemGroups[i()].rolls[j()]
-                                      .yard_total;
-                                  if (yardVal !== "") {
-                                    const converted = yardToMeter(yardVal);
+                                  );
+                                }}
+                                onBlur={(e) => {
+                                  const val = e.target.value;
+                                  if (val !== "") {
+                                    const converted = yardToMeter(val);
                                     handleRollChange(
                                       i(),
                                       j(),
                                       "meter_total",
                                       converted
+                                    );
+                                  } else {
+                                    handleRollChange(
+                                      i(),
+                                      j(),
+                                      "meter_total",
+                                      ""
                                     );
                                   }
                                 }}

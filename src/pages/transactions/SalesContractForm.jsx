@@ -125,14 +125,18 @@ export default function SalesContractForm() {
         id: idx + 1,
         kain_id: item.kain_id ?? null,
         grade_id: item.grade_id ?? "",
-        lebar: item.lebar ? parseFloat(item.lebar) : null,
-        gramasi: item.gramasi ? parseFloat(item.gramasi) : null,
-        meter_total: item.meter_total ? parseFloat(item.meter_total) : null,
-        yard_total: item.yard_total ? parseFloat(item.yard_total) : null,
-        kilogram_total: item.kilogram_total
-          ? parseFloat(item.kilogram_total)
-          : null,
-        harga: item.harga ? parseInt(item.harga) : null,
+        lebar: item.lebar != null ? parseFloat(item.lebar) : null,
+        gramasi: item.gramasi != null ? parseFloat(item.gramasi) : null,
+        meter_total:
+          item.meter_total != null ? parseFloat(item.meter_total) : null,
+        yard_total:
+          item.yard_total != null ? parseFloat(item.yard_total) : null,
+        kilogram_total:
+          item.kilogram_total != null ? parseFloat(item.kilogram_total) : null,
+        harga:
+          item.harga !== undefined && item.harga !== null
+            ? parseFloat(item.harga)
+            : null,
       }));
 
       // Set form
@@ -372,9 +376,8 @@ export default function SalesContractForm() {
         })),
       };
 
-      console.log(payload);
-
       if (isEdit) {
+        console.log(params.id, payload);
         await updateDataSalesContract(user?.token, params.id, payload);
       } else {
         await createSalesContract(user?.token, payload);

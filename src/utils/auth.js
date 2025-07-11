@@ -1376,7 +1376,27 @@ export async function getSalesContracts(id, token) {
   }
 }
 
+function cleanObject(obj) {
+  if (typeof obj === "string") {
+    const cleaned = obj.replace(/[\u00A0\u200B\uFEFF]/g, "").trim();
+    return cleaned === "" ? null : cleaned;
+  } else if (Array.isArray(obj)) {
+    return obj.map(cleanObject);
+  } else if (typeof obj === "object" && obj !== null) {
+    const cleaned = {};
+    for (const key in obj) {
+      cleaned[key] = cleanObject(obj[key]);
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
 export async function updateDataSalesContract(token, id, payload) {
+  const cleanedPayload = cleanObject(payload);
+
+  console.log("PAYLOAD TO SEND:", JSON.stringify(cleanedPayload, null, 2));
+
   try {
     const response = await fetch(
       `https://nexttechenterprise.site/api/update-sales-contract/${id}`,
@@ -1387,11 +1407,20 @@ export async function updateDataSalesContract(token, id, payload) {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(cleanedPayload),
       }
     );
 
-    const data = await response.json();
+    const text = await response.text();
+    console.log("RESPONSE TEXT:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error("❌ Response is not valid JSON");
+      throw new Error("Response is not valid JSON");
+    }
 
     if (!response.ok) {
       throw new Error(data.message || "Gagal mengubah data sales contract");
@@ -1399,6 +1428,7 @@ export async function updateDataSalesContract(token, id, payload) {
 
     return data;
   } catch (error) {
+    console.error("❌ Error updateDataSalesContract:", error);
     throw error;
   }
 }
@@ -1676,7 +1706,7 @@ export async function updateDataPackingOrder(token, id, payload) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
-        }, 
+        },
         body: JSON.stringify(payload),
       }
     );

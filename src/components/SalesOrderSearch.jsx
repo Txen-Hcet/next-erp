@@ -1,10 +1,11 @@
 import { createSignal, createMemo, createEffect, onCleanup } from "solid-js";
 import { onClickOutside } from "./OnClickOutside";
 
-export default function CustomerDropdownSearch({
-  customersList, // Ini adalah signal, bukan array langsung
+export default function SalesOrderDropdownSearch({
+  salesOrders,
   form,
   setForm,
+  onChange,
 }) {
   const [isOpen, setIsOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
@@ -21,38 +22,38 @@ export default function CustomerDropdownSearch({
     onCleanup(cleanup);
   });
 
-  const filteredCustomers = createMemo(() => {
+  const filteredSalesContracts = createMemo(() => {
     const q = search().toLowerCase();
-
-    // Panggil customersList() di sini
-    return customersList().filter((c) => {
-      const kode = c.kode?.toLowerCase() || "";
-      const nama = c.nama?.toLowerCase() || "";
-      return kode.includes(q) || nama.includes(q);
+    // Panggil salesOrders() di sini
+    return salesOrders().filter((c) => {
+      const no_so = c.no_so?.toLowerCase() || "";
+      return no_so.includes(q);
     });
   });
 
-  const selectedCustomer = createMemo(() =>
-    // Panggil customersList() di sini
-    customersList().find((c) => c.id == form().customer_id)
+  const selectedSalesContract = createMemo(() =>
+    // Panggil salesOrders() di sini
+    salesOrders().find((c) => c.id == form().sales_contract_id)
   );
 
-  const selectCustomer = (cust) => {
-    setForm({ ...form(), customer_id: cust.id });
+  const selectSalesOrder = (so) => {
+    setForm({ ...form(), sales_contract_id: so.id });
     setIsOpen(false);
-    setSearch(""); // reset search input after selection
+    setSearch("");
+
+    if (onChange) onChange(so);
   };
 
   return (
-    <div class="relative" ref={dropdownRef}>
+    <div class="relative w-full" ref={dropdownRef}>
       <button
         type="button"
         class="w-full border p-2 rounded text-left bg-white/10"
         onClick={() => setIsOpen(!isOpen())}
       >
-        {selectedCustomer()
-          ? `${selectedCustomer().kode} - ${selectedCustomer().nama}`
-          : "Pilih Customer"}
+        {selectedSalesContract()
+          ? `${selectedSalesContract().no_so}`
+          : "Pilih SO"}
       </button>
 
       {isOpen() && (
@@ -65,18 +66,18 @@ export default function CustomerDropdownSearch({
             onInput={(e) => setSearch(e.target.value)}
             autofocus
           />
-          {filteredCustomers().length > 0 ? (
-            filteredCustomers().map((cust) => (
+          {filteredSalesContracts().length > 0 ? (
+            filteredSalesContracts().map((so) => (
               <div
-                key={cust.id} // Sangat penting menambahkan key di sini
+                key={so.id} // Sangat penting menambahkan key di sini
                 class="p-2 hover:bg-blue-100 cursor-pointer"
-                onClick={() => selectCustomer(cust)}
+                onClick={() => selectSalesOrder(so)}
               >
-                {cust.kode} - {cust.nama}
+                {so.no_so}
               </div>
             ))
           ) : (
-            <div class="p-2 text-gray-400">Customer tidak ditemukan</div>
+            <div class="p-2 text-gray-400">Sales Contract tidak ditemukan</div>
           )}
         </div>
       )}
