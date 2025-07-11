@@ -15,7 +15,7 @@ import {
   getSalesOrders,
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
-import { Trash2 } from "lucide-solid";
+import { RefreshCcw, Trash2 } from "lucide-solid";
 import PackingOrderPrint from "../print_function/PackingOrderPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
 
@@ -139,7 +139,7 @@ export default function PackingOrderForm() {
     const selectedOrder = res?.response;
     const salesOrderItems = selectedOrder?.items || [];
 
-    console.log(salesOrderItems);
+    console.log(selectedOrder);
 
     setForm({
       ...form(),
@@ -147,7 +147,7 @@ export default function PackingOrderForm() {
       type: typeValue,
       no_pl: generatedNoPL,
       sequence_number: nextSequence,
-      sales_order_items: salesOrderItems,
+      sales_order_items: selectedOrder,
     });
   };
 
@@ -296,7 +296,7 @@ export default function PackingOrderForm() {
         icon: "success",
         title: isEdit ? "Berhasil Update" : "Berhasil Simpan",
       }).then(() => {
-        navigate("/packingorders");
+        navigate("/packingorder");
         localStorage.removeItem("packing_order_draft");
       });
     } catch (error) {
@@ -319,7 +319,7 @@ export default function PackingOrderForm() {
       })
     );
   };
-  
+
   const handlePrint = () => {
     const content = document.getElementById("print-section").innerHTML;
     const printWindow = window.open("", "", "width=800,height=600");
@@ -380,7 +380,7 @@ export default function PackingOrderForm() {
           <div>
             <label class="block text-sm mb-1">No Packing List</label>
             <input
-              class="w-full border p-2 rounded"
+              class="bg-gray-200 w-full border p-2 rounded"
               value={form().no_pl || ""}
               onInput={(e) => setForm({ ...form(), no_pl: e.target.value })}
               readOnly
@@ -491,10 +491,11 @@ export default function PackingOrderForm() {
                       required
                     >
                       <option value="">Pilih Item</option>
-                      <For each={form().sales_order_items || []}>
+                      <For each={form().sales_order_items?.items || []}>
                         {(item) => (
                           <option value={item.id}>
-                            {item.name || `Item #${item.id}`}
+                            {form().sales_order_items.no_so} -{" "}
+                            {item.konstruksi_kain}
                           </option>
                         )}
                       </For>
@@ -512,103 +513,127 @@ export default function PackingOrderForm() {
                     </thead>
                     <tbody>
                       <For each={group.rolls}>
-                        {(roll, j) => (
-                          <tr>
-                            <td class="border px-2 py-1 text-center">
-                              {j() + 1}
-                            </td>
-                            <td class="border px-2 py-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                class="w-full border p-1 rounded"
-                                value={roll.meter_total || ""}
-                                onInput={(e) => {
-                                  handleRollChange(
-                                    i(),
-                                    j(),
-                                    "meter_total",
-                                    e.target.value
-                                  );
-                                }}
-                                onBlur={(e) => {
-                                  const val = e.target.value;
-                                  if (val !== "") {
-                                    const converted = meterToYard(val);
-                                    handleRollChange(
-                                      i(),
-                                      j(),
-                                      "yard_total",
-                                      converted
-                                    );
-                                  } else {
-                                    handleRollChange(
-                                      i(),
-                                      j(),
-                                      "yard_total",
-                                      ""
-                                    );
-                                  }
-                                }}
-                              />
-                            </td>
-                            <td class="border px-2 py-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                class="w-full border p-1 rounded"
-                                value={roll.yard_total || ""}
-                                onInput={(e) => {
-                                  handleRollChange(
-                                    i(),
-                                    j(),
-                                    "yard_total",
-                                    e.target.value
-                                  );
-                                }}
-                                onBlur={(e) => {
-                                  const val = e.target.value;
-                                  if (val !== "") {
-                                    const converted = yardToMeter(val);
+                        {(roll, j) => {
+                          const [localMeter, setLocalMeter] = createSignal(
+                            roll.meter_total || ""
+                          );
+                          const [localYard, setLocalYard] = createSignal(
+                            roll.yard_total || ""
+                          );
+
+                          return (
+                            <tr>
+                              <td class="border px-2 py-1 text-center">
+                                {j() + 1}
+                              </td>
+                              <td class="border px-2 py-1">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  class="w-full border p-1 rounded"
+                                  value={localMeter()}
+                                  onInput={(e) => {
+                                    setLocalMeter(e.target.value);
+                                  }}
+                                  onBlur={(e) => {
+                                    const val = e.target.value;
                                     handleRollChange(
                                       i(),
                                       j(),
                                       "meter_total",
-                                      converted
+                                      val
                                     );
-                                  } else {
+                                    if (val !== "") {
+                                      const converted = meterToYard(val);
+                                      setLocalYard(converted);
+                                      handleRollChange(
+                                        i(),
+                                        j(),
+                                        "yard_total",
+                                        converted
+                                      );
+                                    } else {
+                                      setLocalYard("");
+                                      handleRollChange(
+                                        i(),
+                                        j(),
+                                        "yard_total",
+                                        ""
+                                      );
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td class="border px-2 py-1">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  class="w-full border p-1 rounded"
+                                  value={localYard()}
+                                  onInput={(e) => {
+                                    setLocalYard(e.target.value);
+                                  }}
+                                  onBlur={(e) => {
+                                    const val = e.target.value;
                                     handleRollChange(
                                       i(),
                                       j(),
-                                      "meter_total",
-                                      ""
+                                      "yard_total",
+                                      val
                                     );
-                                  }
-                                }}
-                              />
-                            </td>
-                            <td class="border px-2 py-1 text-center">
-                              <button
-                                type="button"
-                                class="text-red-600 hover:text-red-800"
-                                onClick={() => removeRoll(i(), j())}
-                              >
-                                Hapus
-                              </button>
-                            </td>
-                          </tr>
-                        )}
+                                    if (val !== "") {
+                                      const converted = yardToMeter(val);
+                                      setLocalMeter(converted);
+                                      handleRollChange(
+                                        i(),
+                                        j(),
+                                        "meter_total",
+                                        converted
+                                      );
+                                    } else {
+                                      setLocalMeter("");
+                                      handleRollChange(
+                                        i(),
+                                        j(),
+                                        "meter_total",
+                                        ""
+                                      );
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td class="border px-2 py-1 text-center">
+                                <button
+                                  type="button"
+                                  class="text-red-600 hover:text-red-800"
+                                  onClick={() => removeRoll(i(), j())}
+                                >
+                                  Hapus
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        }}
                       </For>
                     </tbody>
                   </table>
 
-                  <button
-                    type="button"
-                    onClick={() => addRoll(i())}
-                    class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
-                  >
-                    + Tambah Roll
-                  </button>
+                  <div className="flex gap-2">
+                    {/* <button
+                      type="button"
+                      class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-green-700"
+                      onClick={() => setForm({ ...form() })}
+                    >
+                      <RefreshCcw size={20} />
+                    </button> */}
+                    <button
+                      type="button"
+                      onClick={() => addRoll(i())}
+                      class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                    >
+                      + Tambah Roll
+                    </button>
+                  </div>
                 </Show>
               </div>
             )}

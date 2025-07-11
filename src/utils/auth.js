@@ -1782,6 +1782,179 @@ export async function getLastPackingOrder(token) {
 
 // #endregion PACKING ORDER FUNCTION
 
+// #region DELIVERY NOTE FUNCTION
+
+export async function createDeliveryNote(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat packing list order");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllDeliveryNotes(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data packing list order"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getDeliveryNotes(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis packing list order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataDeliveryNote(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah data packing list order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteDeliveryNote(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis packing list order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getLastDeliveryNote(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/last-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data terakhir packing list order"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion DELIVERY NOTE FUNCTION
+
 // #region SATUAN UNIT FUNCTION
 
 export async function createSatuanUnit(token, satuan) {

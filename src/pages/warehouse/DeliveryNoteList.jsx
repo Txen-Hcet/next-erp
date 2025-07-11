@@ -2,33 +2,33 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllPackingOrders,
+  getAllDeliveryNotes,
   getUser,
-  softDeletePackingOrder,
+  softDeleteDeliveryNote,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
-export default function DeliveryNoteList() {
-  const [packingOrders, setPackingOrders] = createSignal([]);
+export default function SuratJalanList() {
+  const [suratJalan, setSuratJalan] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(packingOrders().length / pageSize));
+    return Math.max(1, Math.ceil(suratJalan().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return packingOrders().slice(startIndex, startIndex + pageSize);
+    return suratJalan().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus packing order?",
-      text: `Apakah kamu yakin ingin menghapus packing order dengan ID ${id}?`,
+      title: "Hapus surat jalan?",
+      text: `Apakah kamu yakin ingin menghapus surat jalan dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -39,24 +39,22 @@ export default function DeliveryNoteList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingOrder(id, tokUser?.token);
+        await softDeleteDeliveryNote(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data packing order dengan ID ${id} berhasil dihapus.`,
+          text: `Data surat jalan dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
 
-        // Optional: update UI setelah hapus
-        setPackingOrders(packingOrders().filter((s) => s.id !== id));
+        setSuratJalan(suratJalan().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
           title: "Gagal",
           text:
-            error.message ||
-            `Gagal menghapus data packing order dengan ID ${id}`,
+            error.message || `Gagal menghapus data surat jalan dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",
@@ -65,17 +63,14 @@ export default function DeliveryNoteList() {
     }
   };
 
-  const handleGetAllpackingOrders = async (tok) => {
-    const getDatapackingOrders = await getAllPackingOrders(tok);
+  const handleGetAllDeliveryNotes = async (tok) => {
+    const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
 
-    const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
-    setPackingOrders(sortedData);
-
-    if (getDatapackingOrders.status === 200) {
-      const sortedData = getDatapackingOrders.contracts.sort(
+    if (getDataDeliveryNotes.status === 200) {
+      const sortedData = getDataDeliveryNotes.suratJalanList.sort(
         (a, b) => a.id - b.id
       );
-      setPackingOrders(sortedData);
+      setSuratJalan(sortedData);
     }
   };
 
@@ -105,7 +100,7 @@ export default function DeliveryNoteList() {
 
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllpackingOrders(tokUser?.token);
+      handleGetAllDeliveryNotes(tokUser?.token);
     }
   });
 
@@ -115,9 +110,9 @@ export default function DeliveryNoteList() {
         <h1 class="text-2xl font-bold">Daftar Surat Jalan</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/packingorder/form")}
+          onClick={() => navigate("/deliverynote/form")}
         >
-          + Tambah Packing Order
+          + Tambah Surat Jalan
         </button>
       </div>
 
@@ -125,10 +120,11 @@ export default function DeliveryNoteList() {
         <table class="w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
+              <th class="py-2 px-4">#</th>
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Sales Order</th>
-              <th class="py-2 px-2">No Packing List</th>
-              <th class="py-2 px-2">Col</th>
+              <th class="py-2 px-2">Tipe</th>
+              <th class="py-2 px-2">No. Sequence</th>
+              <th class="py-2 px-2">Packing List ID</th>
               <th class="py-2 px-2">Tanggal Dibuat</th>
               <th class="py-2 px-2">Catatan</th>
               <th class="py-2 px-4">Aksi</th>
@@ -140,15 +136,16 @@ export default function DeliveryNoteList() {
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_so}</td>
-                <td class="py-2 px-4">{sc.no_pl}</td>
-                <td class="py-2 px-4">{sc.col}</td>
+                <td class="py-2 px-4">{sc.id}</td>
+                <td class="py-2 px-4">{sc.type}</td>
+                <td class="py-2 px-4">{sc.sequence_number}</td>
+                <td class="py-2 px-4">{sc.packing_list_id}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
                 <td class="py-2 px-4">{sc.catatan}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/packingorder/form?id=${sc.id}`)}
+                    onClick={() => navigate(`/deliverynote/form?id=${sc.id}`)}
                   >
                     <Edit size={25} />
                   </button>
