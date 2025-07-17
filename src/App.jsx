@@ -7,6 +7,33 @@ import UsersList from "./pages/UsersList";
 import UserForm from "./pages/UserForm";
 import TransactionsList from "./pages/TransactionsList";
 import TransactionForm from "./pages/TransactionForm";
+// PURCHASING
+// // BELI GREIGE
+import BeliGreigePurchaseContractList from "./pages/purchasing/beli_greige/BGPurchaseContractList";
+import BeliGreigePurchaseContractForm from "./pages/purchasing/beli_greige/BGPurchaseContractForm";
+import BeliGreigePurchaseOrderList from "./pages/purchasing/beli_greige/BGPurchaseOrderList";
+import BeliGreigePurchaseOrderForm from "./pages/purchasing/beli_greige/BGPurchaseOrderForm";
+import BeliGreigeDeliveryNoteList from "./pages/purchasing/beli_greige/BGDeliveryNoteList";
+import BeliGreigeDeliveryNoteForm from "./pages/purchasing/beli_greige/BGDeliveryNoteForm";
+// // ORDER CELUP
+import OrderCelupPurchaseContractList from "./pages/purchasing/order_celup/OCPurchaseContractList";
+import OrderCelupPurchaseContractForm from "./pages/purchasing/order_celup/OCPurchaseContractForm";
+import OrderCelupPurchaseOrderList from "./pages/purchasing/order_celup/OCPurchaseOrderList";
+import OrderCelupPurchaseOrderForm from "./pages/purchasing/order_celup/OCPurchaseOrderForm";
+import OrderCelupDeliveryNoteList from "./pages/purchasing/order_celup/OCDeliveryNoteList";
+import OrderCelupDeliveryNoteForm from "./pages/purchasing/order_celup/OCDeliveryNoteForm";
+// // KAIN JADI/FINISH
+import KainJadiPurchaseContractList from "./pages/purchasing/kain_jadi/KJPurchaseContractList";
+import KainJadiPurchaseContractForm from "./pages/purchasing/kain_jadi/KJPurchaseContractForm";
+import KainJadiPurchaseOrderList from "./pages/purchasing/kain_jadi/KJPurchaseOrderList";
+import KainJadiPurchaseOrderForm from "./pages/purchasing/kain_jadi/KJPurchaseOrderForm";
+import KainJadiDeliveryNoteList from "./pages/purchasing/kain_jadi/KJDeliveryNoteList";
+import KainJadiDeliveryNoteForm from "./pages/purchasing/kain_jadi/KJDeliveryNoteForm";
+// // JUAL BELI
+import JualBeliPurchaseOrderList from "./pages/purchasing/jual_beli/JBPurchaseOrderList";
+import JualBeliPurchaseOrderForm from "./pages/purchasing/jual_beli/JBPurchaseOrderForm";
+import JualBeliDeliveryNoteList from "./pages/purchasing/jual_beli/JBDeliveryNoteList";
+import JualBeliDeliveryNoteForm from "./pages/purchasing/jual_beli/JBDeliveryNoteForm";
 // TRANSACTIONS
 import SalesContractForm from "./pages/transactions/SalesContractForm";
 import SalesContractList from "./pages/transactions/SalesContractList";
@@ -31,8 +58,6 @@ import GradeList from "./pages/master_data/GradeList";
 import GradeForm from "./pages/master_data/GradeForm";
 import UnitsList from "./pages/master_data/UnitsList";
 import UnitsForm from "./pages/master_data/UnitsForm";
-import PurchaseOrderList from "./pages/purchasing/PurchaseOrderList";
-import PurchaseOrderForm from "./pages/purchasing/PurchaseOrderForm";
 // WAREHOUSE
 import DeliveryNoteList from "./pages/warehouse/DeliveryNoteList";
 import DeliveryNoteForm from "./pages/warehouse/DeliveryNoteForm";
@@ -70,8 +95,114 @@ function App() {
       {/* WAREHOUSE */}
 
       {/* PURCHASING */}
-      <Route path="/purchaseorder" component={PurchaseOrderList} />
-      <Route path="/purchaseorder/form" component={PurchaseOrderForm} />
+
+      {/* BELI GREIGE */}
+      <Route
+        path="/beligreige-purchasecontract"
+        component={BeliGreigePurchaseContractList}
+      />
+      <Route
+        path="/beligreige-purchasecontract/form"
+        component={BeliGreigePurchaseContractForm}
+      />
+
+      <Route
+        path="/beligreige-purchaseorder"
+        component={BeliGreigePurchaseOrderList}
+      />
+      <Route
+        path="/beligreige-purchaseorder/form"
+        component={BeliGreigePurchaseOrderForm}
+      />
+
+      <Route
+        path="/beligreige-deliverynote"
+        component={BeliGreigeDeliveryNoteList}
+      />
+      <Route
+        path="/beligreige-deliverynote/form"
+        component={BeliGreigeDeliveryNoteForm}
+      />
+      {/* BELI GREIGE */}
+
+      {/* ORDER CELUP */}
+      <Route
+        path="/ordercelup-purchasecontract"
+        component={OrderCelupPurchaseContractList}
+      />
+      <Route
+        path="/ordercelup-purchasecontract/form"
+        component={OrderCelupPurchaseContractForm}
+      />
+
+      <Route
+        path="/ordercelup-purchaseorder"
+        component={OrderCelupPurchaseOrderList}
+      />
+      <Route
+        path="/ordercelup-purchaseorder/form"
+        component={OrderCelupPurchaseOrderForm}
+      />
+
+      <Route
+        path="/ordercelup-deliverynote"
+        component={OrderCelupDeliveryNoteList}
+      />
+      <Route
+        path="/ordercelup-deliverynote/form"
+        component={OrderCelupDeliveryNoteForm}
+      />
+      {/* ORDER CELUP */}
+
+      {/* KAIN JADI */}
+      <Route
+        path="/kainjadi-purchasecontract"
+        component={KainJadiPurchaseContractList}
+      />
+      <Route
+        path="/kainjadi-purchasecontract/form"
+        component={KainJadiPurchaseContractForm}
+      />
+
+      <Route
+        path="/kainjadi-purchaseorder"
+        component={KainJadiPurchaseOrderList}
+      />
+      <Route
+        path="/kainjadi-purchaseorder/form"
+        component={KainJadiPurchaseOrderForm}
+      />
+
+      <Route
+        path="/kainjadi-deliverynote"
+        component={KainJadiDeliveryNoteList}
+      />
+      <Route
+        path="/kainjadi-deliverynote/form"
+        component={KainJadiDeliveryNoteForm}
+      />
+      {/* KAIN JADI */}
+
+      {/* JUAL BELI */}
+      <Route
+        path="/jualbeli-purchaseorder"
+        component={JualBeliPurchaseOrderList}
+      />
+      <Route
+        path="/jualbeli-purchaseorder/form"
+        component={JualBeliPurchaseOrderForm}
+      />
+
+      <Route
+        path="/jualbeli-deliverynote"
+        component={JualBeliDeliveryNoteList}
+      />
+      <Route
+        path="/jualbeli-deliverynote/form"
+        component={JualBeliDeliveryNoteForm}
+      />
+      {/* JUAL BELI */}
+
       {/* PURCHASING */}
 
       {/* MASTER DATA */}

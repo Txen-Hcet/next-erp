@@ -3,15 +3,15 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
-  createPackingOrder,
-  getPackingOrders,
+  createPackingList,
+  getPackingLists,
   getAllFabrics,
   getAllColors,
   getAllCustomers,
-  updateDataPackingOrder,
+  updateDataPackingList,
   getUser,
   getAllSalesOrders,
-  getLastPackingOrder,
+  getLastPackingList,
   getSalesOrders,
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
@@ -19,7 +19,7 @@ import { RefreshCcw, Trash2, XCircle } from "lucide-solid";
 import PackingOrderPrint from "../print_function/PackingOrderPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
 
-export default function PackingOrderForm() {
+export default function PackingListForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const navigate = useNavigate();
@@ -54,7 +54,7 @@ export default function PackingOrderForm() {
     const colors = await getAllColors(user?.token);
     const customers = await getAllCustomers(user?.token);
     const salesOrders = await getAllSalesOrders(user?.token);
-    const getPackingOrderNumber = await getLastPackingOrder(user?.token);
+    const getPackingOrderNumber = await getLastPackingList(user?.token);
     const currentForm = form();
 
     setLastNumberSequence(getPackingOrderNumber);
@@ -90,7 +90,7 @@ export default function PackingOrderForm() {
     }
 
     if (isEdit) {
-      const res = await getPackingOrders(params.id, user?.token);
+      const res = await getPackingLists(params.id, user?.token);
       const packingOrder = res?.response;
       if (!packingOrder) return;
 
@@ -315,9 +315,9 @@ export default function PackingOrderForm() {
 
     try {
       if (isEdit) {
-        await updateDataPackingOrder(user?.token, params.id, payload);
+        await updateDataPackingList(user?.token, params.id, payload);
       } else {
-        await createPackingOrder(user?.token, payload);
+        await createPackingList(user?.token, payload);
       }
 
       Swal.fire({

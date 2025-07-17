@@ -2,14 +2,14 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllPackingOrders,
+  getAllPackingLists,
   getUser,
-  softDeletePackingOrder,
+  softDeletePackingList,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
-export default function PackingOrderList() {
+export default function PackingListList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
@@ -39,7 +39,7 @@ export default function PackingOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingOrder(id, tokUser?.token);
+        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
@@ -66,7 +66,7 @@ export default function PackingOrderList() {
   };
 
   const handleGetAllpackingOrders = async (tok) => {
-    const getDatapackingOrders = await getAllPackingOrders(tok);
+    const getDatapackingOrders = await getAllPackingLists(tok);
 
     const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
     setPackingOrders(sortedData);

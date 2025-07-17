@@ -142,7 +142,7 @@ export default function SalesOrderForm() {
         satuan_unit_id: salesOrders.satuan_unit_id ?? "",
         delivery_date: salesOrders.delivery_date?.split("T")[0] ?? "",
         komisi: parseFloat(salesOrders.komisi) ?? "",
-        catatan: salesOrders.termin ?? "",
+        catatan: salesOrders.catatan ?? "",
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
 
@@ -212,7 +212,6 @@ export default function SalesOrderForm() {
           Number(custDetail.termin),
           Number(custDetail.ppn_percent),
           custDetail.satuan_unit_id,
-          custDetail.catatan,
           existingItems // <- jangan kosongin lagi, ambil dari form
         );
       } else {
@@ -238,7 +237,6 @@ export default function SalesOrderForm() {
           Number(custDetail.termin),
           Number(custDetail.ppn_percent),
           custDetail.satuan_unit_id,
-          custDetail.catatan,
           scItems
         );
       }
@@ -262,7 +260,6 @@ export default function SalesOrderForm() {
     termin,
     ppn,
     satuanUnitId,
-    catatan,
     items = [] // <<< default empty
   ) => {
     const now = new Date();
@@ -287,7 +284,6 @@ export default function SalesOrderForm() {
       termin: termin,
       ppn: ppn,
       satuan_unit_id: satuanUnitId,
-      catatan: catatan,
       items: items.length > 0 ? items : [], // <<< masukkan items ke form
     });
   };
@@ -673,7 +669,6 @@ export default function SalesOrderForm() {
             class="w-full border p-2 rounded bg-gray-300"
             value={form().catatan}
             onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
-            readonly
           ></textarea>
         </div>
 

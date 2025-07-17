@@ -1,37 +1,34 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import MainLayout from "../../layouts/MainLayout";
+import MainLayout from "../../../layouts/MainLayout";
 import {
-  getAllFabrics,
-  getAllSalesContracts,
+  getAllPackingLists,
   getUser,
-  softDeleteCustomer,
-  softDeleteSalesContract,
-} from "../../utils/auth";
+  softDeletePackingList,
+} from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
-export default function SalesContractList() {
-  const [salesContracts, setSalesContracts] = createSignal([]);
+export default function PurchaseOrderList() {
+  const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
-  const [allFabrics, setAllFabrics] = createSignal([]);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(salesContracts().length / pageSize));
+    return Math.max(1, Math.ceil(packingOrders().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return salesContracts().slice(startIndex, startIndex + pageSize);
+    return packingOrders().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus sales contract?",
-      text: `Apakah kamu yakin ingin menghapus sales contract dengan ID ${id}?`,
+      title: "Hapus packing order?",
+      text: `Apakah kamu yakin ingin menghapus packing order dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -42,27 +39,24 @@ export default function SalesContractList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeleteSalesContract(
-          id,
-          tokUser?.token
-        );
+        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data sales contract dengan ID ${id} berhasil dihapus.`,
+          text: `Data packing order dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
 
         // Optional: update UI setelah hapus
-        setSalesContracts(salesContracts().filter((s) => s.id !== id));
+        setPackingOrders(packingOrders().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
           title: "Gagal",
           text:
             error.message ||
-            `Gagal menghapus data sales contract dengan ID ${id}`,
+            `Gagal menghapus data packing order dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",
@@ -71,14 +65,17 @@ export default function SalesContractList() {
     }
   };
 
-  const handleGetAllSalesContracts = async (tok) => {
-    const getDataSalesContracts = await getAllSalesContracts(tok);
+  const handleGetAllpackingOrders = async (tok) => {
+    const getDatapackingOrders = await getAllPackingLists(tok);
 
-    if (getDataSalesContracts.status === 200) {
-      const sortedData = getDataSalesContracts.contracts.sort(
+    const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
+    setPackingOrders(sortedData);
+
+    if (getDatapackingOrders.status === 200) {
+      const sortedData = getDatapackingOrders.contracts.sort(
         (a, b) => a.id - b.id
       );
-      setSalesContracts(sortedData);
+      setPackingOrders(sortedData);
     }
   };
 
@@ -106,42 +103,21 @@ export default function SalesContractList() {
     return `${tanggalNum} ${bulan} ${tahun}`;
   }
 
-  const handleGetAllFabrics = async (tok) => {
-    const res = await getAllFabrics(tok);
-    if (res.status === 200) {
-      setAllFabrics(res.kain);
-    }
-  };
-
-  const getCorakName = (sc) => {
-    // pastikan sales contract ada items
-    if (!sc.items || sc.items.length === 0) return "-";
-
-    const corakId = parseInt(sc.items[0].corak_kain);
-
-    const kain = allFabrics().find((f) => parseInt(f.id) === corakId);
-
-    return kain?.corak || "-";
-  };
-
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllSalesContracts(tokUser?.token);
-      handleGetAllFabrics(tokUser?.token);
+      handleGetAllpackingOrders(tokUser?.token);
     }
-
-        console.log(tokUser?.token);
   });
 
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Sales Contract</h1>
+        <h1 class="text-2xl font-bold">Daftar Purchase Order</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/salescontract/form")}
+          onClick={() => navigate("/purchaseorder/form")}
         >
-          + Tambah Sales Contract
+          + Tambah Packing Order
         </button>
       </div>
 
@@ -150,11 +126,11 @@ export default function SalesContractList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Pesanan</th>
-              <th class="py-2 px-2">Tanggal</th>
-              <th class="py-2 px-2">Nama Customer</th>
-              <th class="py-2 px-2">Corak</th>
-              <th class="py-2 px-2">Qty</th>
+              <th class="py-2 px-2">No Pembelian</th>
+              <th class="py-2 px-2">No SC</th>
+              <th class="py-2 px-2">Supplier</th>
+              <th class="py-2 px-2">Tanggal Dibuat</th>
+              <th class="py-2 px-2">Catatan</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -164,21 +140,15 @@ export default function SalesContractList() {
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_pesan}</td>
+                <td class="py-2 px-4">{sc.no_so}</td>
+                <td class="py-2 px-4">{sc.no_pl}</td>
+                <td class="py-2 px-4">{sc.col}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
-                <td class="py-2 px-4">{sc.customer_name}</td>
-                <td class="py-2 px-4">{getCorakName(sc)}</td>
-                <td class="py-2 px-4 text-red-500">
-                  {parseFloat(sc.summary.total_meter_kontrak || 0) -
-                    parseFloat(sc.summary.total_meter_terkirim || 0)}{" "}
-                  <span class="text-black">
-                    / {parseFloat(sc.summary.total_meter_kontrak || 0)}
-                  </span>
-                </td>
+                <td class="py-2 px-4">{sc.catatan}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
+                    onClick={() => navigate(`/purchaseorder/form?id=${sc.id}`)}
                   >
                     <Edit size={25} />
                   </button>

@@ -70,8 +70,6 @@ export default function SalesOrderList() {
     if (getDataSalesOrder.status === 200) {
       const sortedData = getDataSalesOrder.orders.sort((a, b) => a.id - b.id);
       setSalesOrders(sortedData);
-
-      console.log(salesOrders());
     }
   };
 

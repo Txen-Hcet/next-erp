@@ -13,7 +13,44 @@ export default function MainLayout(props) {
   const [isTransactionOpen, setTransactionIsOpen] = createSignal(false);
   const [isWarehouseIsOpen, setWarehouseIsOpen] = createSignal(false);
   const [isPurchasingIsOpen, setPurchasingIsOpen] = createSignal(false);
+  const [isGreigeOpen, setGreigeIsOpen] = createSignal(false);
+  const [isCelupOpen, setCelupIsOpen] = createSignal(false);
+  const [isFinishOpen, setFinishIsOpen] = createSignal(false);
+  const [isJualBeliOpen, setJualBeliIsOpen] = createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
+
+  const purchasingRoutes = {
+    greige: [
+      "/beligreige-purchasecontract",
+      "/beligreige-purchasecontract/form",
+      "/beligreige-purchaseorder",
+      "/beligreige-purchaseorder/form",
+      "/beligreige-deliverynote",
+      "/beligreige-deliverynote/form",
+    ],
+    celup: [
+      "/ordercelup-purchasecontract",
+      "/ordercelup-purchasecontract/form",
+      "/ordercelup-purchaseorder",
+      "/ordercelup-purchaseorder/form",
+      "/ordercelup-deliverynote",
+      "/ordercelup-deliverynote/form",
+    ],
+    finish: [
+      "/kainjadi-purchasecontract",
+      "/kainjadi-purchasecontract/form",
+      "/kainjadi-purchaseorder",
+      "/kainjadi-purchaseorder/form",
+      "/kainjadi-deliverynote",
+      "/kainjadi-deliverynote/form",
+    ],
+    jualbeli: [
+      "/jualbeli-purchaseorder",
+      "/jualbeli-purchaseorder/form",
+      "/jualbeli-deliverynote",
+      "/jualbeli-deliverynote/form",
+    ],
+  };
 
   createEffect(() => {
     const interval = setInterval(async () => {
@@ -23,28 +60,6 @@ export default function MainLayout(props) {
         console.error("Token check failed:", error.message);
       }
     }, 60 * 60 * 1000);
-
-    // logic untuk buka sidebar
-    // const inMaster =
-    //   location.pathname.startsWith("/dashboard") ||
-    //   location.pathname.startsWith("/orders") ||
-    //   location.pathname.startsWith("/transactions") ||
-    //   location.pathname.startsWith("/users") ||
-    //   location.pathname.startsWith("/customers") ||
-    //   location.pathname.startsWith("/suppliers") ||
-    //   location.pathname.startsWith("/colors") ||
-    //   location.pathname.startsWith("/fabrics") ||
-    //   location.pathname.startsWith("/so-type") ||
-    //   location.pathname.startsWith("/customer-type") ||
-    //   location.pathname.startsWith("/currencies");
-
-    // const inTransaction =
-    //   location.pathname.startsWith("/dashboard") ||
-    //   location.pathname.startsWith("/orders");
-
-    // // if (inMaster) {
-    // //   setIsOpen(true);
-    // // }
 
     function getRouteType(pathname) {
       if (
@@ -96,10 +111,11 @@ export default function MainLayout(props) {
         return "warehouse";
       }
 
+      // purchasing parent route detection
       if (
-        ["/purchaseorder", "/purchaseorder/form"].some((p) =>
-          pathname.startsWith(p)
-        )
+        Object.values(purchasingRoutes)
+          .flat()
+          .some((p) => pathname.startsWith(p))
       ) {
         return "purchasing";
       }
@@ -107,6 +123,7 @@ export default function MainLayout(props) {
       return "unknown";
     }
 
+    // execute logic
     switch (getRouteType(location.pathname)) {
       case "master":
         setIsOpen(true);
@@ -119,9 +136,31 @@ export default function MainLayout(props) {
         break;
       case "purchasing":
         setPurchasingIsOpen(true);
+
+        if (
+          purchasingRoutes.greige.some((p) => location.pathname.startsWith(p))
+        ) {
+          setGreigeIsOpen(true);
+        }
+
+        if (
+          purchasingRoutes.celup.some((p) => location.pathname.startsWith(p))
+        ) {
+          setCelupIsOpen(true);
+        }
+
+        if (
+          purchasingRoutes.finish.some((p) => location.pathname.startsWith(p))
+        ) {
+          setFinishIsOpen(true);
+        }
+
+        if (
+          purchasingRoutes.jualbeli.some((p) => location.pathname.startsWith(p))
+        ) {
+          setJualBeliIsOpen(true);
+        }
         break;
-      default:
-      // logic unknown
     }
 
     // idle detection
@@ -134,18 +173,6 @@ export default function MainLayout(props) {
         handleLogout();
       }, 30 * 60 * 1000); // 30 menit idle
     }
-
-    // async function resetLogoutTimer() {
-    //   if (logoutTimer) clearTimeout(logoutTimer);
-
-    //   // refresh token jika perlu
-    //   await refreshTokenIfNeeded();
-
-    //   logoutTimer = setTimeout(() => {
-    //     console.log("User idle terlalu lama. Auto logout.");
-    //     handleLogout();
-    //   }, 30 * 60 * 1000);
-    // }
 
     const events = ["mousemove", "click", "keydown", "scroll"];
     events.forEach((event) => {
@@ -247,7 +274,7 @@ export default function MainLayout(props) {
                   </button>
                 </li>
 
-                {/* Submenu with smooth transition */}
+                {/* SUB MENU MASTER DATA */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
                     isOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
@@ -385,7 +412,7 @@ export default function MainLayout(props) {
                   </button>
                 </li>
 
-                {/* Submenu with smooth transition */}
+                {/* SUB MENU PEMBELIAN */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
                     isPurchasingIsOpen()
@@ -394,18 +421,267 @@ export default function MainLayout(props) {
                   }`}
                 >
                   <ul>
+                    {/* Submenu Level 2: Pembelian Greige */}
                     <li>
-                      <A
-                        href="/purchaseorder"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/purchaseorder" ||
-                          location.pathname === "/purchaseorder/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
+                      <button
+                        class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() => setGreigeIsOpen(!isGreigeOpen())}
                       >
-                        Purchase Order
-                      </A>
+                        Pembelian Greige
+                        <span class="text-xs">
+                          {isGreigeOpen() ? "▲" : "▼"}
+                        </span>
+                      </button>
+                    </li>
+
+                    {/* Submenu Items inside Pembelian Greige */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isGreigeOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/beligreige-purchasecontract"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/beligreige-purchasecontract" ||
+                              location.pathname ===
+                                "/beligreige-purchasecontract/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Purchase Contract
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/beligreige-purchaseorder"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/beligreige-purchaseorder" ||
+                              location.pathname ===
+                                "/beligreige-purchaseorder/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Purchase Order
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/beligreige-deliverynote"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/beligreige-deliverynote" ||
+                              location.pathname ===
+                                "/beligreige-deliverynote/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Jalan
+                          </A>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <ul>
+                    {/* Submenu Level 2: Order Celup */}
+                    <li>
+                      <button
+                        class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() => setCelupIsOpen(!isCelupOpen())}
+                      >
+                        Pembelian Order Celup
+                        <span class="text-xs">{isCelupOpen() ? "▲" : "▼"}</span>
+                      </button>
+                    </li>
+
+                    {/* Submenu Items inside Order Celup */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isCelupOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/ordercelup-purchasecontract"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/ordercelup-purchasecontract" ||
+                              location.pathname ===
+                                "/ordercelup-purchasecontract/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Kontrak Proses
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/ordercelup-purchaseorder"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/ordercelup-purchaseorder" ||
+                              location.pathname ===
+                                "/ordercelup-purchaseorder/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Order Celup
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/ordercelup-deliverynote"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/ordercelup-deliverynote" ||
+                              location.pathname ===
+                                "/ordercelup-deliverynote/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Jalan
+                          </A>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <ul>
+                    {/* Submenu Level 2: Kain Jadi */}
+                    <li>
+                      <button
+                        class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() => setFinishIsOpen(!isFinishOpen())}
+                      >
+                        Pembelian Kain Finish
+                        <span class="text-xs">
+                          {isFinishOpen() ? "▲" : "▼"}
+                        </span>
+                      </button>
+                    </li>
+
+                    {/* Submenu Items inside Kain Jadi */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isFinishOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/kainjadi-purchasecontract"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/kainjadi-purchasecontract" ||
+                              location.pathname ===
+                                "/kainjadi-purchasecontract/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Purchase Order
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/kainjadi-purchaseorder"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/kainjadi-purchaseorder" ||
+                              location.pathname ===
+                                "/kainjadi-purchaseorder/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Order Celup KJ
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/kainjadi-deliverynote"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/kainjadi-deliverynote" ||
+                              location.pathname ===
+                                "/kainjadi-deliverynote/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Jalan KJ
+                          </A>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <ul>
+                    {/* Submenu Level 2: Kain Jadi */}
+                    <li>
+                      <button
+                        class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() => setJualBeliIsOpen(!isJualBeliOpen())}
+                      >
+                        Jual Beli Kain
+                        <span class="text-xs">
+                          {isJualBeliOpen() ? "▲" : "▼"}
+                        </span>
+                      </button>
+                    </li>
+
+                    {/* Submenu Items inside Kain Jadi */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isJualBeliOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/jualbeli-purchaseorder"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/jualbeli-purchaseorder" ||
+                              location.pathname ===
+                                "/jualbeli-purchaseorder/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Purchase Order
+                          </A>
+                        </li>
+                        <li>
+                          <A
+                            href="/jualbeli-deliverynote"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/jualbeli-deliverynote" ||
+                              location.pathname ===
+                                "/jualbeli-deliverynote/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Jalan KJ
+                          </A>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                 </li>
@@ -421,7 +697,7 @@ export default function MainLayout(props) {
                   </button>
                 </li>
 
-                {/* Submenu with smooth transition */}
+                {/* SUB MENU PENJUALAN */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
                     isTransactionOpen()
@@ -470,7 +746,7 @@ export default function MainLayout(props) {
                   </button>
                 </li>
 
-                {/* Submenu with smooth transition */}
+                {/* SUB MENU GUDANG */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
                     isWarehouseIsOpen()

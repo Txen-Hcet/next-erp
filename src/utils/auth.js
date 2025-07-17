@@ -2232,6 +2232,38 @@ export async function softDeleteGrade(id, token) {
 
 // #endregion GRADE FUNCTION
 
+// #region LAST SEQUENCE FUNCTION
+
+export async function getLastSequence(token, doc = "sc", type = "domestik") {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/last-sequence?doc=${doc}&type=${type}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil nomor sequence terakhir"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion LAST SEQUENCE FUNCTION
+
 export function logout() {
   localStorage.removeItem("user");
 }

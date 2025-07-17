@@ -1,15 +1,15 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import MainLayout from "../../layouts/MainLayout";
+import MainLayout from "../../../layouts/MainLayout";
 import {
-  getAllPackingOrders,
+  getAllPackingLists,
   getUser,
-  softDeletePackingOrder,
-} from "../../utils/auth";
+  softDeletePackingList,
+} from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
-export default function PurchaseOrderList() {
+export default function PurchaseContractList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
@@ -39,7 +39,7 @@ export default function PurchaseOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingOrder(id, tokUser?.token);
+        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
@@ -66,7 +66,7 @@ export default function PurchaseOrderList() {
   };
 
   const handleGetAllpackingOrders = async (tok) => {
-    const getDatapackingOrders = await getAllPackingOrders(tok);
+    const getDatapackingOrders = await getAllPackingLists(tok);
 
     const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
     setPackingOrders(sortedData);
@@ -112,12 +112,12 @@ export default function PurchaseOrderList() {
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Purchase Order</h1>
+        <h1 class="text-2xl font-bold">Daftar Purchase Contract</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/packingorder/form")}
+          onClick={() => navigate("/beligreige-purchasecontract/form")}
         >
-          + Tambah Packing Order
+          + Tambah Purchase Contract
         </button>
       </div>
 
@@ -126,9 +126,9 @@ export default function PurchaseOrderList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Sales Order</th>
-              <th class="py-2 px-2">No Packing List</th>
-              <th class="py-2 px-2">Col</th>
+              <th class="py-2 px-2">No Pembelian</th>
+              <th class="py-2 px-2">No SC</th>
+              <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Tanggal Dibuat</th>
               <th class="py-2 px-2">Catatan</th>
               <th class="py-2 px-4">Aksi</th>
@@ -148,7 +148,7 @@ export default function PurchaseOrderList() {
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/packingorder/form?id=${sc.id}`)}
+                    onClick={() => navigate(`/purchaseorder/form?id=${sc.id}`)}
                   >
                     <Edit size={25} />
                   </button>
