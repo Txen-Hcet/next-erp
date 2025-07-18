@@ -2234,7 +2234,7 @@ export async function softDeleteGrade(id, token) {
 
 // #region LAST SEQUENCE FUNCTION
 
-export async function getLastSequence(token, doc = "sc", type = "domestik") {
+export async function getLastSequence(token, doc, type) {
   try {
     const response = await fetch(
       `https://nexttechenterprise.site/api/last-sequence?doc=${doc}&type=${type}`,

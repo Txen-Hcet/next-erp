@@ -10,6 +10,7 @@ import {
   getAllSalesContracts,
   getAllSatuanUnits,
   getAllSOTypes,
+  getLastSequence,
   getLatestSalesContractNumber,
   getSalesContracts,
   getSalesOrders,
@@ -92,11 +93,6 @@ export default function SalesOrderForm() {
     const getJenisSO = await getAllSOTypes(user?.token);
     setJenisSoList(getJenisSO.data);
 
-    const getLatestDataSalesContract = await getLatestSalesContractNumber(
-      user?.token
-    );
-    setSalesOrderNumber(getLatestDataSalesContract.last_sequence);
-
     const getDataUnitTypes = await getAllSatuanUnits(user?.token);
     setUnitsType(getDataUnitTypes.data);
 
@@ -142,7 +138,7 @@ export default function SalesOrderForm() {
         satuan_unit_id: salesOrders.satuan_unit_id ?? "",
         delivery_date: salesOrders.delivery_date?.split("T")[0] ?? "",
         komisi: parseFloat(salesOrders.komisi) ?? "",
-        catatan: salesOrders.catatan ?? "",
+        catatan: "",
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
 
@@ -195,8 +191,6 @@ export default function SalesOrderForm() {
       const custDetail = res.response || "";
 
       const { huruf, nomor } = parseNoPesan(res.response?.no_pesan);
-
-      console.log(custDetail);
 
       // --- NEW: Map items from Sales Contract ---
       if (isEdit) {
@@ -265,6 +259,13 @@ export default function SalesOrderForm() {
     const now = new Date();
     const bulan = String(now.getMonth() + 1).padStart(2, "0");
     const tahun = String(now.getFullYear());
+
+    const getLatestDataSalesContract = await getLastSequence(
+      user?.token,
+      "so",
+      jenisCust
+    );
+    setSalesOrderNumber(getLatestDataSalesContract.last_sequence);
 
     const lastNumber = salesOrderNumber();
     const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
@@ -475,8 +476,7 @@ export default function SalesOrderForm() {
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
-        {isEdit ? "Edit" : "Tambah"} Sales Order & Packing Order (PPN -
-        SC/D/P/0725-00001) - (Non PPN - SC/D/0725-00001)
+        {isEdit ? "Edit" : "Tambah"} Sales Order & Packing Order
       </h1>
 
       <form class="flex flex-col space-y-4 " onSubmit={handleSubmit}>
@@ -580,6 +580,8 @@ export default function SalesOrderForm() {
               }
             />
           </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="block mb-1 font-medium">Termin</label>
             <div class="flex">
@@ -666,7 +668,7 @@ export default function SalesOrderForm() {
         <div>
           <label class="block mb-1 font-medium">Catatan</label>
           <textarea
-            class="w-full border p-2 rounded bg-gray-300"
+            class="w-full border p-2 rounded"
             value={form().catatan}
             onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
           ></textarea>

@@ -11,6 +11,7 @@ import {
   getAllFabrics,
   getAllGrades,
   getAllSatuanUnits,
+  getLastSequence,
   getLatestSalesContractNumber,
   getSalesContracts,
   getUser,
@@ -19,6 +20,7 @@ import {
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { produce } from "solid-js/store";
 import { RefreshCcw, Trash } from "lucide-solid";
+import FabricDropdownSearch from "../../components/FabricDropdownSearch";
 // import { createSC, updateSC, getSC } from "../../utils/auth";
 // --> ganti sesuai endpoint lu
 
@@ -89,17 +91,13 @@ export default function SalesContractForm() {
     const getCustomers = await getAllCustomers(user?.token);
     setCustomersList(getCustomers.customers);
 
-    const getLatestDataSalesContract = await getLatestSalesContractNumber(
-      user?.token
-    );
-    setSalesContractNumber(getLatestDataSalesContract.last_sequence);
-
     const getDataCustomerTypes = await getAllCustomerTypes(user?.token);
     setCustomerType(getDataCustomerTypes.data);
 
     const getDataUnitTypes = await getAllSatuanUnits(user?.token);
     setUnitsType(getDataUnitTypes.data);
 
+    console.log(customerType());
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
       const salesContracts = res.response; // karena dari console lu, response-nya di dalam `response`
@@ -197,6 +195,14 @@ export default function SalesContractForm() {
     else if (customerTypeId === 2) huruf = "E";
 
     let noSalesContract = "";
+
+    const getLatestDataSalesContract = await getLastSequence(
+      user?.token,
+      "sc",
+      form().type
+    );
+
+    setSalesContractNumber(getLatestDataSalesContract.last_sequence);
 
     if (isEdit) {
       // Ambil no_pesan lama
@@ -431,14 +437,6 @@ export default function SalesContractForm() {
             />
           </div>
           <div>
-            <label class="block mb-1 font-medium">Customer</label>
-            <SearchableCustomerSelect
-              customersList={customersList}
-              form={form}
-              setForm={setForm}
-            />
-          </div>
-          <div>
             <label class="block mb-1 font-medium">Tipe Transaksi</label>
             <select
               class="w-full border p-2 rounded"
@@ -463,8 +461,16 @@ export default function SalesContractForm() {
               ))}
             </select>
           </div>
+          <div>
+            <label class="block mb-1 font-medium">Customer</label>
+            <SearchableCustomerSelect
+              customersList={customersList}
+              form={form}
+              setForm={setForm}
+            />
+          </div>
         </div>
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-4 gap-4">
           <div>
             <label class="block mb-1 font-medium">Currency</label>
             <select
@@ -528,8 +534,6 @@ export default function SalesContractForm() {
               </span>
             </div>
           </div>
-        </div>
-        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
             <input
@@ -543,6 +547,8 @@ export default function SalesContractForm() {
               required
             />
           </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block mb-1 font-medium">Satuan Unit</label>
             <select
@@ -669,22 +675,24 @@ export default function SalesContractForm() {
                   { label: "Harga", field: "harga", type: "text" },
                 ].map(({ label, field, type, step }) => (
                   <td class="border px-2 py-1">
-                    {["kain_id", "grade_id"].includes(field) ? (
+                    {field === "kain_id" ? (
+                      <FabricDropdownSearch
+                        fabrics={fabricOptions}
+                        item={item}
+                        value={item.kain_id}
+                        onChange={(val) => handleItemChange(i, "kain_id", val)}
+                        disabled={isEdit()}
+                      />
+                    ) : field === "grade_id" ? (
                       <select
                         class="border p-1 rounded w-full text-sm"
                         value={item[field] ?? ""}
                         onChange={(e) =>
-                          handleItemChange(
-                            i,
-                            field,
-                            field === "grade_id"
-                              ? e.target.value
-                              : Number(e.target.value)
-                          )
+                          handleItemChange(i, field, e.target.value)
                         }
                         required
                       >
-                        <option value="">Pilih Item</option>
+                        <option value="">Pilih Grade</option>
                         {getDropdownOptions(field).map((opt) => (
                           <option value={opt.value}>{opt.label}</option>
                         ))}
