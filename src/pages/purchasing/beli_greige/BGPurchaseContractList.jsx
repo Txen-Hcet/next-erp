@@ -5,6 +5,7 @@ import {
   getAllBeliGreiges,
   getAllPackingLists,
   getUser,
+  softDeleteBeliGreige,
   softDeletePackingList,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
@@ -40,7 +41,7 @@ export default function BGPurchaseContractList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
+        const deleteCustomer = await softDeleteBeliGreige(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",

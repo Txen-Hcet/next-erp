@@ -2,7 +2,9 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import {
+  getAllBeliGreigeOrders,
   getAllPackingLists,
+  getBeliGreigeOrders,
   getUser,
   softDeletePackingList,
 } from "../../../utils/auth";
@@ -65,14 +67,11 @@ export default function BGPurchaseOrderList() {
     }
   };
 
-  const handleGetAllpackingOrders = async (tok) => {
-    const getDatapackingOrders = await getAllPackingLists(tok);
-
-    const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
-    setPackingOrders(sortedData);
-
-    if (getDatapackingOrders.status === 200) {
-      const sortedData = getDatapackingOrders.contracts.sort(
+  const handleGetAllPurchaseOrders = async (tok) => {
+    const getDataPurchaseOrders = await getAllBeliGreigeOrders(tok);
+    console.log(getDataPurchaseOrders);
+    if (getDataPurchaseOrders.status === 200) {
+      const sortedData = getDataPurchaseOrders.orders.sort(
         (a, b) => a.id - b.id
       );
       setPackingOrders(sortedData);
@@ -105,19 +104,19 @@ export default function BGPurchaseOrderList() {
 
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllpackingOrders(tokUser?.token);
+      handleGetAllPurchaseOrders(tokUser?.token);
     }
   });
 
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Order Celup</h1>
+        <h1 class="text-2xl font-bold">Daftar Order Beli Greige</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           onClick={() => navigate("/beligreige-purchaseorder/form")}
         >
-          + Tambah Order Celup
+          + Tambah Order Beli Greige
         </button>
       </div>
 
@@ -126,35 +125,38 @@ export default function BGPurchaseOrderList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Pembelian</th>
-              <th class="py-2 px-2">No SC</th>
+              <th class="py-2 px-2">No Order</th>
+              <th class="py-2 px-2">No PC</th>
               <th class="py-2 px-2">Supplier</th>
-              <th class="py-2 px-2">Tanggal Dibuat</th>
-              <th class="py-2 px-2">Catatan</th>
+              <th class="py-2 px-2">Total</th>
+              <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedData().map((sc, index) => (
-              <tr class="border-b" key={sc.id}>
+            {paginatedData().map((po, index) => (
+              <tr class="border-b" key={po.id}>
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_so}</td>
-                <td class="py-2 px-4">{sc.no_pl}</td>
-                <td class="py-2 px-4">{sc.col}</td>
-                <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
-                <td class="py-2 px-4">{sc.catatan}</td>
+                <td class="py-2 px-4">{po.no_po}</td>
+                <td class="py-2 px-4">{po.no_pc}</td>
+                <td class="py-2 px-4">{po.supplier_code}</td>
+                {/* <td class="py-2 px-4">{formatTanggalIndo(po.created_at)}</td> */}
+                <td class="py-2 px-4">{po.summary.total_meter}</td>
+                <td class="py-2 px-4">{po.satuan_unit_name}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/purchaseorder/form?id=${sc.id}`)}
+                    onClick={() =>
+                      navigate(`/beligreige-purchaseorder/form?id=${po.id}`)
+                    }
                   >
                     <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(sc.id)}
+                    onClick={() => handleDelete(po.id)}
                   >
                     <Trash size={25} />
                   </button>

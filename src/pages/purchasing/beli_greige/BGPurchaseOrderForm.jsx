@@ -11,6 +11,9 @@ import {
   getUser,
   getAllSalesContracts,
   getAllBeliGreiges,
+  updateDataBeliGreigeOrder,
+  createBeliGreigeOrder,
+  getBeliGreigeOrders,
   // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
@@ -34,7 +37,7 @@ export default function BGPurchaseOrderForm() {
     jenis_po_id: "",
     sequence_number: "",
     tanggal: new Date().toISOString().substring(0, 10),
-    sales_contract_id: "",
+    pc_id: "",
     supplier_id: "",
     satuan_unit_id: "",
     termin: "",
@@ -59,9 +62,11 @@ export default function BGPurchaseOrderForm() {
     setFabricOptions(fabrics.kain);
 
     if (isEdit) {
-      const res = await getBeliGreiges(params.id, user?.token);
-      const data = res.contract;
+      const res = await getBeliGreigeOrders(params.id, user?.token);
+      const data = res.order;
       const dataItems = res.items;
+
+      console.log(res);
 
       if (!data) return;
 
@@ -86,13 +91,17 @@ export default function BGPurchaseOrderForm() {
       setForm((prev) => ({
         ...prev,
         jenis_po_id: data.jenis_po_id ?? "",
-        sequence_number: data.no_pc ?? "",
+        pc_id: {
+          id: data.pc_id ?? "",
+          ppn_percent: data.ppn_percent ?? 0,
+        },
+        sequence_number: data.no_po ?? "",
+        no_seq: data.sequence_number ?? 0,
         supplier_id: data.supplier_id ?? "",
         satuan_unit_id: data.satuan_unit_id ?? "",
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
         catatan: data.catatan ?? "",
-        no_seq: data.sequence_number ?? 0,
         items: normalizedItems,
       }));
     } else {
@@ -133,8 +142,6 @@ export default function BGPurchaseOrderForm() {
     );
     if (!selectedContract) return;
 
-    isContract = !!selectedContract;
-
     const {
       supplier_id,
       satuan_unit_id,
@@ -143,21 +150,19 @@ export default function BGPurchaseOrderForm() {
       items = [],
     } = selectedContract;
 
-    console.log(selectedContract);
-
     const mappedItems = items.map((item) => {
       const harga = parseFloat(item.harga ?? 0);
-      const lebar_greige = item.lebar_greige;
 
       const satuan = satuanUnitOptions()
         .find((u) => u.id == satuan_unit_id)
         ?.satuan?.toLowerCase();
 
-      const qty = satuan === "meter" ? 0 : 0; // meter/yard harus diisi manual
+      const qty = satuan === "meter" ? 0 : 0;
       const subtotal = isNaN(qty * harga) ? 0 : qty * harga;
 
       return {
-        kain_id: item.kain_id,
+        pc_item_id: item.id,
+        fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         meter: "",
         yard: "",
@@ -171,25 +176,37 @@ export default function BGPurchaseOrderForm() {
 
     setForm((prev) => ({
       ...prev,
-      sales_contract_id: contractId,
+      pc_id: contractId,
       supplier_id,
       satuan_unit_id,
       termin,
       ppn: ppn_percent,
+      catatan: "",
       items: mappedItems,
-      catatan: "", // kosongin catatan
     }));
   };
 
-  const generateNomorKontrak = () => {
+  const generateNomorKontrak = async () => {
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "bg_o",
+      "domestik",
+      form().ppn
+    );
+
+    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
+    const ppnValue = parseFloat(form().ppn) || 0;
+    const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const type = parseFloat(form().ppn) > 0 ? "P" : "N";
-    const nomor = `BG/${type}/${mmyy}/00001`;
-
-    setForm((prev) => ({ ...prev, sequence_number: nomor }));
+    const nomor = `PO/BG/${type}/${mmyy}/${nextNum}`;
+    setForm((prev) => ({
+      ...prev,
+      sequence_number: nomor,
+      no_seq: lastSeq?.last_sequence + 1,
+    }));
   };
 
   const addItem = () => {
@@ -229,7 +246,7 @@ export default function BGPurchaseOrderForm() {
       let yard = parseFloat(items[index].yard || 0);
 
       if (field === "harga") {
-        const harga = parseFloat(value.replace(/[^\d]/g, "") || 0);
+        const harga = parseFloat(value.toString().replace(/[^\d]/g, "") || 0);
         items[index].harga = harga;
         items[index].hargaFormatted = formatIDR(harga);
       }
@@ -253,28 +270,38 @@ export default function BGPurchaseOrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const payload = {
       ...form(),
-      sequence_number: Number(form().sequence_number),
-      termin: Number(form().termin),
-      ppn: Number(form().ppn),
+      sequence_number: Number(form().no_seq),
+      pc_id: {
+        id: form().pc_id,
+        ppn_percent: Number(form().ppn),
+      },
+      catatan: form().catatan,
       items: form().items.map((i) => ({
-        kain_id: Number(i.kain_id),
+        pc_item_id: i.pc_item_id,
+        kain_id: Number(i.fabric_id),
         lebar_greige: parseFloat(i.lebar_greige),
-        meter: parseFloat(i.meter),
-        yard: parseFloat(i.yard),
+        meter_total: parseFloat(i.meter),
+        yard_total: parseFloat(i.yard),
         harga: parseFloat(i.harga),
         subtotal: parseFloat(i.subtotal),
       })),
     };
 
     try {
-      // await createPurchaseOrder(user?.token, payload);
+      if (isEdit) {
+        await updateDataBeliGreigeOrder(user?.token, params.id, payload);
+      } else {
+        await createBeliGreigeOrder(user?.token, payload);
+      }
+
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
       }).then(() => {
-        navigate("/purchaseorders");
+        navigate("/beligreige-purchaseorder");
       });
     } catch (err) {
       Swal.fire({
@@ -295,8 +322,9 @@ export default function BGPurchaseOrderForm() {
             <div class="flex gap-2">
               <input
                 class="w-full border bg-gray-200 p-2 rounded"
-                value={form().sequence_number}
+                value={form().sequence_number || ""}
                 readOnly
+                required
               />
               <button
                 type="button"
@@ -450,20 +478,27 @@ export default function BGPurchaseOrderForm() {
                     <input
                       type="text"
                       inputmode="decimal"
-                      class="border p-1 rounded w-full"
+                      class={`border p-1 rounded w-full ${
+                        form().satuan_unit_id === 2 ? "bg-gray-200" : ""
+                      }`}
+                      readOnly={form().satuan_unit_id === 2}
                       value={item.meter}
                       onBlur={(e) =>
                         handleItemChange(i(), "meter", e.target.value, {
                           triggerConversion: true,
                         })
                       }
+                      required
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class="border p-1 rounded w-full"
+                      class={`border p-1 rounded w-full ${
+                        form().satuan_unit_id === 1 ? "bg-gray-200" : ""
+                      }`}
+                      readOnly={form().satuan_unit_id === 1}
                       value={item.yard}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "yard", e.target.value)
@@ -473,17 +508,18 @@ export default function BGPurchaseOrderForm() {
                           triggerConversion: true,
                         })
                       }
+                      required
                     />
                   </td>
                   <td class="border p-2">
                     <input
-                      type="number"
-                      class="border p-2"
-                      value={item.harga}
-                      onInput={(e) =>
+                      type="text"
+                      class="border p-2 rounded w-full"
+                      value={item.hargaFormatted || ""}
+                      onBlur={(e) =>
                         handleItemChange(i(), "harga", e.target.value)
                       }
-                      readOnly={item.harga !== undefined}
+                      readOnly={item.readOnly}
                     />
                   </td>
                   <td class="border p-2">

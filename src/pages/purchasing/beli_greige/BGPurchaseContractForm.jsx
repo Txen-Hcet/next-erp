@@ -8,7 +8,6 @@ import {
   getAllSuppliers,
   getAllSatuanUnits,
   getAllFabrics,
-  // createPurchaseOrder,
   getUser,
   getAllSalesContracts,
   updateDataBeliGreige,
@@ -31,8 +30,6 @@ export default function BGPurchaseContractForm() {
   const [salesContracts, setSalesContracts] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
-
-  let lastSeq;
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -159,7 +156,7 @@ export default function BGPurchaseContractForm() {
     const ppnValue = parseFloat(form().ppn) || 0;
     const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const nomor = `BG/${type}/${mmyy}/${nextNum}`;
+    const nomor = `PC/BG/${type}/${mmyy}/${nextNum}`;
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
@@ -210,15 +207,15 @@ export default function BGPurchaseContractForm() {
 
       // handle harga
       if (field === "harga") {
-        const rawHarga = value.replace(/[^\d]/g, "");
-        const hargaNumber = parseFloat(rawHarga || "0") || 0;
+        // const rawHarga = value.replace(/[^\d]/g, "");
+        const hargaNumber = parseFloat(value || "0") || 0;
 
-        items[index].harga = rawHarga;
+        items[index].harga = hargaNumber;
 
         if (options.triggerFormat) {
           items[index].hargaFormatted = formatIDR(hargaNumber);
         } else {
-          items[index].hargaFormatted = rawHarga;
+          items[index].hargaFormatted = hargaNumber;
         }
 
         // hitung subtotal
@@ -463,7 +460,7 @@ export default function BGPurchaseContractForm() {
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
                       value={item.lebar_greige}
-                      onInput={(e) =>
+                      onBlur={(e) =>
                         handleItemChange(i(), "lebar_greige", e.target.value)
                       }
                     />
@@ -473,9 +470,11 @@ export default function BGPurchaseContractForm() {
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
-                        form().satuan_unit_id === 2 ? "bg-gray-200" : ""
+                        parseInt(form().satuan_unit_id) === 2
+                          ? "bg-gray-200"
+                          : ""
                       }`}
-                      readOnly={form().satuan_unit_id === 2}
+                      readOnly={parseInt(form().satuan_unit_id) === 2}
                       value={item.meter}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "meter", e.target.value)
@@ -492,9 +491,11 @@ export default function BGPurchaseContractForm() {
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
-                        form().satuan_unit_id === 1 ? "bg-gray-200" : ""
+                        parseInt(form().satuan_unit_id) === 1
+                          ? "bg-gray-200"
+                          : ""
                       }`}
-                      readOnly={form().satuan_unit_id === 1}
+                      readOnly={parseInt(form().satuan_unit_id) === 1}
                       value={item.yard}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "yard", e.target.value)
