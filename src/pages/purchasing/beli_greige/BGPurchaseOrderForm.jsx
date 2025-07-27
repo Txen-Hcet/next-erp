@@ -1,5 +1,5 @@
 import { createSignal, onMount, For } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
@@ -10,6 +10,7 @@ import {
   getAllFabrics,
   getUser,
   getAllSalesContracts,
+  getAllBeliGreiges,
   // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
@@ -25,7 +26,9 @@ export default function BGPurchaseOrderForm() {
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
-  const [salesContracts, setSalesContracts] = createSignal([]);
+  const [purchaseContracts, setPurchaseContracts] = createSignal([]);
+  const [params] = useSearchParams();
+  const isEdit = !!params.id;
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -41,22 +44,78 @@ export default function BGPurchaseOrderForm() {
   });
 
   onMount(async () => {
-    const [scs, poTypes, suppliers, units, fabrics] = await Promise.all([
-      getAllSalesContracts(user?.token),
+    const [bgc, poTypes, suppliers, units, fabrics] = await Promise.all([
+      getAllBeliGreiges(user?.token),
       getAllSOTypes(user?.token),
       getAllSuppliers(user?.token),
       getAllSatuanUnits(user?.token),
       getAllFabrics(user?.token),
     ]);
 
-    setSalesContracts(scs.contracts);
+    setPurchaseContracts(bgc.contracts);
     setJenisPOOptions(poTypes.data);
     setSupplierOptions(suppliers.suppliers);
     setSatuanUnitOptions(units.data);
     setFabricOptions(fabrics.kain);
 
-    const lastSeq = await getLastSequence(user?.token, "sc", "domestik");
-    setForm((prev) => ({ ...prev, sequence_number: lastSeq?.sequence || "" }));
+    if (isEdit) {
+      const res = await getBeliGreiges(params.id, user?.token);
+      const data = res.contract;
+      const dataItems = res.items;
+
+      if (!data) return;
+
+      // Normalisasi item
+      const normalizedItems = (dataItems || []).map((item) => ({
+        fabric_id: item.kain_id,
+        lebar_greige: item.lebar_greige,
+        meter: item.meter_total,
+        yard: item.yard_total,
+        harga: item.harga,
+        subtotal: item.subtotal,
+        subtotalFormatted:
+          item.subtotal > 0
+            ? new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                maximumFractionDigits: 0,
+              }).format(item.subtotal)
+            : "",
+      }));
+
+      setForm((prev) => ({
+        ...prev,
+        jenis_po_id: data.jenis_po_id ?? "",
+        sequence_number: data.no_pc ?? "",
+        supplier_id: data.supplier_id ?? "",
+        satuan_unit_id: data.satuan_unit_id ?? "",
+        termin: data.termin ?? "",
+        ppn: data.ppn_percent ?? "",
+        catatan: data.catatan ?? "",
+        no_seq: data.sequence_number ?? 0,
+        items: normalizedItems,
+      }));
+    } else {
+      const lastSeq = await getLastSequence(
+        user?.token,
+        "bg_o",
+        "domestik",
+        form().ppn
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        sequence_number: lastSeq?.no_sequence + 1 || "",
+      }));
+
+      form().items.forEach((item, index) => {
+        // Panggil ulang handleItemChange untuk field-field penting
+        handleItemChange(index, "meter", item.meter);
+        handleItemChange(index, "yard", item.yard);
+        handleItemChange(index, "harga", item.harga);
+        handleItemChange(index, "lebar_greige", item.lebar_greige);
+      });
+    }
   });
 
   const formatIDR = (val) => {
@@ -69,36 +128,43 @@ export default function BGPurchaseOrderForm() {
   };
 
   const handlePurchaseContractChange = async (contractId) => {
-    const selectedContract = salesContracts().find((sc) => sc.id == contractId);
+    const selectedContract = purchaseContracts().find(
+      (sc) => sc.id == contractId
+    );
     if (!selectedContract) return;
+
+    isContract = !!selectedContract;
 
     const {
       supplier_id,
       satuan_unit_id,
       termin,
-      ppn,
+      ppn_percent,
       items = [],
     } = selectedContract;
 
+    console.log(selectedContract);
+
     const mappedItems = items.map((item) => {
-      const meter = parseFloat(item.meter ?? 0);
-      const yard = parseFloat(item.yard ?? 0);
       const harga = parseFloat(item.harga ?? 0);
+      const lebar_greige = item.lebar_greige;
 
       const satuan = satuanUnitOptions()
         .find((u) => u.id == satuan_unit_id)
         ?.satuan?.toLowerCase();
-      const qty = satuan === "meter" ? meter : yard;
+
+      const qty = satuan === "meter" ? 0 : 0; // meter/yard harus diisi manual
       const subtotal = isNaN(qty * harga) ? 0 : qty * harga;
 
       return {
-        ...item,
-        meter,
-        yard,
+        kain_id: item.kain_id,
+        lebar_greige: item.lebar_greige,
+        meter: "",
+        yard: "",
         harga,
         hargaFormatted: formatIDR(harga),
         subtotal: subtotal.toFixed(2),
-        subtotalFormatted: formatIDR(subtotal),
+        subtotalFormatted: "",
         readOnly: true,
       };
     });
@@ -109,8 +175,9 @@ export default function BGPurchaseOrderForm() {
       supplier_id,
       satuan_unit_id,
       termin,
-      ppn,
+      ppn: ppn_percent,
       items: mappedItems,
+      catatan: "", // kosongin catatan
     }));
   };
 
@@ -133,7 +200,6 @@ export default function BGPurchaseOrderForm() {
         {
           kain_id: "",
           lebar_greige: 0,
-          lebar_finish: 0,
           meter: 0,
           yard: 0,
           harga: 0,
@@ -195,7 +261,6 @@ export default function BGPurchaseOrderForm() {
       items: form().items.map((i) => ({
         kain_id: Number(i.kain_id),
         lebar_greige: parseFloat(i.lebar_greige),
-        lebar_finish: parseFloat(i.lebar_finish),
         meter: parseFloat(i.meter),
         yard: parseFloat(i.yard),
         harga: parseFloat(i.harga),
@@ -254,11 +319,11 @@ export default function BGPurchaseOrderForm() {
           <div>
             <label class="block mb-1 font-medium">No Purchase Contract</label>
             <PurchasingContractDropdownSearch
-              purchaseContracts={salesContracts}
+              purchaseContracts={purchaseContracts}
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              disabled={true}
+              disabled={isEdit}
             />
           </div>
           <div>
@@ -271,16 +336,6 @@ export default function BGPurchaseOrderForm() {
             />
           </div>
         </div>
-        {/* 
-          <div class="">
-            <label class="block mb-1 font-medium">No Sales Contract</label>
-            <SearchableSalesContractSelect
-              salesContracts={salesContracts}
-              form={form}
-              setForm={setForm}
-              onChange={(id) => setForm({ ...form(), sales_contract_id: id })}
-            />
-          </div> */}
         <div class="grid grid-cols-4 gap-4">
           <div>
             <label class="block mb-1 font-medium">Supplier</label>
@@ -289,6 +344,7 @@ export default function BGPurchaseOrderForm() {
               form={form}
               setForm={setForm}
               onChange={(id) => setForm({ ...form(), supplier_id: id })}
+              disabled={true}
             />
           </div>
 
@@ -352,6 +408,7 @@ export default function BGPurchaseOrderForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
+          hidden
         >
           + Tambah Item
         </button>
@@ -362,12 +419,10 @@ export default function BGPurchaseOrderForm() {
               <th class="border p-2">#</th>
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Greige</th>
-              <th class="border p-2">Lebar Finish</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
               <th class="border p-2">Subtotal</th>
-              <th class="border p-2">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -388,14 +443,6 @@ export default function BGPurchaseOrderForm() {
                       type="number"
                       class="border p-1 rounded w-full"
                       value={item.lebar_greige}
-                      readonly
-                    />
-                  </td>
-                  <td class="border p-2">
-                    <input
-                      type="number"
-                      class="border p-1 rounded w-full"
-                      value={item.lebar_finish}
                       readonly
                     />
                   </td>

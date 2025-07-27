@@ -20,8 +20,8 @@ export default function PurchaseContractDropdownSearch({
   const filteredContracts = createMemo(() => {
     const q = search().toLowerCase();
     return purchaseContracts().filter((p) => {
-      const no_pesan = (p.no_pesan || "").toLowerCase();
-      return no_pesan.includes(q) || kode.includes(q);
+      const no_pc = (p.no_pc || "").toLowerCase();
+      return no_pc.includes(q) || kode.includes(q);
     });
   });
 
@@ -44,7 +44,7 @@ export default function PurchaseContractDropdownSearch({
         onClick={() => setIsOpen(!isOpen())}
       >
         {selectedContract()
-          ? `${selectedContract().no_pesan}`
+          ? `${selectedContract().no_pc}`
           : "Pilih Purchase Contract"}
       </button>
 
@@ -65,7 +65,7 @@ export default function PurchaseContractDropdownSearch({
                 class="p-2 hover:bg-blue-100 cursor-pointer"
                 onClick={() => selectContract(p)}
               >
-                {p.no_pesan}
+                {p.no_pc}
               </div>
             ))
           ) : (

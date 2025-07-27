@@ -27,7 +27,7 @@ export default function FabricDropdownSearch({
   });
 
   const selectedFabric = createMemo(() =>
-    fabrics().find((f) => f.id == item.kain_id)
+    fabrics().find((f) => f.id == item.fabric_id)
   );
 
   const selectFabric = (fabric) => {

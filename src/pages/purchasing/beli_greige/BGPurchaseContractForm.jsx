@@ -1,5 +1,5 @@
 import { createSignal, createEffect, For, onMount } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
@@ -11,6 +11,9 @@ import {
   // createPurchaseOrder,
   getUser,
   getAllSalesContracts,
+  updateDataBeliGreige,
+  createBeliGreige,
+  getBeliGreiges,
 } from "../../../utils/auth";
 import SearchableSalesContractSelect from "../../../components/SalesContractDropdownSearch";
 import { Trash2 } from "lucide-solid";
@@ -26,6 +29,10 @@ export default function BGPurchaseContractForm() {
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [salesContracts, setSalesContracts] = createSignal([]);
+  const [params] = useSearchParams();
+  const isEdit = !!params.id;
+
+  let lastSeq;
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -35,32 +42,97 @@ export default function BGPurchaseContractForm() {
     supplier_id: "",
     satuan_unit_id: "",
     termin: "",
-    ppn: "",
+    ppn: 0,
     catatan: "",
+    no_seq: 0,
     items: [],
   });
 
+  // createEffect(async () => {
+  //   lastSeq = await getLastSequence(
+  //     user?.token,
+  //     "bg_c",
+  //     "domestik",
+  //     form().ppn
+  //   );
+
+  //   console.log(lastSeq);
+  // });
+
   onMount(async () => {
-    const getSalesContracts = await getAllSalesContracts(user?.token);
-    const jenisPO = await getAllSOTypes(user?.token);
-    const suppliers = await getAllSuppliers(user?.token);
-    const satuanUnits = await getAllSatuanUnits(user?.token);
-    const fabrics = await getAllFabrics(user?.token);
+    const [contracts, jenisPO, suppliers, satuanUnits, fabrics] =
+      await Promise.all([
+        getAllSalesContracts(user?.token),
+        getAllSOTypes(user?.token),
+        getAllSuppliers(user?.token),
+        getAllSatuanUnits(user?.token),
+        getAllFabrics(user?.token),
+      ]);
 
-    console.log(fabrics);
-
+    setSalesContracts(contracts.contracts);
     setJenisPOOptions(jenisPO.data || []);
     setSupplierOptions(suppliers.suppliers || []);
     setSatuanUnitOptions(satuanUnits.data || []);
-    setSalesContracts(getSalesContracts.contracts);
     setFabricOptions(fabrics.kain || []);
 
-    const lastSeq = await getLastSequence(user?.token, "sc", "domestik");
-    // console.log(lastSeq);
-    setForm((prev) => ({
-      ...prev,
-      sequence_number: lastSeq?.sequence || "",
-    }));
+    if (isEdit) {
+      const res = await getBeliGreiges(params.id, user?.token);
+      const data = res.contract;
+      const dataItems = res.items;
+
+      if (!data) return;
+
+      // Normalisasi item
+      const normalizedItems = (dataItems || []).map((item) => ({
+        fabric_id: item.kain_id,
+        lebar_greige: item.lebar_greige,
+        meter: item.meter_total,
+        yard: item.yard_total,
+        harga: item.harga,
+        subtotal: item.subtotal,
+        subtotalFormatted:
+          item.subtotal > 0
+            ? new Intl.NumberFormat("id-ID", {
+                style: "currency",
+                currency: "IDR",
+                maximumFractionDigits: 0,
+              }).format(item.subtotal)
+            : "",
+      }));
+
+      setForm((prev) => ({
+        ...prev,
+        jenis_po_id: data.jenis_po_id ?? "",
+        sequence_number: data.no_pc ?? "",
+        supplier_id: data.supplier_id ?? "",
+        satuan_unit_id: data.satuan_unit_id ?? "",
+        termin: data.termin ?? "",
+        ppn: data.ppn_percent ?? "",
+        catatan: data.catatan ?? "",
+        no_seq: data.sequence_number ?? 0,
+        items: normalizedItems,
+      }));
+
+      form().items.forEach((item, index) => {
+        // Panggil ulang handleItemChange untuk field-field penting
+        handleItemChange(index, "meter", item.meter);
+        handleItemChange(index, "yard", item.yard);
+        handleItemChange(index, "harga", item.harga);
+        handleItemChange(index, "lebar_greige", item.lebar_greige);
+      });
+    } else {
+      const lastSeq = await getLastSequence(
+        user?.token,
+        "bg_c",
+        "domestik",
+        form().ppn
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        sequence_number: lastSeq?.no_sequence + 1 || "",
+      }));
+    }
   });
 
   const formatIDR = (val) => {
@@ -72,39 +144,28 @@ export default function BGPurchaseContractForm() {
     }).format(val);
   };
 
-  const generateNomorKontrak = () => {
+  const generateNomorKontrak = async () => {
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "bg_c",
+      "domestik",
+      form().ppn
+    );
+
+    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
-    const mmyy = `${month}${year}`;
     const ppnValue = parseFloat(form().ppn) || 0;
     const type = ppnValue > 0 ? "P" : "N";
-    const nomorUrut = "00001"; // bisa diganti nanti kalau udah pakai last sequence
-    const nomor = `BG/${type}/${mmyy}/${nomorUrut}`;
-
+    const mmyy = `${month}${year}`;
+    const nomor = `BG/${type}/${mmyy}/${nextNum}`;
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
+      no_seq: lastSeq?.last_sequence + 1,
     }));
   };
-
-  // TODO: Ganti generate nomor kontrak manual jadi ambil dari backend
-  // Contoh ambil dari backend:
-  //
-  // const jenis_po = form().jenis_po_id;
-  // const lastSeq = await getLastSequence(user?.token, "po", jenis_po);
-  // const nextNum = String((lastSeq?.sequence || 0) + 1).padStart(5, "0");
-  // const now = new Date();
-  // const month = String(now.getMonth() + 1).padStart(2, "0");
-  // const year = String(now.getFullYear()).slice(2);
-  // const ppnValue = parseFloat(form().ppn) || 0;
-  // const type = ppnValue > 0 ? "P" : "N";
-  // const mmyy = `${month}${year}`;
-  // const nomor = `BG/${type}/${mmyy}/${nextNum}`;
-  // setForm((prev) => ({
-  //   ...prev,
-  //   sequence_number: nomor,
-  // }));
 
   const addItem = () => {
     setForm((prev) => ({
@@ -189,6 +250,10 @@ export default function BGPurchaseContractForm() {
         }
       }
 
+      if (field === "lebar_greige") {
+        items[index].lebar_greige = value;
+      }
+
       const harga = parseFloat(items[index].harga || "") || 0;
       let qty = 0;
       if (satuan === "meter") qty = meter;
@@ -210,27 +275,31 @@ export default function BGPurchaseContractForm() {
 
     const payload = {
       ...form(),
-      sequence_number: Number(form().sequence_number),
+      sequence_number: Number(form().no_seq),
       termin: Number(form().termin),
-      ppn: Number(form().ppn),
+      ppn_percent: Number(form().ppn),
       items: form().items.map((i) => ({
-        fabric_id: Number(i.fabric_id),
+        kain_id: Number(i.fabric_id),
         lebar_greige: parseFloat(i.lebar_greige),
-        lebar_finish: parseFloat(i.lebar_finish),
-        meter: parseFloat(i.meter),
-        yard: parseFloat(i.yard),
+        meter_total: parseFloat(i.meter),
+        yard_total: parseFloat(i.yard),
         harga: parseFloat(i.harga),
         subtotal: parseFloat(i.subtotal),
       })),
     };
 
     try {
-      // await createPurchaseOrder(user?.token, payload);
+      if (isEdit) {
+        await updateDataBeliGreige(user?.token, params.id, payload);
+      } else {
+        await createBeliGreige(user?.token, payload);
+      }
+
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
       }).then(() => {
-        navigate("/purchaseorders");
+        navigate("/beligreige-purchasecontract");
       });
     } catch (err) {
       console.error(err);
@@ -259,6 +328,7 @@ export default function BGPurchaseContractForm() {
                 type="button"
                 class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
                 onClick={generateNomorKontrak}
+                hidden={isEdit}
               >
                 Generate
               </button>
@@ -389,19 +459,23 @@ export default function BGPurchaseContractForm() {
                   </td>
                   <td class="border p-2">
                     <input
-                      type="number"
+                      type="text"
+                      inputmode="decimal"
                       class="border p-1 rounded w-full"
                       value={item.lebar_greige}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "lebar_greige", e.target.value)
-                      // }
+                      onInput={(e) =>
+                        handleItemChange(i(), "lebar_greige", e.target.value)
+                      }
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class="border p-1 rounded w-full"
+                      class={`border p-1 rounded w-full ${
+                        form().satuan_unit_id === 2 ? "bg-gray-200" : ""
+                      }`}
+                      readOnly={form().satuan_unit_id === 2}
                       value={item.meter}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "meter", e.target.value)
@@ -417,7 +491,10 @@ export default function BGPurchaseContractForm() {
                     <input
                       type="text"
                       inputmode="decimal"
-                      class="border p-1 rounded w-full"
+                      class={`border p-1 rounded w-full ${
+                        form().satuan_unit_id === 1 ? "bg-gray-200" : ""
+                      }`}
+                      readOnly={form().satuan_unit_id === 1}
                       value={item.yard}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "yard", e.target.value)

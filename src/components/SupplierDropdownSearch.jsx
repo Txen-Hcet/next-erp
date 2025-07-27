@@ -17,7 +17,6 @@ export default function SupplierDropdownSearch({
     if (!dropdownRef) return;
     const cleanup = onClickOutside(dropdownRef, () => setIsOpen(false));
     onCleanup(cleanup);
-    console.log(form());
   });
 
   const filteredSuppliers = createMemo(() => {
@@ -42,6 +41,7 @@ export default function SupplierDropdownSearch({
 
   return (
     <div class="relative" ref={dropdownRef}>
+      <input type="hidden" name="supplier_id" value={form().supplier_id} />
       <button
         type="button"
         class={`w-full border p-2 rounded text-left ${

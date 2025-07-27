@@ -2234,10 +2234,10 @@ export async function softDeleteGrade(id, token) {
 
 // #region LAST SEQUENCE FUNCTION
 
-export async function getLastSequence(token, doc, type) {
+export async function getLastSequence(token, doc, type, ppn) {
   try {
     const response = await fetch(
-      `https://nexttechenterprise.site/api/last-sequence?doc=${doc}&type=${type}`,
+      `https://nexttechenterprise.site/api/last-sequence?doc=${doc}&type=${type}&ppn=${ppn}`,
       {
         method: "GET",
         headers: {
@@ -2264,6 +2264,145 @@ export async function getLastSequence(token, doc, type) {
 
 // #endregion LAST SEQUENCE FUNCTION
 
+export async function createBeliGreige(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-greige-contract`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat beli greige");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllBeliGreiges(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-greige-contracts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengambil data beli greige");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getBeliGreiges(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-greige-contracts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal mengambil jenis beli greige dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataBeliGreige(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-greige-contract/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah dat beli greige");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteBeliGreige(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-greige-contract/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis beli greige dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
 export function logout() {
   localStorage.removeItem("user");
 }
