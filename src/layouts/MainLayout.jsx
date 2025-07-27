@@ -17,6 +17,13 @@ export default function MainLayout(props) {
   const [isCelupOpen, setCelupIsOpen] = createSignal(false);
   const [isFinishOpen, setFinishIsOpen] = createSignal(false);
   const [isJualBeliOpen, setJualBeliIsOpen] = createSignal(false);
+  const [isWarehouseTransactionOpen, setWarehouseTransactionIsOpen] =
+    createSignal(false);
+  const [isWarehouseGreigeOpen, setWarehouseGreigeIsOpen] = createSignal(false);
+  const [isWarehouseCelupOpen, setWarehouseCelupIsOpen] = createSignal(false);
+  const [isWarehouseFinishOpen, setWarehouseFinishIsOpen] = createSignal(false);
+  const [isWarehouseJualBeliOpen, setWarehouseJualBeliIsOpen] =
+    createSignal(false);
   const [sidebarOpen, setSidebarOpen] = createSignal(true);
 
   const purchasingRoutes = {
@@ -25,31 +32,33 @@ export default function MainLayout(props) {
       "/beligreige-purchasecontract/form",
       "/beligreige-purchaseorder",
       "/beligreige-purchaseorder/form",
-      "/beligreige-deliverynote",
-      "/beligreige-deliverynote/form",
     ],
     celup: [
       "/ordercelup-purchasecontract",
       "/ordercelup-purchasecontract/form",
       "/ordercelup-purchaseorder",
       "/ordercelup-purchaseorder/form",
-      "/ordercelup-deliverynote",
-      "/ordercelup-deliverynote/form",
     ],
     finish: [
       "/kainjadi-purchasecontract",
       "/kainjadi-purchasecontract/form",
       "/kainjadi-purchaseorder",
       "/kainjadi-purchaseorder/form",
-      "/kainjadi-deliverynote",
-      "/kainjadi-deliverynote/form",
     ],
-    jualbeli: [
-      "/jualbeli-purchaseorder",
-      "/jualbeli-purchaseorder/form",
-      "/jualbeli-deliverynote",
-      "/jualbeli-deliverynote/form",
+    jualbeli: ["/jualbeli-purchaseorder", "/jualbeli-purchaseorder/form"],
+  };
+
+  const warehouseRoutes = {
+    transaction: [
+      "/packingorder",
+      "/packingorder/form",
+      "/deliverynote",
+      "/deliverynote/form",
     ],
+    greige: ["/beligreige-deliverynote", "/beligreige-deliverynote/form"],
+    celup: ["/ordercelup-deliverynote", "/ordercelup-deliverynote/form"],
+    finish: ["/kainjadi-deliverynote", "/kainjadi-deliverynote/form"],
+    jualbeli: ["/jualbeli-deliverynote", "/jualbeli-deliverynote/form"],
   };
 
   createEffect(() => {
@@ -100,16 +109,16 @@ export default function MainLayout(props) {
         return "transaction";
       }
 
-      if (
-        [
-          "/packingorder",
-          "/packingorder/form",
-          "/deliverynote",
-          "/deliverynote/form",
-        ].some((p) => pathname.startsWith(p))
-      ) {
-        return "warehouse";
-      }
+      // if (
+      //   [
+      //     "/packingorder",
+      //     "/packingorder/form",
+      //     "/deliverynote",
+      //     "/deliverynote/form",
+      //   ].some((p) => pathname.startsWith(p))
+      // ) {
+      //   return "warehouse";
+      // }
 
       // purchasing parent route detection
       if (
@@ -118,6 +127,15 @@ export default function MainLayout(props) {
           .some((p) => pathname.startsWith(p))
       ) {
         return "purchasing";
+      }
+
+      // warehouse parent route detection
+      if (
+        Object.values(warehouseRoutes)
+          .flat()
+          .some((p) => pathname.startsWith(p))
+      ) {
+        return "warehouse";
       }
 
       return "unknown";
@@ -133,6 +151,34 @@ export default function MainLayout(props) {
         break;
       case "warehouse":
         setWarehouseIsOpen(true);
+        if (
+          warehouseRoutes.transaction.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseTransactionIsOpen(true);
+        }
+        if (
+          warehouseRoutes.greige.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseGreigeIsOpen(true);
+        }
+
+        if (
+          warehouseRoutes.celup.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseCelupIsOpen(true);
+        }
+
+        if (
+          warehouseRoutes.finish.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseFinishIsOpen(true);
+        }
+
+        if (
+          warehouseRoutes.jualbeli.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseJualBeliIsOpen(true);
+        }
         break;
       case "purchasing":
         setPurchasingIsOpen(true);
@@ -227,6 +273,7 @@ export default function MainLayout(props) {
           <>
             <nav class="flex-1 overflow-y-auto">
               <ul>
+                {/* Main Menu */}
                 <li>
                   <A
                     href="/dashboard"
@@ -400,6 +447,7 @@ export default function MainLayout(props) {
                     </li>
                   </ul>
                 </li>
+                {/* PEMBELIAN */}
                 <li>
                   <button
                     class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
@@ -684,6 +732,7 @@ export default function MainLayout(props) {
                     </li>
                   </ul>
                 </li>
+                {/* PENJUALAN */}
                 <li>
                   <button
                     class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
@@ -733,6 +782,7 @@ export default function MainLayout(props) {
                     </li>
                   </ul>
                 </li>
+                {/* GUDANG */}
                 <li>
                   <button
                     class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
@@ -746,7 +796,7 @@ export default function MainLayout(props) {
                 </li>
 
                 {/* SUB MENU GUDANG */}
-                <li
+                {/* <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
                     isWarehouseIsOpen()
                       ? "max-h-fit opacity-100"
@@ -781,32 +831,36 @@ export default function MainLayout(props) {
                       </A>
                     </li>
                   </ul>
-                </li>
+                </li> */}
                 <li
                   class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isPurchasingIsOpen()
+                    isWarehouseIsOpen()
                       ? "max-h-fit opacity-100"
                       : "max-h-0 opacity-0"
                   }`}
                 >
                   <ul>
-                    {/* Submenu Level 2: Pembelian Greige */}
+                    {/* Submenu Level 2: Penjualan */}
                     <li>
                       <button
                         class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                        onClick={() => setGreigeIsOpen(!isGreigeOpen())}
+                        onClick={() =>
+                          setWarehouseTransactionIsOpen(
+                            !isWarehouseTransactionOpen()
+                          )
+                        }
                       >
-                        Pembelian Greige
+                        Penjualan
                         <span class="text-xs">
-                          {isGreigeOpen() ? "▲" : "▼"}
+                          {isWarehouseTransactionOpen() ? "▲" : "▼"}
                         </span>
                       </button>
                     </li>
 
-                    {/* Submenu Items inside Pembelian Greige */}
+                    {/* Submenu Items inside Transaction */}
                     <li
                       class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isGreigeOpen()
+                        isWarehouseTransactionOpen()
                           ? "max-h-fit opacity-100"
                           : "max-h-0 opacity-0"
                       }`}
@@ -814,34 +868,58 @@ export default function MainLayout(props) {
                       <ul>
                         <li>
                           <A
-                            href="/beligreige-purchasecontract"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname ===
-                                "/beligreige-purchasecontract" ||
-                              location.pathname ===
-                                "/beligreige-purchasecontract/form"
+                            href="/packingorder"
+                            class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/packingorder" ||
+                              location.pathname === "/packingorder/form"
                                 ? "bg-gray-700 text-white"
                                 : ""
                             }`}
                           >
-                            Purchase Contract
+                            Packing Order
                           </A>
                         </li>
                         <li>
                           <A
-                            href="/beligreige-purchaseorder"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname ===
-                                "/beligreige-purchaseorder" ||
-                              location.pathname ===
-                                "/beligreige-purchaseorder/form"
+                            href="/deliverynote"
+                            class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/deliverynote" ||
+                              location.pathname === "/deliverynote/form"
                                 ? "bg-gray-700 text-white"
                                 : ""
                             }`}
                           >
-                            Purchase Order
+                            Surat Jalan
                           </A>
                         </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <ul>
+                    {/* Submenu Level 2: Pembelian Greige */}
+                    <li>
+                      <button
+                        class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() =>
+                          setWarehouseGreigeIsOpen(!isWarehouseGreigeOpen())
+                        }
+                      >
+                        Pembelian Greige
+                        <span class="text-xs">
+                          {isWarehouseGreigeOpen() ? "▲" : "▼"}
+                        </span>
+                      </button>
+                    </li>
+
+                    {/* Submenu Items inside Pembelian Greige */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isWarehouseGreigeOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
                         <li>
                           <A
                             href="/beligreige-deliverynote"
@@ -865,52 +943,26 @@ export default function MainLayout(props) {
                     <li>
                       <button
                         class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                        onClick={() => setCelupIsOpen(!isCelupOpen())}
+                        onClick={() =>
+                          setWarehouseCelupIsOpen(!isWarehouseCelupOpen())
+                        }
                       >
                         Pembelian Order Celup
-                        <span class="text-xs">{isCelupOpen() ? "▲" : "▼"}</span>
+                        <span class="text-xs">
+                          {isWarehouseCelupOpen() ? "▲" : "▼"}
+                        </span>
                       </button>
                     </li>
 
                     {/* Submenu Items inside Order Celup */}
                     <li
                       class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isCelupOpen()
+                        isWarehouseCelupOpen()
                           ? "max-h-fit opacity-100"
                           : "max-h-0 opacity-0"
                       }`}
                     >
                       <ul>
-                        <li>
-                          <A
-                            href="/ordercelup-purchasecontract"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname ===
-                                "/ordercelup-purchasecontract" ||
-                              location.pathname ===
-                                "/ordercelup-purchasecontract/form"
-                                ? "bg-gray-700 text-white"
-                                : ""
-                            }`}
-                          >
-                            Kontrak Proses
-                          </A>
-                        </li>
-                        <li>
-                          <A
-                            href="/ordercelup-purchaseorder"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname ===
-                                "/ordercelup-purchaseorder" ||
-                              location.pathname ===
-                                "/ordercelup-purchaseorder/form"
-                                ? "bg-gray-700 text-white"
-                                : ""
-                            }`}
-                          >
-                            Order Celup
-                          </A>
-                        </li>
                         <li>
                           <A
                             href="/ordercelup-deliverynote"
@@ -934,11 +986,13 @@ export default function MainLayout(props) {
                     <li>
                       <button
                         class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                        onClick={() => setFinishIsOpen(!isFinishOpen())}
+                        onClick={() =>
+                          setWarehouseFinishIsOpen(!isWarehouseFinishOpen())
+                        }
                       >
                         Pembelian Kain Finish
                         <span class="text-xs">
-                          {isFinishOpen() ? "▲" : "▼"}
+                          {isWarehouseFinishOpen() ? "▲" : "▼"}
                         </span>
                       </button>
                     </li>
@@ -946,41 +1000,12 @@ export default function MainLayout(props) {
                     {/* Submenu Items inside Kain Jadi */}
                     <li
                       class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isFinishOpen()
+                        isWarehouseFinishOpen()
                           ? "max-h-fit opacity-100"
                           : "max-h-0 opacity-0"
                       }`}
                     >
                       <ul>
-                        <li>
-                          <A
-                            href="/kainjadi-purchasecontract"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname ===
-                                "/kainjadi-purchasecontract" ||
-                              location.pathname ===
-                                "/kainjadi-purchasecontract/form"
-                                ? "bg-gray-700 text-white"
-                                : ""
-                            }`}
-                          >
-                            Purchase Order
-                          </A>
-                        </li>
-                        <li>
-                          <A
-                            href="/kainjadi-purchaseorder"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname === "/kainjadi-purchaseorder" ||
-                              location.pathname ===
-                                "/kainjadi-purchaseorder/form"
-                                ? "bg-gray-700 text-white"
-                                : ""
-                            }`}
-                          >
-                            Order Celup KJ
-                          </A>
-                        </li>
                         <li>
                           <A
                             href="/kainjadi-deliverynote"
@@ -1003,11 +1028,13 @@ export default function MainLayout(props) {
                     <li>
                       <button
                         class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                        onClick={() => setJualBeliIsOpen(!isJualBeliOpen())}
+                        onClick={() =>
+                          setWarehouseJualBeliIsOpen(!isWarehouseJualBeliOpen())
+                        }
                       >
                         Jual Beli Kain
                         <span class="text-xs">
-                          {isJualBeliOpen() ? "▲" : "▼"}
+                          {isWarehouseJualBeliOpen() ? "▲" : "▼"}
                         </span>
                       </button>
                     </li>
@@ -1015,26 +1042,12 @@ export default function MainLayout(props) {
                     {/* Submenu Items inside Kain Jadi */}
                     <li
                       class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isJualBeliOpen()
+                        isWarehouseJualBeliOpen()
                           ? "max-h-fit opacity-100"
                           : "max-h-0 opacity-0"
                       }`}
                     >
                       <ul>
-                        <li>
-                          <A
-                            href="/jualbeli-purchaseorder"
-                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                              location.pathname === "/jualbeli-purchaseorder" ||
-                              location.pathname ===
-                                "/jualbeli-purchaseorder/form"
-                                ? "bg-gray-700 text-white"
-                                : ""
-                            }`}
-                          >
-                            Purchase Order
-                          </A>
-                        </li>
                         <li>
                           <A
                             href="/jualbeli-deliverynote"
