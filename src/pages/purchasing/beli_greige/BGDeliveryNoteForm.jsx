@@ -7,7 +7,6 @@ import {
   getPackingLists,
   createDeliveryNote,
   updateDataDeliveryNote,
-  getLastDeliveryNote,
   getUser,
   getDeliveryNotes,
 } from "../../../utils/auth";

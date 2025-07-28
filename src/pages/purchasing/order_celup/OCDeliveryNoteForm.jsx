@@ -7,7 +7,6 @@ import {
   getPackingLists,
   createDeliveryNote,
   updateDataDeliveryNote,
-  getLastDeliveryNote,
   getUser,
   getDeliveryNotes,
 } from "../../../utils/auth";
@@ -34,7 +33,6 @@ export default function OCDeliveryNoteForm() {
     const pls = await getAllPackingLists(user?.token);
     setPackingLists(pls || []);
 
-    const lastSeq = await getLastDeliveryNote(user?.token);
     setLastNumberSequence(lastSeq?.last_sequence || 0);
 
     if (isEdit) {

@@ -1,4 +1,11 @@
-import { createSignal, createEffect, For, onMount, Show } from "solid-js";
+import {
+  createSignal,
+  createEffect,
+  For,
+  onMount,
+  Show,
+  createMemo,
+} from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -7,11 +14,14 @@ import {
   getPackingLists,
   createDeliveryNote,
   updateDataDeliveryNote,
-  getLastDeliveryNote,
   getUser,
   getDeliveryNotes,
+  getLastSequence,
+  getAllSalesOrders,
 } from "../../utils/auth";
 import SuratJalanPrint from "../print_function/SuratJalanPrint";
+import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
+import { Trash2 } from "lucide-solid";
 
 export default function DeliveryNoteForm() {
   const [params] = useSearchParams();
@@ -22,10 +32,14 @@ export default function DeliveryNoteForm() {
   const [packingLists, setPackingLists] = createSignal([]);
   const [lastNumberSequence, setLastNumberSequence] = createSignal(null);
   const [showPreview, setShowPreview] = createSignal(false);
+  const [salesOrders, setSalesOrders] = createSignal([]);
+  const [todayDate] = createSignal(new Date().toISOString().slice(0, 10));
 
   const [form, setForm] = createSignal({
     no_sj: "",
     sequence_number: "",
+    no_surat_jalan_supplier: "",
+    tanggal_surat_jalan: new Date().toISOString().split("T")[0],
     catatan: "",
     itemGroups: [],
   });
@@ -34,8 +48,8 @@ export default function DeliveryNoteForm() {
     const pls = await getAllPackingLists(user?.token);
     setPackingLists(pls || []);
 
-    const lastSeq = await getLastDeliveryNote(user?.token);
-    setLastNumberSequence(lastSeq?.last_sequence || 0);
+    const dataSalesOrders = await getAllSalesOrders(user?.token);
+    setSalesOrders(dataSalesOrders.orders || []);
 
     if (isEdit) {
       const res = await getDeliveryNotes(params.id, user?.token);
@@ -87,14 +101,37 @@ export default function DeliveryNoteForm() {
     }
   });
 
-  const generateSJNumber = (type, sequence) => {
-    const typeLetter = type === "Domestik" ? "D" : "E";
+  // const generateSJNumber = (type, sequence) => {
+  //   const typeLetter = type === "Domestik" ? "D" : "E";
+  //   const now = new Date();
+  //   const month = String(now.getMonth() + 1).padStart(2, "0");
+  //   const year = String(now.getFullYear()).slice(-2);
+  //   const mmyy = `${month}${year}`;
+  //   const nextNumber = String(sequence).padStart(5, "0");
+  //   return `SJ/${typeLetter}/${mmyy}-${nextNumber}`;
+  // };
+
+  const generateNomorKontrak = async () => {
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "sj",
+      "domestik",
+      form().ppn // pastikan ini sudah ada dari salesOrder
+    );
+
+    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = String(now.getFullYear()).slice(-2);
+    const year = String(now.getFullYear()).slice(2);
+    const ppnValue = parseFloat(form().ppn) || 0;
+    const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const nextNumber = String(sequence).padStart(5, "0");
-    return `SJ/${typeLetter}/${mmyy}-${nextNumber}`;
+    const nomor = `SJ/PJ/${type}/${mmyy}/${nextNum}`;
+    setForm((prev) => ({
+      ...prev,
+      sequence_number: nomor,
+      no_seq: lastSeq?.last_sequence + 1,
+    }));
   };
 
   const addPackingListGroup = () => {
@@ -131,9 +168,6 @@ export default function DeliveryNoteForm() {
     if (typeLetter === "D") typeValue = "Domestik";
     else if (typeLetter === "E") typeValue = "Ekspor";
 
-    const nextSeq = (lastNumberSequence() || 0) + 1;
-    const noSJ = generateSJNumber(typeValue, nextSeq);
-
     const allRolls = [];
     (pl?.itemGroups || []).forEach((item) => {
       (item.rolls || []).forEach((roll) => {
@@ -158,8 +192,6 @@ export default function DeliveryNoteForm() {
       };
       return {
         ...prev,
-        no_sj: noSJ,
-        sequence_number: nextSeq,
         itemGroups: groups,
       };
     });
@@ -280,111 +312,235 @@ export default function DeliveryNoteForm() {
       </Show>
 
       <form onSubmit={handleSubmit} class="space-y-4">
-        <div class="grid gap-4">
-          <div>
-            <label class="block text-sm mb-1">No Surat Jalan</label>
-            <input
-              class="bg-gray-200 w-1/3 border p-2 rounded"
-              value={form().no_sj}
-              readonly
-            />
+        <SearchableSalesOrderSelect
+          salesOrders={salesOrders}
+          form={form}
+          setForm={setForm}
+          onChange={(so) => {
+            // Isi nilai PPN dari Sales Order yang dipilih ke form
+            setForm((prev) => ({
+              ...prev,
+              ppn: so.ppn, // pastikan Sales Order punya property `ppn`
+            }));
+            getAllPackingLists(user?.token).then((pls) => {
+              const filtered = pls?.filter((pl) => pl.sales_order_id === so.id);
+              setPackingLists(filtered || []);
+              console.log(so);
+              if (!filtered || filtered.length === 0) {
+                Swal.fire({
+                  icon: "info",
+                  title: "Tidak ada packing list",
+                  text: "Sales order ini belum memiliki packing list.",
+                });
+              }
+            });
+          }}
+        />
+
+        {form().sales_contract_id && (
+          <div class="w-full grid grid-cols-3 gap-4">
+            <div class="w-full mt-4">
+              <label class="text-sm font-medium">No. Surat Jalan</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  value={form().sequence_number || ""}
+                  class="w-full border p-2 rounded bg-gray-100"
+                  readonly
+                />
+                <button
+                  type="button"
+                  class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
+                  onClick={generateNomorKontrak}
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+
+            <div class="w-full mt-4">
+              <label class="text-sm font-medium">
+                No. Surat Jalan Supplier
+              </label>
+              <input
+                type="text"
+                class="w-full border p-2 rounded"
+                value={form().no_surat_jalan_supplier || ""}
+                onInput={(e) =>
+                  setForm({
+                    ...form(),
+                    no_surat_jalan_supplier: e.target.value,
+                  })
+                }
+              />
+            </div>
+
+            <div class="w-full mt-4">
+              <label class="text-sm font-medium">Tanggal Surat Jalan</label>
+              <input
+                type="date"
+                class="w-full border p-2 rounded bg-gray-100"
+                value={new Date().toISOString().split("T")[0]}
+                disabled
+              />
+            </div>
           </div>
-          <div>
-            <label class="block text-sm mb-1">Catatan</label>
-            <textarea
-              class="w-full border p-2 rounded"
-              value={form().catatan}
-              onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
-            ></textarea>
-          </div>
-        </div>
+        )}
 
         <button
           type="button"
           onClick={() => addPackingListGroup()}
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
+          disabled={!form().sales_contract_id}
         >
           + Tambah Packing List
         </button>
 
         <For each={form().itemGroups}>
-          {(group, groupIndex) => (
-            <div class="border p-4 mb-4 rounded">
-              <div class="mb-2 flex justify-between items-center">
-                <h3 class="font-semibold text-lg">
-                  {group.no_pl || `Packing List #${groupIndex() + 1}`}
-                </h3>
-                <button
-                  type="button"
-                  class="text-red-600 hover:text-red-800 text-sm"
-                  onClick={() => removePackingListGroup(groupIndex())}
+          {(group, groupIndex) => {
+            const totalMeter = createMemo(() =>
+              group.items
+                ?.filter((roll) => roll.checked)
+                .reduce((sum, roll) => sum + (parseFloat(roll.meter) || 0), 0)
+            );
+
+            const totalYard = createMemo(() =>
+              group.items
+                ?.filter((roll) => roll.checked)
+                .reduce((sum, roll) => sum + (parseFloat(roll.yard) || 0), 0)
+            );
+
+            return (
+              <div class="border p-4 mb-4 rounded">
+                <div class="mb-2 flex justify-between items-center">
+                  <h3 class="font-semibold text-lg">
+                    {group.no_pl || `Packing List #${groupIndex() + 1}`}
+                  </h3>
+                  <button
+                    type="button"
+                    class="text-red-600 hover:text-red-800 text-sm"
+                    onClick={() => removePackingListGroup(groupIndex())}
+                  >
+                    <Trash2 size={25} />
+                  </button>
+                </div>
+
+                <select
+                  class="w-full border p-2 rounded mb-4"
+                  value={group.packing_list_id}
+                  onInput={(e) =>
+                    handlePackingListChange(groupIndex(), e.target.value)
+                  }
+                  disabled={isEdit}
                 >
-                  Hapus
-                </button>
-              </div>
+                  <option value="">Pilih Packing List</option>
+                  <For each={packingLists()}>
+                    {(pl) => <option value={pl.id}>{pl.no_pl}</option>}
+                  </For>
+                </select>
 
-              <select
-                class="w-full border p-2 rounded mb-4"
-                value={group.packing_list_id}
-                onInput={(e) =>
-                  handlePackingListChange(groupIndex(), e.target.value)
-                }
-                disabled={isEdit}
-              >
-                <option value="">Pilih Packing List</option>
-                <For each={packingLists()}>
-                  {(pl) => <option value={pl.id}>{pl.no_pl}</option>}
-                </For>
-              </select>
+                <Show when={group.items?.length}>
+                  <table class="w-full border border-gray-300 text-sm mb-3">
+                    <thead class="bg-gray-100">
+                      <tr>
+                        <th class="border px-2 py-1">#</th>
+                        <th class="border px-2 py-1">Konstruksi Kain</th>
+                        <th class="border px-2 py-1">Meter</th>
+                        <th class="border px-2 py-1">Yard</th>
+                        <th class="border px-2 py-1">Pilih</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <For each={group.items}>
+                        {(roll, rollIndex) => (
+                          <tr>
+                            <td class="border px-2 py-1 text-center">
+                              {rollIndex() + 1}
+                            </td>
+                            <td class="border px-2 py-1">
+                              {roll.konstruksi_kain}
+                            </td>
+                            <td class="border px-2 py-1 text-right">
+                              {roll.meter}
+                            </td>
+                            <td class="border px-2 py-1 text-right">
+                              {roll.yard}
+                            </td>
+                            <td class="border px-2 py-1 text-center">
+                              <input
+                                type="checkbox"
+                                checked={roll.checked}
+                                onChange={(e) =>
+                                  handleRollCheckedChange(
+                                    groupIndex(),
+                                    rollIndex(),
+                                    e.target.checked
+                                  )
+                                }
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </For>
+                    </tbody>
+                  </table>
 
-              <Show when={group.items.length}>
-                <table class="w-full border border-gray-300 text-sm mb-3">
-                  <thead class="bg-gray-100">
-                    <tr>
-                      <th class="border px-2 py-1">#</th>
-                      <th class="border px-2 py-1">Konstruksi Kain</th>
-                      <th class="border px-2 py-1">Meter</th>
-                      <th class="border px-2 py-1">Yard</th>
-                      <th class="border px-2 py-1">Pilih</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <For each={group.items}>
-                      {(roll, rollIndex) => (
+                  {/* TOTAL */}
+                  <div class="border-t pt-4 mt-4">
+                    <div class="text-right font-semibold text-sm">
+                      Total Keseluruhan:
+                    </div>
+                    <table class="ml-auto text-sm mt-1 border border-gray-300">
+                      <thead class="bg-gray-100">
                         <tr>
-                          <td class="border px-2 py-1 text-center">
-                            {rollIndex() + 1}
+                          <th class="px-4 py-2 border">Total Meter</th>
+                          <th class="px-4 py-2 border">Total Yard</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="px-4 py-2 border text-right">
+                            {form()
+                              .itemGroups?.reduce((sum, group) => {
+                                return (
+                                  sum +
+                                  group.items?.reduce((s, item) => {
+                                    return (
+                                      s +
+                                      (item.checked
+                                        ? parseFloat(item.meter || 0)
+                                        : 0)
+                                    );
+                                  }, 0)
+                                );
+                              }, 0)
+                              ?.toFixed(2)}
                           </td>
-                          <td class="border px-2 py-1">
-                            {roll.konstruksi_kain}
-                          </td>
-                          <td class="border px-2 py-1 text-right">
-                            {roll.meter}
-                          </td>
-                          <td class="border px-2 py-1 text-right">
-                            {roll.yard}
-                          </td>
-                          <td class="border px-2 py-1 text-center">
-                            <input
-                              type="checkbox"
-                              checked={roll.checked}
-                              onChange={(e) =>
-                                handleRollCheckedChange(
-                                  groupIndex(),
-                                  rollIndex(),
-                                  e.target.checked
-                                )
-                              }
-                            />
+                          <td class="px-4 py-2 border text-right">
+                            {form()
+                              .itemGroups?.reduce((sum, group) => {
+                                return (
+                                  sum +
+                                  group.items?.reduce((s, item) => {
+                                    return (
+                                      s +
+                                      (item.checked
+                                        ? parseFloat(item.yard || 0)
+                                        : 0)
+                                    );
+                                  }, 0)
+                                );
+                              }, 0)
+                              ?.toFixed(2)}
                           </td>
                         </tr>
-                      )}
-                    </For>
-                  </tbody>
-                </table>
-              </Show>
-            </div>
-          )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Show>
+              </div>
+            );
+          }}
         </For>
 
         <div class="mt-6">

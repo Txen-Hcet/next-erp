@@ -1922,34 +1922,6 @@ export async function softDeleteDeliveryNote(id, token) {
   }
 }
 
-export async function getLastDeliveryNote(token) {
-  try {
-    const response = await fetch(
-      `https://nexttechenterprise.site/api/last-surat-jalan`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "ngrok-skip-browser-warning": "any-value",
-        },
-      }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message || "Gagal mengambil data terakhir packing list order"
-      );
-    }
-
-    return data;
-  } catch (error) {
-    throw error;
-  }
-}
-
 // #endregion DELIVERY NOTE FUNCTION
 
 // #region SATUAN UNIT FUNCTION
@@ -2427,7 +2399,7 @@ export async function createBeliGreigeOrder(token, payload) {
       }
     );
 
-    console.log(payload)
+    console.log(payload);
 
     const data = await response.json();
 

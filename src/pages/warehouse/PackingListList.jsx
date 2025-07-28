@@ -71,6 +71,8 @@ export default function PackingListList() {
     const sortedData = getDatapackingOrders.sort((a, b) => a.id - b.id);
     setPackingOrders(sortedData);
 
+    console.log(packingOrders())
+
     if (getDatapackingOrders.status === 200) {
       const sortedData = getDatapackingOrders.contracts.sort(
         (a, b) => a.id - b.id

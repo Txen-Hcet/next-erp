@@ -40,7 +40,9 @@ export default function PurchaseContractDropdownSearch({
     <div class="relative" ref={dropdownRef}>
       <button
         type="button"
-        class="w-full border p-2 rounded text-left bg-transparent"
+        class={`w-full border p-2 rounded text-left ${
+          disabled ? "bg-gray-200" : "bg-white/10"
+        } cursor-default`}
         onClick={() => setIsOpen(!isOpen())}
       >
         {selectedContract()

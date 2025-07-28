@@ -45,7 +45,7 @@ export default function SupplierDropdownSearch({
       <button
         type="button"
         class={`w-full border p-2 rounded text-left ${
-          disabled ? "bg-gray-200" : "bg-white"
+          disabled ? "bg-gray-200" : "bg-white/10"
         } cursor-default`}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen())}

@@ -827,7 +827,23 @@ export default function MainLayout(props) {
                           : "max-h-0 opacity-0"
                       }`}
                     >
-                      <ul></ul>
+                      <ul>
+                        <li>
+                          <A
+                            href="/beligreige-deliverynote"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/beligreige-deliverynote" ||
+                              location.pathname ===
+                                "/beligreige-deliverynote/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Jalan
+                          </A>
+                        </li>
+                      </ul>
                     </li>
                   </ul>
                   <ul>
