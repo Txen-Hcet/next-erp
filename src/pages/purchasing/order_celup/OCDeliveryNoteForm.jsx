@@ -33,8 +33,7 @@ export default function OCDeliveryNoteForm() {
     const pls = await getAllPackingLists(user?.token);
     setPackingLists(pls || []);
 
-    setLastNumberSequence(lastSeq?.last_sequence || 0);
-
+    setLastNumberSequence(0);
     if (isEdit) {
       const res = await getDeliveryNotes(params.id, user?.token);
       const dn = res?.response;

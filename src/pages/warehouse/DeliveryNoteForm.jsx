@@ -325,7 +325,6 @@ export default function DeliveryNoteForm() {
             getAllPackingLists(user?.token).then((pls) => {
               const filtered = pls?.filter((pl) => pl.sales_order_id === so.id);
               setPackingLists(filtered || []);
-              console.log(so);
               if (!filtered || filtered.length === 0) {
                 Swal.fire({
                   icon: "info",
@@ -398,18 +397,6 @@ export default function DeliveryNoteForm() {
 
         <For each={form().itemGroups}>
           {(group, groupIndex) => {
-            const totalMeter = createMemo(() =>
-              group.items
-                ?.filter((roll) => roll.checked)
-                .reduce((sum, roll) => sum + (parseFloat(roll.meter) || 0), 0)
-            );
-
-            const totalYard = createMemo(() =>
-              group.items
-                ?.filter((roll) => roll.checked)
-                .reduce((sum, roll) => sum + (parseFloat(roll.yard) || 0), 0)
-            );
-
             return (
               <div class="border p-4 mb-4 rounded">
                 <div class="mb-2 flex justify-between items-center">

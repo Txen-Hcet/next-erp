@@ -63,6 +63,8 @@ import DeliveryNoteList from "./pages/warehouse/DeliveryNoteList";
 import DeliveryNoteForm from "./pages/warehouse/DeliveryNoteForm";
 import PackingListList from "./pages/warehouse/PackingListList";
 import PackingListForm from "./pages/warehouse/PackingListForm";
+// PRINT
+import SalesContractPrint from "./utils/dataDummyPrint";
 function App() {
   return (
     <Router>
@@ -204,6 +206,12 @@ function App() {
       {/* JUAL BELI */}
 
       {/* PURCHASING */}
+
+      {/* PRINT */}
+
+      <Route path="/print/salescontract" component={SalesContractPrint} />
+
+      {/* PRINT */}
 
       {/* MASTER DATA */}
       <Route path="/suppliers" component={SuppliersList} />
