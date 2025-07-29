@@ -64,10 +64,17 @@ import DeliveryNoteForm from "./pages/warehouse/DeliveryNoteForm";
 import PackingListList from "./pages/warehouse/PackingListList";
 import PackingListForm from "./pages/warehouse/PackingListForm";
 // PRINT
-import SalesContractPrint from "./utils/SalesContractDummyPrint";
-import SalesOrderPrint from "./utils/SalesOrderDummyPrint";
-import PackingOrderPrint from "./utils/PackingOrderDummyPrint";
-import SuratJalanPrint from "./utils/SuratJalanDummyPrint";
+// SELL
+import SalesContractPrint from "./utils/sell/SalesContractDummyPrint";
+import SalesOrderPrint from "./utils/sell/SalesOrderDummyPrint";
+import PackingOrderPrint from "./utils/sell/PackingOrderDummyPrint";
+import SuratJalanPrint from "./utils/sell/SuratJalanDummyPrint";
+// PRINT
+// BUY
+// BELI GREIGE
+import BGContractPrint from "./utils/buy/beli_greige/BGContractDummyPrint";
+import BGOrderPrint from "./utils/buy/beli_greige/BGOrderDummyPrint";
+import BGSuratJalanPrint from "./utils/buy/beli_greige/BGSuratJalanDummyPrint";
 
 function App() {
   return (
@@ -213,12 +220,25 @@ function App() {
 
       {/* PRINT */}
 
+      {/* SELL */}
       <Route path="/print/salescontract" component={SalesContractPrint} />
       <Route path="/print/salesorder" component={SalesOrderPrint} />
       <Route path="/print/packingorder" component={PackingOrderPrint} />
       <Route path="/print/packingorder" component={PackingOrderPrint} />
+      <Route path="/print/packingorder" component={SuratJalanPrint} />
       <Route path="/print/suratjalan" component={SuratJalanPrint} />
+      {/* SELL */}
 
+      {/* BUY */}
+      {/* BELI GREIGE */}
+      <Route path="/print/beligreige/contract" component={BGContractPrint} />
+      <Route path="/print/beligreige/order" component={BGOrderPrint} />
+      <Route
+        path="/print/beligreige/suratjalan"
+        component={BGSuratJalanPrint}
+      />
+      {/* BELI GREIGE */}
+      {/* BUY */}
       {/* PRINT */}
 
       {/* MASTER DATA */}

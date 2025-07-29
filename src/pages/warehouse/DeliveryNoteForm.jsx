@@ -19,7 +19,7 @@ import {
   getLastSequence,
   getAllSalesOrders,
 } from "../../utils/auth";
-import SuratJalanPrint from "../print_function/SuratJalanPrint";
+import SuratJalanPrint from "../print_function/sell/SuratJalanPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
 import { Trash2 } from "lucide-solid";
 

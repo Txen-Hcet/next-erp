@@ -1,4 +1,4 @@
-import SalesContractPrint from "../pages/print_function/SalesContractPrint";
+import SalesContractPrint from "../../pages/print_function/sell/SalesContractPrint";
 
 const dummyDataSalesContract = {
   type: "Export",

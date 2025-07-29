@@ -16,7 +16,7 @@ import {
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { RefreshCcw, Trash2, XCircle } from "lucide-solid";
-import PackingOrderPrint from "../print_function/PackingOrderPrint";
+import PackingOrderPrint from "../print_function/sell/PackingOrderPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
 
 export default function PackingListForm() {

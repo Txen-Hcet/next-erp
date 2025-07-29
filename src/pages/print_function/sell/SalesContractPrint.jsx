@@ -1,5 +1,5 @@
 import { createMemo, createSignal } from "solid-js";
-import logoNavel from "../../assets/img/navelLogo.png";
+import logoNavel from "../../../assets/img/navelLogo.png";
 
 export default function SalesContractPrint(props) {
   const data = props.data;
@@ -265,11 +265,11 @@ export default function SalesContractPrint(props) {
                   {item.yard_total}
                 </td>
                 <td className="border border-black p-1 text-right">
-                  {item.harga?.toLocaleString("id-ID")}
+                  {formatRupiahNumber(item.harga)}
                 </td>
                 <td className="border border-black p-1 text-right">
                   {item.harga && item.meter_total
-                    ? (item.harga * item.meter_total).toLocaleString("id-ID")
+                    ? formatRupiahNumber(item.harga * item.meter_total)
                     : "-"}
                 </td>
               </tr>

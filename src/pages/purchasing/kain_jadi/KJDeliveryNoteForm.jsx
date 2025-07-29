@@ -10,7 +10,7 @@ import {
   getUser,
   getDeliveryNotes,
 } from "../../../utils/auth";
-import SuratJalanPrint from "../../print_function/SuratJalanPrint";
+import SuratJalanPrint from "../../print_function/sell/SuratJalanPrint";
 
 export default function KJDeliveryNoteForm() {
   const [params] = useSearchParams();

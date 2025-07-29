@@ -1,16 +1,15 @@
-import SuratJalanPrint from "../pages/print_function/SuratJalanPrint";
+import PackingOrderPrint from "../../pages/print_function/sell/PackingOrderPrint";
 
-const dummyDataSuratJalan = {
+const dummyDataPackingOrder = {
   type: "Export",
-  customer: "BAPAK YANA, PT.",
-  alamat: "",
+  customer: "PANCA BINTANG CEMERLANG, PT.",
+  alamat:
+    "",
   no_sc: "SC/D/0725-00123",
   no_so: "SO/D/0725-00123",
   po_cust: "PO-7890",
   tanggal: "25-10-2025",
   tgl_kirim: "31-12-2025",
-  sopir: "TOPI", // isi pas mau print aja
-  no_mobil: "D 8677 WX", // isi pas mau print aja
   ppn_percent: 11,
   currency_id: "USD",
   kurs: 14500,
@@ -20,12 +19,8 @@ const dummyDataSuratJalan = {
     {
       kode_kain: "K001",
       jenis_kain: "PExPE20 62",
-      warna_kain: "MALVINAS",
-      lot: "3320",
-      grade: "A",
-      lebar: "58",
+      lebar: "150",
       gramasi: "180",
-      roll: 1,
       meter_total: 500,
       yard_total: 546.8,
       kilogram_total: 90,
@@ -34,12 +29,8 @@ const dummyDataSuratJalan = {
     {
       kode_kain: "K002",
       jenis_kain: "PExPE20 62",
-      warna_kain: "MALVINAS",
-      lot: "3320",
-      grade: "A",
-      lebar: "58",
+      lebar: "160",
       gramasi: "200",
-      roll: 1,
       meter_total: 300,
       yard_total: 328.1,
       kilogram_total: 65,
@@ -48,12 +39,8 @@ const dummyDataSuratJalan = {
     {
       kode_kain: "K003",
       jenis_kain: "PExPE20 62",
-      warna_kain: "MALVINAS",
-      lot: "3320",
-      grade: "A",
-      lebar: "58",
+      lebar: "155",
       gramasi: "190",
-      roll: 1,
       meter_total: 200,
       yard_total: 218.7,
       kilogram_total: null,
@@ -62,6 +49,6 @@ const dummyDataSuratJalan = {
   ],
 };
 
-export default function SuratJalanDataDummyPrint() {
-  return <SuratJalanPrint data={dummyDataSuratJalan} />;
+export default function PackingOrderDataDummyPrint() {
+  return <PackingOrderPrint data={dummyDataPackingOrder} />;
 }

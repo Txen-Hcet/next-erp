@@ -1,4 +1,4 @@
-import SalesOrderPrint from "../pages/print_function/SalesOrderPrint";
+import SalesOrderPrint from "../../pages/print_function/sell/SalesOrderPrint";
 
 const dummyDataSalesOrder = {
   type: "Export",
