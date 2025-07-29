@@ -1,3 +1,4 @@
+import { createMemo, createSignal } from "solid-js";
 import logoNavel from "../../assets/img/navelLogo.png";
 
 export default function PackingOrderPrint(props) {
@@ -33,10 +34,45 @@ export default function PackingOrderPrint(props) {
     (sum, i) => sum + Number(i.yard_total || 0),
     0
   );
-  const subTotal = data.items?.reduce(
-    (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
-    0
-  );
+  // const subTotal = data.items?.reduce(
+  //   (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
+  //   0
+  // );
+
+  // Misalnya kamu sudah punya:
+  const subTotal = createMemo(() => {
+    return data.items?.reduce(
+      (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
+      0
+    );
+  });
+
+  const [form, setForm] = createSignal({
+    nilai_lain: 0,
+  });
+
+  // DPP = subTotal
+  const dpp = createMemo(() => subTotal());
+
+  // Nilai Lain dari form
+  const nilaiLain = createMemo(() => parseFloat(form().nilai_lain || 0));
+
+  // PPN = 11% dari (DPP + Nilai Lain)
+  const ppn = createMemo(() => {
+    const dasarPajak = dpp() + nilaiLain();
+    return dasarPajak * 0.11;
+  });
+
+  // Jumlah Total = DPP + Nilai Lain + PPN
+  const jumlahTotal = createMemo(() => dpp() + nilaiLain() + ppn());
+
+  // Lalu kalau ingin dijadikan object seperti `data`
+  const dataAkhir = {
+    dpp: dpp(),
+    nilai_lain: nilaiLain(),
+    ppn: ppn(),
+    total: jumlahTotal(),
+  };
 
   return (
     <>
@@ -91,25 +127,25 @@ export default function PackingOrderPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  PT AJI WIJAYATEX GROUP
+                  {data.customer}
                 </td>
               </tr>
               <tr>
                 <td
-                  className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
+                  className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  KERTOHARJO BLOK O NO.0 RT 001 RW 005 KURIPAN
+                  {data.alamat}
                 </td>
               </tr>
-              <tr>
+              {/* <tr>
                 <td
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
                   KERTOHARJO PEKALONGAN SEL
                 </td>
-              </tr>
+              </tr> */}
               <tr>
                 <td className="px-2 py-1 whitespace-nowrap">Telp:</td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
@@ -137,8 +173,13 @@ export default function PackingOrderPrint(props) {
             <table className="h-full border-2 border-black table-fixed w-full">
               <tbody>
                 <tr>
-                  <td className="px-2 pb-8 text-center align-top break-words max-w-[180px]">
+                  <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
                     PO Customer
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-2 pb-1 text-center break-words max-w-[180px]">
+                    {data.po_cust}
                   </td>
                 </tr>
               </tbody>
@@ -151,8 +192,8 @@ export default function PackingOrderPrint(props) {
               {[
                 { label: "No. SC", value: data.no_sc },
                 { label: "Tanggal", value: data.tanggal },
-                { label: "Validity", value: data.validity },
-                { label: "Payment", value: data.payment },
+                { label: "Validity", value: data.validity_contract },
+                { label: "Payment", value: data.termin + " hari" },
               ].map((row, idx) => (
                 <tr key={idx} className="border-b border-black">
                   <td className="font-bold px-2 w-[30%] whitespace-nowrap">
@@ -208,9 +249,9 @@ export default function PackingOrderPrint(props) {
               <tr key={i}>
                 <td className="border border-black p-1 text-center">{i + 1}</td>
                 <td className="border border-black p-1 text-center">
-                  {item.kode}
+                  {item.kode_kain}
                 </td>
-                <td className="border border-black p-1">{item.nama_kain}</td>
+                <td className="border border-black p-1">{item.jenis_kain}</td>
                 <td className="border border-black p-1 text-center">
                   {item.lebar}
                 </td>
@@ -264,7 +305,7 @@ export default function PackingOrderPrint(props) {
                 Sub Total
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(subTotal)}
+                {formatRupiahNumber(subTotal())}
               </td>
             </tr>
             <tr>
@@ -273,7 +314,7 @@ export default function PackingOrderPrint(props) {
                 DPP
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(data.dpp)}
+                {formatRupiahNumber(dataAkhir.dpp)}
               </td>
             </tr>
             <tr>
@@ -282,7 +323,7 @@ export default function PackingOrderPrint(props) {
                 Nilai Lain
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(data.nilai_lain)}
+                {formatRupiahNumber(dataAkhir.nilai_lain)}
               </td>
             </tr>
             <tr>
@@ -291,7 +332,7 @@ export default function PackingOrderPrint(props) {
                 PPN
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(data.ppn)}
+                {formatRupiahNumber(dataAkhir.ppn)}
               </td>
             </tr>
             <tr>
@@ -300,14 +341,14 @@ export default function PackingOrderPrint(props) {
                 Jumlah Total
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(data.total)}
+                {formatRupiahNumber(dataAkhir.total)}
               </td>
             </tr>
             <tr>
               <td colSpan={9} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
-                <div className="whitespace-pre-wrap break-words">
-                  {data.notes ?? "-"}
+                <div className="whitespace-pre-wrap break-words italic">
+                  {data.catatan ?? "-"}
                 </div>
               </td>
             </tr>

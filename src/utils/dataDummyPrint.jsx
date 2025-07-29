@@ -2,20 +2,22 @@ import SalesContractPrint from "../pages/print_function/SalesContractPrint";
 
 const dummyDataSalesContract = {
   type: "Export",
-  no_pesan: "SC-00123",
+  customer: "PT AJI WIJAYATEX GROUP",
+  alamat:
+    "KERTOHARJO BLOK O NO.0 RT 001 RW 005 KURIPAN KERTOHARJO PEKALONGAN SEL",
+  no_sc: "SC-00123",
   po_cust: "PO-7890",
+  tanggal: "25-10-2025",
   validity_contract: "31-12-2025",
-  customer_id: "CUST-456",
+  ppn_percent: 11,
   currency_id: "USD",
   kurs: 14500,
   termin: 30,
-  ppn_percent: 11,
   catatan: "Pengiriman dilakukan dalam 3 batch.",
-  satuan_unit_id: "ROLL",
   items: [
     {
-      kain_id: "K001",
-      grade_id: "A",
+      kode_kain: "K001",
+      jenis_kain: "PExPE20 62",
       lebar: "150",
       gramasi: "180",
       meter_total: 500,
@@ -24,8 +26,8 @@ const dummyDataSalesContract = {
       harga: 25000,
     },
     {
-      kain_id: "K002",
-      grade_id: "B",
+      kode_kain: "K002",
+      jenis_kain: "PExPE20 62",
       lebar: "160",
       gramasi: "200",
       meter_total: 300,
@@ -34,8 +36,8 @@ const dummyDataSalesContract = {
       harga: 22000,
     },
     {
-      kain_id: "K003",
-      grade_id: "A",
+      kode_kain: "K003",
+      jenis_kain: "PExPE20 62",
       lebar: "155",
       gramasi: "190",
       meter_total: 200,
