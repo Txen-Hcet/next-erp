@@ -90,8 +90,6 @@ export default function DeliveryNoteForm() {
         items,
       });
 
-      console.log(itemGroups);
-
       setForm({
         no_sj: res.no_sj,
         sequence_number: res.no_surat_jalan,
