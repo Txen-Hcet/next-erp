@@ -149,7 +149,7 @@ export default function KJPurchaseOrderList() {
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
-                      navigate(`/beligreige-purchaseorder/form?id=${po.id}`)
+                      navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)
                     }
                   >
                     <Edit size={25} />

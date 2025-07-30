@@ -1,5 +1,5 @@
 import { createSignal, onMount, For } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
@@ -26,6 +26,8 @@ export default function JBPurchaseOrderForm() {
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [salesContracts, setSalesContracts] = createSignal([]);
+  const [params] = useSearchParams();
+  const isEdit = !!params.id;
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -222,7 +224,7 @@ export default function JBPurchaseOrderForm() {
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));
-    window.open(`/print/jualbeli/order?data=${encodedData}`, "_blank");
+    window.open(`/print/jualbeli/contract?data=${encodedData}`, "_blank");
   }
 
   return (

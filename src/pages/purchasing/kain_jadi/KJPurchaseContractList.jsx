@@ -147,7 +147,7 @@ export default function KJPurchaseContractList() {
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
-                      navigate(`/beligreige-purchasecontract/form?id=${sc.id}`)
+                      navigate(`/kainjadi-purchasecontract/form?id=${sc.id}`)
                     }
                   >
                     <Edit size={25} />

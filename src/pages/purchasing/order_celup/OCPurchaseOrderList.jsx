@@ -149,7 +149,7 @@ export default function OCPurchaseOrderList() {
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
-                      navigate(`/beligreige-purchaseorder/form?id=${po.id}`)
+                      navigate(`/ordercelup-purchaseorder/form?id=${po.id}`)
                     }
                   >
                     <Edit size={25} />

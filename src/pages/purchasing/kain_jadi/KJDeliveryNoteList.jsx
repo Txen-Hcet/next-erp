@@ -148,7 +148,7 @@ export default function KJDeliveryNoteList() {
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/purchaseorder/form?id=${sc.id}`)}
+                    onClick={() => navigate(`/kainjadi-suratjalan/form/form?id=${sc.id}`)}
                   >
                     <Edit size={25} />
                   </button>
