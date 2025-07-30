@@ -31,13 +31,13 @@ export default function SalesOrderDropdownSearch({
     });
   });
 
-  const selectedSalesContract = createMemo(() =>
+  const selectedSalesOrder = createMemo(() =>
     // Panggil salesOrders() di sini
-    salesOrders().find((c) => c.id == form().sales_contract_id)
+    salesOrders().find((c) => c.id == form().sales_order_id)
   );
 
   const selectSalesOrder = (so) => {
-    setForm({ ...form(), sales_contract_id: so.id });
+    setForm({ ...form(), sales_order_id: so.id });
     setIsOpen(false);
     setSearch("");
 
@@ -51,9 +51,7 @@ export default function SalesOrderDropdownSearch({
         class="w-full border p-2 rounded text-left bg-white/10"
         onClick={() => setIsOpen(!isOpen())}
       >
-        {selectedSalesContract()
-          ? `${selectedSalesContract().no_so}`
-          : "Pilih SO"}
+        {selectedSalesOrder() ? selectedSalesOrder().no_so : "Pilih SO"}
       </button>
 
       {isOpen() && (

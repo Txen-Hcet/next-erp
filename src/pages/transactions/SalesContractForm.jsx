@@ -19,8 +19,9 @@ import {
 } from "../../utils/auth";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import { produce } from "solid-js/store";
-import { RefreshCcw, Trash } from "lucide-solid";
+import { Printer, RefreshCcw, Trash } from "lucide-solid";
 import FabricDropdownSearch from "../../components/FabricDropdownSearch";
+import SalesContractPrint from "../print_function/sell/SalesContractPrint";
 // import { createSC, updateSC, getSC } from "../../utils/auth";
 // --> ganti sesuai endpoint lu
 
@@ -46,6 +47,7 @@ export default function SalesContractForm() {
     const colors = await getAllColors(user?.token);
     const grades = await getAllGrades(user?.token);
 
+    console.log(fabrics);
     setFabricOptions(
       fabrics?.kain.map((f) => ({
         value: f.id,
@@ -411,11 +413,26 @@ export default function SalesContractForm() {
     }
   };
 
+  function handlePrint() {
+    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    window.open(`/print/salescontract?data=${encodedData}`, "_blank");
+  }
+
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
         {isEdit ? "Edit" : "Tambah"} Sales Contract
       </h1>
+
+      <button
+        type="button"
+        class="flex gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-green-700"
+        onClick={handlePrint}
+        hidden={!isEdit}
+      >
+        <Printer size={20} />
+        Print
+      </button>
 
       <form class="flex flex-col space-y-4 " onSubmit={handleSubmit}>
         <div class="grid grid-cols-4 gap-4">
@@ -679,9 +696,9 @@ export default function SalesContractForm() {
                       <FabricDropdownSearch
                         fabrics={fabricOptions}
                         item={item}
-                        value={item.kain_id}
+                        value={item.fabric_id}
                         onChange={(val) => handleItemChange(i, "kain_id", val)}
-                        disabled={isEdit()}
+                        // disabled={isEdit}
                       />
                     ) : field === "grade_id" ? (
                       <select

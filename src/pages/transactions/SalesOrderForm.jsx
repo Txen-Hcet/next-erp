@@ -20,7 +20,7 @@ import {
 import SearchableSalesContractSelect from "../../components/SalesContractDropdownSearch";
 import ColorDropdownSearch from "../../components/ColorDropdownSearch";
 import { produce } from "solid-js/store";
-import { RefreshCcw, Trash, Trash2 } from "lucide-solid";
+import { Printer, RefreshCcw, Trash, Trash2 } from "lucide-solid";
 // import { createSC, updateSC, getSC } from "../../utils/auth";
 // --> ganti sesuai endpoint lu
 
@@ -474,11 +474,41 @@ export default function SalesOrderForm() {
     }
   };
 
+  function handlePrint() {
+    Swal.fire({
+      title: "Pilih jenis print",
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: "Print Sales Order",
+      denyButtonText: "Print Packing Order",
+      cancelButtonText: "Cancel",
+    }).then((result) => {
+      const encodedData = encodeURIComponent(JSON.stringify(form()));
+
+      if (result.isConfirmed) {
+        window.open(`/print/salesorder?data=${encodedData}`, "_blank");
+      } else if (result.isDenied) {
+        window.open(`/print/packingorder?data=${encodedData}`, "_blank");
+      }
+      // if cancel: do nothing
+    });
+  }
+
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
         {isEdit ? "Edit" : "Tambah"} Sales Order & Packing Order
       </h1>
+
+      <button
+        type="button"
+        class="flex gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-green-700"
+        onClick={handlePrint}
+        hidden={!isEdit}
+      >
+        <Printer size={20} />
+        Print
+      </button>
 
       <form class="flex flex-col space-y-4 " onSubmit={handleSubmit}>
         <div class="grid grid-cols-4 gap-4">

@@ -21,7 +21,7 @@ import {
 } from "../../utils/auth";
 import SuratJalanPrint from "../print_function/sell/SuratJalanPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
-import { Trash2 } from "lucide-solid";
+import { Printer, Trash2 } from "lucide-solid";
 
 export default function DeliveryNoteForm() {
   const [params] = useSearchParams();
@@ -34,6 +34,7 @@ export default function DeliveryNoteForm() {
   const [showPreview, setShowPreview] = createSignal(false);
   const [salesOrders, setSalesOrders] = createSignal([]);
   const [todayDate] = createSignal(new Date().toISOString().slice(0, 10));
+  const [hasInitializedEdit, setHasInitializedEdit] = createSignal(false);
 
   const [form, setForm] = createSignal({
     no_sj: "",
@@ -46,58 +47,98 @@ export default function DeliveryNoteForm() {
 
   onMount(async () => {
     const pls = await getAllPackingLists(user?.token);
-    setPackingLists(pls || []);
-
     const dataSalesOrders = await getAllSalesOrders(user?.token);
     setSalesOrders(dataSalesOrders.orders || []);
 
     if (isEdit) {
       const res = await getDeliveryNotes(params.id, user?.token);
-      const dn = res?.response;
-      if (!dn) return;
+      if (!res) return;
+
+      const salesOrderId = res.packing_list_id;
+      const relatedPackingLists = pls?.filter((pl) => pl.id === salesOrderId);
+      setPackingLists(relatedPackingLists || []);
+
+      const selectedSO = dataSalesOrders.orders?.find(
+        (so) => so.id === packingLists()[0]?.sales_order_id
+      );
 
       const itemGroups = [];
 
-      // Group items by packing_list_id
-      const plGroups = {};
-      (dn.items || []).forEach((it) => {
-        (it.rolls || []).forEach((r) => {
-          const plId = dn.packing_list_id;
-          if (!plGroups[plId]) plGroups[plId] = [];
-          plGroups[plId].push({
-            packing_list_roll_id: r.packing_list_roll_id,
-            meter: r.meter_total,
-            yard: r.yard_total,
-            sales_order_item_id: it.sales_order_item_id,
-            konstruksi_kain: r.konstruksi_kain || "",
-            checked: true,
-          });
-        });
+      const plId = res.packing_list_id;
+      const items = (res.items || []).map((it) => ({
+        packing_list_roll_id: it.packing_list_roll_id,
+        meter: it.meter,
+        yard: it.yard,
+        sales_order_item_id: it.sales_order_item_id,
+        konstruksi_kain: it.konstruksi_kain || "",
+        checked: true,
+        disabled: true,
+      }));
+
+      const plDetail = await getPackingLists(plId, user?.token);
+      const pl = plDetail?.response;
+
+      const typeLetter = pl?.no_pl?.split("/")?.[1] || "";
+      let typeValue = "";
+      if (typeLetter === "D") typeValue = "Domestik";
+      else if (typeLetter === "E") typeValue = "Ekspor";
+
+      itemGroups.push({
+        packing_list_id: plId,
+        no_pl: pl?.no_pl,
+        type: typeValue,
+        items,
       });
 
-      for (const [plId, items] of Object.entries(plGroups)) {
-        const plDetail = await getPackingLists(plId, user?.token);
-        const pl = plDetail?.response;
-
-        const typeLetter = pl?.no_pl?.split("/")?.[1] || "";
-        let typeValue = "";
-        if (typeLetter === "D") typeValue = "Domestik";
-        else if (typeLetter === "E") typeValue = "Ekspor";
-
-        itemGroups.push({
-          packing_list_id: plId,
-          no_pl: pl?.no_pl,
-          type: typeValue,
-          items,
-        });
-      }
+      console.log(itemGroups);
 
       setForm({
-        no_sj: dn.no_sj,
-        sequence_number: dn.sequence_number,
-        catatan: dn.catatan,
+        no_sj: res.no_sj,
+        sequence_number: res.no_surat_jalan,
+        no_surat_jalan_supplier: res.no_surat_jalan_supplier,
+        tanggal_surat_jalan: new Date(res.created_at)
+          .toISOString()
+          .split("T")[0],
+        catatan: res.catatan,
         itemGroups,
+        ppn: selectedSO?.ppn ?? 0,
+        sales_order_id: selectedSO?.id ?? null,
       });
+
+      // const groups = form().itemGroups;
+      // for (let i = 0; i < groups.length; i++) {
+      //   const group = groups[i];
+      //   const plDetail = await getPackingLists(
+      //     group.packing_list_id,
+      //     user?.token
+      //   );
+      //   const pl = plDetail?.response;
+
+      //   const allRolls = [];
+      //   (pl?.itemGroups || []).forEach((item) => {
+      //     (item.rolls || []).forEach((roll) => {
+      //       const isChecked = group.items.some(
+      //         (it) => it.packing_list_roll_id === roll.id
+      //       );
+      //       allRolls.push({
+      //         packing_list_roll_id: roll.id,
+      //         meter: roll.meter_total,
+      //         yard: roll.yard_total,
+      //         sales_order_item_id: item.sales_order_item_id,
+      //         konstruksi_kain: item.konstruksi_kain,
+      //         checked: isChecked,
+      //       });
+      //     });
+      //   });
+
+      //   setForm((prev) => {
+      //     const updated = [...prev.itemGroups];
+      //     updated[i].items = allRolls;
+      //     return { ...prev, itemGroups: updated };
+      //   });
+      // }
+    } else {
+      setPackingLists(pls || []);
     }
   });
 
@@ -168,16 +209,23 @@ export default function DeliveryNoteForm() {
     if (typeLetter === "D") typeValue = "Domestik";
     else if (typeLetter === "E") typeValue = "Ekspor";
 
+    const currentGroup = form().itemGroups[groupIndex]; // ✅ ambil data sekarang
     const allRolls = [];
+
     (pl?.itemGroups || []).forEach((item) => {
       (item.rolls || []).forEach((roll) => {
+        const wasSent = currentGroup.items.some(
+          (it) => it.packing_list_roll_id === roll.id
+        );
+
         allRolls.push({
           packing_list_roll_id: roll.id,
           meter: roll.meter_total,
           yard: roll.yard_total,
           sales_order_item_id: item.sales_order_item_id,
           konstruksi_kain: item.konstruksi_kain,
-          checked: false,
+          checked: wasSent,
+          disabled: wasSent,
         });
       });
     });
@@ -200,6 +248,9 @@ export default function DeliveryNoteForm() {
   const handleRollCheckedChange = (groupIndex, rollIndex, checked) => {
     setForm((prev) => {
       const groups = [...prev.itemGroups];
+      if (groups[groupIndex].items[rollIndex].disabled) {
+        return prev; // 🚫 skip kalau sudah terkirim
+      }
       groups[groupIndex].items[rollIndex].checked = checked;
       return {
         ...prev,
@@ -253,63 +304,26 @@ export default function DeliveryNoteForm() {
     }
   };
 
+  function handlePrint() {
+    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    window.open(`/print/suratjalan?data=${encodedData}`, "_blank");
+  }
+
   return (
     <MainLayout>
       <h1 class="text-2xl font-bold mb-4">
         {isEdit ? "Edit" : "Tambah"} Surat Jalan
       </h1>
 
-      <Show when={isEdit}>
-        <button
-          onClick={() => setShowPreview(!showPreview())}
-          class="mb-4 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-        >
-          {showPreview() ? "Tutup Preview" : "Lihat Preview"}
-        </button>
-      </Show>
-
-      <Show when={isEdit && showPreview()}>
-        <div class="border p-4 bg-white shadow mb-4">
-          <h2 class="text-lg font-semibold mb-2">Preview Cetak</h2>
-          <div id="print-section">
-            <SuratJalanPrint
-              data={{
-                ...form(),
-                items: form().itemGroups.flatMap((g) =>
-                  g.items.filter((r) => r.checked)
-                ),
-              }}
-            />
-          </div>
-          <button
-            onClick={() => {
-              const content =
-                document.getElementById("print-section").innerHTML;
-              const printWindow = window.open("", "", "width=800,height=600");
-              printWindow.document.write(`
-                <html>
-                  <head>
-                    <title>Surat Jalan</title>
-                    <style>
-                      body { font-family: sans-serif; font-size: 12px; padding: 20px; }
-                      table { border-collapse: collapse; width: 100%; }
-                      th, td { border: 1px solid #ccc; padding: 5px; text-align: left; }
-                    </style>
-                  </head>
-                  <body>${content}</body>
-                </html>
-              `);
-              printWindow.document.close();
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
-            }}
-            class="mt-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Print
-          </button>
-        </div>
-      </Show>
+      <button
+        type="button"
+        class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
+        onClick={handlePrint}
+        hidden={!isEdit}
+      >
+        <Printer size={20} />
+        Print
+      </button>
 
       <form onSubmit={handleSubmit} class="space-y-4">
         <SearchableSalesOrderSelect
@@ -336,7 +350,7 @@ export default function DeliveryNoteForm() {
           }}
         />
 
-        {form().sales_contract_id && (
+        {form().sales_order_id && (
           <div class="w-full grid grid-cols-3 gap-4">
             <div class="w-full mt-4">
               <label class="text-sm font-medium">No. Surat Jalan</label>
@@ -351,6 +365,7 @@ export default function DeliveryNoteForm() {
                   type="button"
                   class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
                   onClick={generateNomorKontrak}
+                  hidden={isEdit}
                 >
                   Generate
                 </button>
@@ -379,7 +394,7 @@ export default function DeliveryNoteForm() {
               <input
                 type="date"
                 class="w-full border p-2 rounded bg-gray-100"
-                value={new Date().toISOString().split("T")[0]}
+                value={form().tanggal_surat_jalan}
                 disabled
               />
             </div>
@@ -390,7 +405,7 @@ export default function DeliveryNoteForm() {
           type="button"
           onClick={() => addPackingListGroup()}
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
-          disabled={!form().sales_contract_id}
+          disabled={!form().sales_order_id}
         >
           + Tambah Packing List
         </button>
@@ -418,7 +433,7 @@ export default function DeliveryNoteForm() {
                   onInput={(e) =>
                     handlePackingListChange(groupIndex(), e.target.value)
                   }
-                  disabled={isEdit}
+                  // disabled={isEdit}
                 >
                   <option value="">Pilih Packing List</option>
                   <For each={packingLists()}>
@@ -454,17 +469,26 @@ export default function DeliveryNoteForm() {
                               {roll.yard}
                             </td>
                             <td class="border px-2 py-1 text-center">
-                              <input
-                                type="checkbox"
-                                checked={roll.checked}
-                                onChange={(e) =>
-                                  handleRollCheckedChange(
-                                    groupIndex(),
-                                    rollIndex(),
-                                    e.target.checked
-                                  )
+                              <Show
+                                when={!roll.disabled}
+                                fallback={
+                                  <span class="italic text-gray-500">
+                                    Terkirim
+                                  </span>
                                 }
-                              />
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={roll.checked}
+                                  onChange={(e) =>
+                                    handleRollCheckedChange(
+                                      groupIndex(),
+                                      rollIndex(),
+                                      e.target.checked
+                                    )
+                                  }
+                                />
+                              </Show>
                             </td>
                           </tr>
                         )}
