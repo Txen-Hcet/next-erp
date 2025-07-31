@@ -2527,6 +2527,1325 @@ export async function softDeleteBeliGreigeOrder(id, token) {
 }
 // #endregion BELI GREIGE ORDER FUNCTION
 
+// #region BELI GREIGE DELIVERY NOTE FUNCTION
+
+export async function createBGDeliveryNote(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-greige-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat surat jalan beli greige");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllBGDeliveryNotes(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-greige-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data surat jalan beli greige"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getBGDeliveryNotes(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-greige-surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis surat jalan beli greige dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataBGDeliveryNote(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-greige-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah data surat jalan beli greige"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteBGDeliveryNote(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-greige-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data surat jalan beli greige dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion BELI GREIGE DELIVERY NOTE FUNCTION
+
+// #region ORDER CELUP CONTRACT FUNCTION
+export async function createOrderCelup(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-celup-contract`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat order celup contract");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllOrderCelups(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-contracts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data order celup contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getOrderCelups(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-contracts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis order celup contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataOrderCelup(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-celup-contract/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah dat order celup contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteOrderCelup(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-celup-contract/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis order celup contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion ORDER CELUP CONTRACT FUNCTION
+
+// #region ORDER CELUP ORDER FUNCTION
+export async function createOrderCelupOrder(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-celup-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat order celup order");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllOrderCelupOrders(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-orders`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengambil data order celup order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getOrderCelupOrders(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-orders/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis order celup order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataOrderCelupOrder(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-celup-order/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah dat order celup order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteOrderCelupOrder(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-celup-order/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data order celup order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion ORDER CELUP ORDER FUNCTION
+
+// #region ORDER CELUP DELIVERY NOTE FUNCTION
+
+export async function createOCDeliveryNote(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-celup-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat surat jalan order celup");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllOCDeliveryNotes(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data surat jalan order celup"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getOCDeliveryNotes(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-celup-surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis surat jalan order celup dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataOCDeliveryNote(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-celup-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah data surat jalan order celup"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteOCDeliveryNote(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-celup-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data surat jalan order celup dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion ORDER CELUP DELIVERY NOTE FUNCTION
+
+// #region KAIN JADI CONTRACT FUNCTION
+export async function createKainJadi(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-finish-contract`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat kain finish contract");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllKainJadis(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-contracts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data kain finish contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getKainJadis(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-contracts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis kain finish contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataKainJadi(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-finish-contract/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah dat kain finish contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteKainJadi(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-finish-contract/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis kain finish contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion KAIN JADI CONTRACT FUNCTION
+
+// #region KAIN JADI ORDER FUNCTION
+export async function createKainJadiOrder(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-finish-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat kain finish order");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllKainJadiOrders(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-orders`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengambil data kain finish order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getKainJadiOrders(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-orders/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis kain finish order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataKainJadiOrder(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-finish-order/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah dat kain finish order");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteKainJadiOrder(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-finish-order/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data kain finish order dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion KAIN JADI ORDER FUNCTION
+
+// #region KAIN JADI DELIVERY NOTE FUNCTION
+
+export async function createKJDeliveryNote(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-finish-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat surat jalan kain finish");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllKJDeliveryNotes(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data surat jalan kain finish"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getKJDeliveryNotes(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis surat jalan kain finish dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataKJDeliveryNote(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-finish-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah data surat jalan kain finish"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteKJDeliveryNote(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-finish-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data surat jalan kain finish dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion KAIN JADI DELIVERY NOTE FUNCTION
+
+// #region KAIN JADI CONTRACT FUNCTION
+export async function createJualBeli(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-finish-contract`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat kain finish contract");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllJualBelis(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-contracts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data kain finish contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getJualBelis(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-contracts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis kain finish contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataJualBeli(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-finish-contract/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah dat kain finish contract"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteJualBeli(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-finish-contract/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data jenis kain finish contract dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion KAIN JADI CONTRACT FUNCTION
+
+// #region KAIN JADI DELIVERY NOTE FUNCTION
+
+export async function createJBDeliveryNote(token, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/create-purchase-finish-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat surat jalan kain finish");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllJBDeliveryNotes(token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengambil data surat jalan kain finish"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getJBDeliveryNotes(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/purchase-finish-surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis surat jalan kain finish dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateDataJBDeliveryNote(token, id, payload) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/update-purchase-finish-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah data surat jalan kain finish"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteJBDeliveryNote(id, token) {
+  try {
+    const response = await fetch(
+      `https://nexttechenterprise.site/api/delete-purchase-finish-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data surat jalan kain finish dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion KAIN JADI DELIVERY NOTE FUNCTION
+
 export function logout() {
   localStorage.removeItem("user");
 }
