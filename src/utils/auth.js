@@ -3552,7 +3552,7 @@ export async function softDeleteKJDeliveryNote(id, token) {
 
 // #endregion KAIN JADI DELIVERY NOTE FUNCTION
 
-// #region KAIN JADI CONTRACT FUNCTION
+// #region JUAL BELI CONTRACT FUNCTION
 export async function createJualBeli(token, payload) {
   try {
     const response = await fetch(
@@ -3697,9 +3697,9 @@ export async function softDeleteJualBeli(id, token) {
     throw error;
   }
 }
-// #endregion KAIN JADI CONTRACT FUNCTION
+// #endregion JUAL BELI CONTRACT FUNCTION
 
-// #region KAIN JADI DELIVERY NOTE FUNCTION
+// #region JUAL BELI DELIVERY NOTE FUNCTION
 
 export async function createJBDeliveryNote(token, payload) {
   try {
@@ -3844,7 +3844,7 @@ export async function softDeleteJBDeliveryNote(id, token) {
   }
 }
 
-// #endregion KAIN JADI DELIVERY NOTE FUNCTION
+// #endregion JUAL BELI DELIVERY NOTE FUNCTION
 
 export function logout() {
   localStorage.removeItem("user");
