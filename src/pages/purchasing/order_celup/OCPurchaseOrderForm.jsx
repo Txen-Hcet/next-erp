@@ -1,4 +1,4 @@
-import { createSignal, onMount, For } from "solid-js";
+import { createSignal, onMount, For, createEffect } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -9,17 +9,19 @@ import {
   getAllSatuanUnits,
   getAllFabrics,
   getUser,
-  getAllSalesContracts,
-  getAllBeliGreiges,
-  updateDataBeliGreigeOrder,
-  createBeliGreigeOrder,
   getBeliGreigeOrders,
+  getAllOrderCelups,
+  updateDataOrderCelupOrder,
+  createOrderCelupOrder,
+  getAllColors,
+  getOrderCelups,
   // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
 import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
 import PurchasingContractDropdownSearch from "../../../components/PurchasingContractDropdownSearch";
 import { Printer, Trash2 } from "lucide-solid";
+import ColorDropdownSearch from "../../../components/ColorDropdownSearch";
 
 export default function OCPurchaseOrderForm() {
   const navigate = useNavigate();
@@ -30,6 +32,7 @@ export default function OCPurchaseOrderForm() {
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [purchaseContracts, setPurchaseContracts] = createSignal([]);
+  const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -46,9 +49,20 @@ export default function OCPurchaseOrderForm() {
     items: [],
   });
 
+  createEffect(async () => {
+    const colors = await getAllColors(user?.token);
+
+    setColorOptions(
+      colors?.warna.map((c) => ({
+        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
+        label: c.kode + " | " + c.deskripsi,
+      })) || []
+    );
+  });
+
   onMount(async () => {
     const [bgc, poTypes, suppliers, units, fabrics] = await Promise.all([
-      getAllBeliGreiges(user?.token),
+      getAllOrderCelups(user?.token),
       getAllSOTypes(user?.token),
       getAllSuppliers(user?.token),
       getAllSatuanUnits(user?.token),
@@ -75,6 +89,7 @@ export default function OCPurchaseOrderForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
+        warna_id: item.warna_id,
         meter: item.meter_total,
         yard: item.yard_total,
         harga: item.harga,
@@ -108,7 +123,7 @@ export default function OCPurchaseOrderForm() {
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
-        "bg_o",
+        "oc_o",
         "domestik",
         form().ppn
       );
@@ -124,6 +139,7 @@ export default function OCPurchaseOrderForm() {
         handleItemChange(index, "yard", item.yard);
         handleItemChange(index, "harga", item.harga);
         handleItemChange(index, "lebar_greige", item.lebar_greige);
+        handleItemChange(index, "warna_id", item.warna_id);
       });
     }
   });
@@ -138,9 +154,15 @@ export default function OCPurchaseOrderForm() {
   };
 
   const handlePurchaseContractChange = async (contractId) => {
-    const selectedContract = purchaseContracts().find(
+    let selectedContract = purchaseContracts().find(
       (sc) => sc.id == contractId
     );
+
+    if (!selectedContract || !selectedContract.items?.length) {
+      const detail = await getOrderCelups(contractId, user?.token); // API ambil detail by ID
+      selectedContract = detail.contract; // overwrite dengan data lengkap
+    }
+
     if (!selectedContract) return;
 
     const {
@@ -166,6 +188,7 @@ export default function OCPurchaseOrderForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
+        warna_id: item.warna_id,
         meter: "",
         yard: "",
         harga,
@@ -176,6 +199,13 @@ export default function OCPurchaseOrderForm() {
       };
     });
 
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "oc_o",
+      "domestik",
+      form().ppn
+    );
+
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
@@ -185,6 +215,7 @@ export default function OCPurchaseOrderForm() {
       ppn: ppn_percent,
       catatan: "",
       items: mappedItems,
+      sequence_number: lastSeq?.no_sequence + 1 || "",
     }));
   };
 
@@ -287,6 +318,7 @@ export default function OCPurchaseOrderForm() {
         kain_id: Number(i.fabric_id),
         lebar_greige: parseFloat(i.lebar_greige),
         lebar_finish: parseFloat(i.lebar_finish),
+        warna_id: parseFloat(i.warna_id),
         meter_total: parseFloat(i.meter),
         yard_total: parseFloat(i.yard),
         harga: parseFloat(i.harga),
@@ -296,9 +328,9 @@ export default function OCPurchaseOrderForm() {
 
     try {
       if (isEdit) {
-        await updateDataBeliGreigeOrder(user?.token, params.id, payload);
+        await updateDataOrderCelupOrder(user?.token, params.id, payload);
       } else {
-        await createBeliGreigeOrder(user?.token, payload);
+        await createOrderCelupOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -466,6 +498,7 @@ export default function OCPurchaseOrderForm() {
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
+              <th class="border p-2">Warna</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
@@ -499,6 +532,14 @@ export default function OCPurchaseOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.lebar_finish}
                       readonly
+                    />
+                  </td>
+                  <td class="border p-2">
+                    <ColorDropdownSearch
+                      colors={colorOptions}
+                      form={() => item}
+                      setForm={(val) => handleItemChange(i(), "warna_id", val)}
+                      onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>
                   <td class="border p-2">

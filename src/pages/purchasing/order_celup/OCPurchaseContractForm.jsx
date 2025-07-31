@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
-  getAllSOTypes,
   getLastSequence,
   getAllSuppliers,
   getAllSatuanUnits,
@@ -12,11 +11,13 @@ import {
   updateDataOrderCelup,
   createOrderCelup,
   getOrderCelups,
+  getAllColors,
 } from "../../../utils/auth";
 import SearchableSalesContractSelect from "../../../components/SalesContractDropdownSearch";
 import { Printer, Trash2 } from "lucide-solid";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
 import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
+import ColorDropdownSearch from "../../../components/ColorDropdownSearch";
 
 export default function OCPurchaseContractForm() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function OCPurchaseContractForm() {
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
+  const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -51,6 +53,17 @@ export default function OCPurchaseContractForm() {
   //   console.log(lastSeq);
   // });
 
+  createEffect(async () => {
+    const colors = await getAllColors(user?.token);
+
+    setColorOptions(
+      colors?.warna.map((c) => ({
+        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
+        label: c.kode + " | " + c.deskripsi,
+      })) || []
+    );
+  });
+
   onMount(async () => {
     const [suppliers, satuanUnits, fabrics] = await Promise.all([
       getAllSuppliers(user?.token),
@@ -74,6 +87,7 @@ export default function OCPurchaseContractForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
+        warna_id: item.warna_id || "",
         meter: item.meter_total,
         yard: item.yard_total,
         harga: item.harga,
@@ -87,6 +101,8 @@ export default function OCPurchaseContractForm() {
               }).format(item.subtotal)
             : "",
       }));
+
+      console.log(data)
 
       const str = data.no_pc;
       const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
@@ -119,8 +135,6 @@ export default function OCPurchaseContractForm() {
         "domestik",
         form().ppn
       );
-
-      console.log(lastSeq);
 
       setForm((prev) => ({
         ...prev,
@@ -170,6 +184,7 @@ export default function OCPurchaseContractForm() {
           fabric_id: "",
           lebar_greige: "",
           lebar_finish: "",
+          warna_id: "",
           meter: "",
           yard: "",
           harga: "",
@@ -268,8 +283,6 @@ export default function OCPurchaseContractForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log(form().no_seq);
-
     const payload = {
       ...form(),
       no_pc: form().sequence_number,
@@ -280,6 +293,7 @@ export default function OCPurchaseContractForm() {
         kain_id: Number(i.fabric_id),
         lebar_greige: parseFloat(i.lebar_greige),
         lebar_finish: parseFloat(i.lebar_finish),
+        warna_id: Number(i.warna_id),
         meter_total: parseFloat(i.meter),
         yard_total: parseFloat(i.yard),
         harga: parseFloat(i.harga),
@@ -450,6 +464,7 @@ export default function OCPurchaseContractForm() {
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
+              <th class="border p-2">Warna</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
@@ -491,6 +506,14 @@ export default function OCPurchaseContractForm() {
                       onBlur={(e) =>
                         handleItemChange(i(), "lebar_finish", e.target.value)
                       }
+                    />
+                  </td>
+                  <td class="border p-2">
+                    <ColorDropdownSearch
+                      colors={colorOptions}
+                      form={() => item}
+                      setForm={(val) => handleItemChange(i(), "warna_id", val)}
+                      onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>
                   <td class="border p-2">

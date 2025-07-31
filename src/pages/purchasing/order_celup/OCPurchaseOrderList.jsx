@@ -2,29 +2,27 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import {
-  getAllBeliGreigeOrders,
-  getAllPackingLists,
-  getBeliGreigeOrders,
+  getAllOrderCelupOrders,
   getUser,
-  softDeletePackingList,
+  softDeleteOrderCelupOrder,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
 export default function OCPurchaseOrderList() {
-  const [packingOrders, setPackingOrders] = createSignal([]);
+  const [orderCelups, setOrderCelups] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(packingOrders().length / pageSize));
+    return Math.max(1, Math.ceil(orderCelups().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return packingOrders().slice(startIndex, startIndex + pageSize);
+    return orderCelups().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -41,7 +39,10 @@ export default function OCPurchaseOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
+        const deleteOrderCelupOrder = await softDeleteOrderCelupOrder(
+          id,
+          tokUser?.token
+        );
 
         await Swal.fire({
           title: "Terhapus!",
@@ -51,7 +52,7 @@ export default function OCPurchaseOrderList() {
         });
 
         // Optional: update UI setelah hapus
-        setPackingOrders(packingOrders().filter((s) => s.id !== id));
+        setOrderCelups(orderCelups().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
@@ -68,13 +69,13 @@ export default function OCPurchaseOrderList() {
   };
 
   const handleGetAllPurchaseOrders = async (tok) => {
-    const getDataPurchaseOrders = await getAllBeliGreigeOrders(tok);
-    
+    const getDataPurchaseOrders = await getAllOrderCelupOrders(tok);
+
     if (getDataPurchaseOrders.status === 200) {
       const sortedData = getDataPurchaseOrders.orders.sort(
         (a, b) => a.id - b.id
       );
-      setPackingOrders(sortedData);
+      setOrderCelups(sortedData);
     }
   };
 
