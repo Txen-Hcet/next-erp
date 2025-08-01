@@ -14,6 +14,7 @@ import {
   updateDataBeliGreigeOrder,
   createBeliGreigeOrder,
   getBeliGreigeOrders,
+  getBeliGreiges,
   // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
@@ -66,12 +67,11 @@ export default function BGPurchaseOrderForm() {
       const data = res.order;
       const dataItems = res.items;
 
-      console.log(res);
-
       if (!data) return;
 
       // Normalisasi item
       const normalizedItems = (dataItems || []).map((item) => ({
+        id: item.id,
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         meter: item.meter_total,
@@ -104,6 +104,8 @@ export default function BGPurchaseOrderForm() {
         catatan: data.catatan ?? "",
         items: normalizedItems,
       }));
+
+      handlePurchaseContractChange(data.pc_id);
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
@@ -137,9 +139,16 @@ export default function BGPurchaseOrderForm() {
   };
 
   const handlePurchaseContractChange = async (contractId) => {
-    const selectedContract = purchaseContracts().find(
+    let selectedContract = purchaseContracts().find(
       (sc) => sc.id == contractId
     );
+
+    if (!selectedContract || !selectedContract.items?.length) {
+      const detail = await getBeliGreiges(contractId, user?.token);
+      // const itemsOrder = await getBeliGreigeOrders(23, user?.token);
+      selectedContract = detail.contract;
+    }
+
     if (!selectedContract) return;
 
     const {
@@ -153,36 +162,38 @@ export default function BGPurchaseOrderForm() {
     const mappedItems = items.map((item) => {
       const harga = parseFloat(item.harga ?? 0);
 
-      const satuan = satuanUnitOptions()
-        .find((u) => u.id == satuan_unit_id)
-        ?.satuan?.toLowerCase();
-
-      const qty = satuan === "meter" ? 0 : 0;
-      const subtotal = isNaN(qty * harga) ? 0 : qty * harga;
-
       return {
         pc_item_id: item.id,
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
-        meter: "",
-        yard: "",
+        meter: item.meter_dalam_proses || "",
+        yard: item.yard_dalam_proses || "",
         harga,
         hargaFormatted: formatIDR(harga),
-        subtotal: subtotal.toFixed(2),
-        subtotalFormatted: "",
+        subtotal: 0,
+        subtotalFormatted: formatIDR(item.total_harga),
         readOnly: true,
       };
     });
 
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "bg_o",
+      "domestik",
+      form().ppn
+    );
+
+    // merge form lama + update yang kosong
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
-      supplier_id,
-      satuan_unit_id,
-      termin,
-      ppn: ppn_percent,
-      catatan: "",
-      items: mappedItems,
+      supplier_id: prev.supplier_id || supplier_id,
+      satuan_unit_id: prev.satuan_unit_id || satuan_unit_id,
+      termin: prev.termin || termin,
+      ppn: prev.ppn || ppn_percent,
+      catatan: prev.catatan || "",
+      items: prev.items.length ? prev.items : mappedItems,
+      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
   };
 
@@ -271,29 +282,48 @@ export default function BGPurchaseOrderForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      ...form(),
-      sequence_number: Number(form().no_seq),
-      pc_id: {
-        id: form().pc_id,
-        ppn_percent: Number(form().ppn),
-      },
-      catatan: form().catatan,
-      items: form().items.map((i) => ({
-        pc_item_id: i.pc_item_id,
-        kain_id: Number(i.fabric_id),
-        lebar_greige: parseFloat(i.lebar_greige),
-        meter_total: parseFloat(i.meter),
-        yard_total: parseFloat(i.yard),
-        harga: parseFloat(i.harga),
-        subtotal: parseFloat(i.subtotal),
-      })),
-    };
-
     try {
       if (isEdit) {
+        // console.log(form().items)
+        const payload = {
+          // ...form(),
+          no_po: form().sequence_number,
+          pc_id: form().pc_id,
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            id: i.id,
+            pc_item_id: i.pc_item_id,
+            // kain_id: Number(i.fabric_id),
+            // lebar_greige: parseFloat(i.lebar_greige),
+            // lebar_finish: parseFloat(i.lebar_finish),
+            // warna_id: parseFloat(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            // harga: parseFloat(i.harga),
+            // subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await updateDataBeliGreigeOrder(user?.token, params.id, payload);
       } else {
+        const payload = {
+          // ...form(),
+          sequence_number: Number(form().no_seq),
+          pc_id: form().pc_id,
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            pc_item_id: i.pc_item_id,
+            // kain_id: Number(i.fabric_id),
+            // lebar_greige: parseFloat(i.lebar_greige),
+            // lebar_finish: parseFloat(i.lebar_finish),
+            // warna_id: parseFloat(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            // harga: parseFloat(i.harga),
+            // subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await createBeliGreigeOrder(user?.token, payload);
       }
 

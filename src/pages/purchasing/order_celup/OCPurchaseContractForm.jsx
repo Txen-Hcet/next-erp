@@ -159,7 +159,7 @@ export default function OCPurchaseContractForm() {
       form().ppn
     );
 
-    console.log(lastSeq)
+    console.log(lastSeq);
 
     const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
@@ -284,28 +284,48 @@ export default function OCPurchaseContractForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      ...form(),
-      no_pc: form().sequence_number,
-      sequence_number: Number(form().no_seq),
-      termin: Number(form().termin),
-      ppn_percent: Number(form().ppn),
-      items: form().items.map((i) => ({
-        kain_id: Number(i.fabric_id),
-        lebar_greige: parseFloat(i.lebar_greige),
-        lebar_finish: parseFloat(i.lebar_finish),
-        warna_id: Number(i.warna_id),
-        meter_total: parseFloat(i.meter),
-        yard_total: parseFloat(i.yard),
-        harga: parseFloat(i.harga),
-        subtotal: parseFloat(i.subtotal),
-      })),
-    };
-
     try {
       if (isEdit) {
+        const payload = {
+          no_pc: form().sequence_number,
+          supplier_id: Number(form().supplier_id),
+          satuan_unit_id: Number(form().satuan_unit_id),
+          termin: Number(form().termin),
+          ppn_percent: Number(form().ppn),
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            kain_id: Number(i.fabric_id),
+            lebar_greige: parseFloat(i.lebar_greige),
+            lebar_finish: parseFloat(i.lebar_finish),
+            warna_id: Number(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            harga: parseFloat(i.harga),
+            // subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await updateDataOrderCelup(user?.token, params.id, payload);
       } else {
+        const payload = {
+          sequence_number: Number(form().no_seq),
+          supplier_id: Number(form().supplier_id),
+          satuan_unit_id: Number(form().satuan_unit_id),
+          termin: Number(form().termin),
+          ppn_percent: Number(form().ppn),
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            kain_id: Number(i.fabric_id),
+            lebar_greige: parseFloat(i.lebar_greige),
+            lebar_finish: parseFloat(i.lebar_finish),
+            warna_id: Number(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            harga: parseFloat(i.harga),
+            // subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await createOrderCelup(user?.token, payload);
       }
 
@@ -324,6 +344,35 @@ export default function OCPurchaseContractForm() {
       });
     }
   };
+
+  // {
+  //   "sequence_number": 3,
+  //   "supplier_id": 1,
+  //   "satuan_unit_id": 1,
+  //   "termin": 30,
+  //   "ppn_percent": 0,
+  //   "catatan": "Init",
+  //   "items": [
+  //     {
+  //       "kain_id": 1,
+  //       "warna_id": 2,
+  //       "lebar_greige": 30,
+  //       "lebar_finish": 27,
+  //       "meter_total": 100,
+  //       "yard_total": 106,
+  //       "harga": 25000
+  //     },
+  //     {
+  //       "kain_id": 2,
+  //       "warna_id": 2,
+  //       "lebar_greige": 30,
+  //       "lebar_finish": 29,
+  //       "meter_total": 100,
+  //       "yard_total": 106,
+  //       "harga": 27000
+  //     }
+  //   ]
+  // }
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));

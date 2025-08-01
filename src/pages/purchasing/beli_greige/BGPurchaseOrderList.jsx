@@ -3,10 +3,8 @@ import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import {
   getAllBeliGreigeOrders,
-  getAllPackingLists,
-  getBeliGreigeOrders,
   getUser,
-  softDeletePackingList,
+  softDeleteBeliGreigeOrder,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
@@ -29,8 +27,8 @@ export default function BGPurchaseOrderList() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus packing order?",
-      text: `Apakah kamu yakin ingin menghapus packing order dengan ID ${id}?`,
+      title: "Hapus beli greige order?",
+      text: `Apakah kamu yakin ingin menghapus beli greige order dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -41,11 +39,11 @@ export default function BGPurchaseOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
+        const deleteCustomer = await softDeleteBeliGreigeOrder(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data packing order dengan ID ${id} berhasil dihapus.`,
+          text: `Data beli greige order dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
@@ -58,7 +56,7 @@ export default function BGPurchaseOrderList() {
           title: "Gagal",
           text:
             error.message ||
-            `Gagal menghapus data packing order dengan ID ${id}`,
+            `Gagal menghapus data beli greige order dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",

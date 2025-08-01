@@ -125,14 +125,17 @@ export default function OCPurchaseOrderForm() {
         sequence_number: lastSeq?.no_sequence + 1 || "",
       }));
 
-      form().items.forEach((item, index) => {
-        // Panggil ulang handleItemChange untuk field-field penting
-        handleItemChange(index, "meter", item.meter);
-        handleItemChange(index, "yard", item.yard);
-        handleItemChange(index, "harga", item.harga);
-        handleItemChange(index, "lebar_greige", item.lebar_greige);
-        handleItemChange(index, "warna_id", item.warna_id);
-      });
+      // form().items.forEach((item, index) => {
+      //   // Panggil ulang handleItemChange untuk field-field penting
+      //   handleItemChange(index, "meter", item.meter);
+      //   handleItemChange(index, "yard", item.yard);
+      //   handleItemChange(index, "harga", item.harga);
+      //   handleItemChange(index, "lebar_greige", item.lebar_greige);
+      //   handleItemChange(index, "warna_id", item.warna_id);
+      // });
+      
+
+      // handlePurchaseContractChange(data.pc_id);
     }
   });
 
@@ -168,7 +171,6 @@ export default function OCPurchaseOrderForm() {
     const mappedItems = items.map((item) => {
       const harga = parseFloat(item.harga ?? 0);
 
-      console.log(item);
       return {
         pc_item_id: item.id,
         fabric_id: item.kain_id,
@@ -180,7 +182,7 @@ export default function OCPurchaseOrderForm() {
         harga,
         hargaFormatted: formatIDR(harga),
         subtotal: 0,
-        subtotalFormatted: "",
+        subtotalFormatted: formatIDR(item.total_harga),
         readOnly: true,
       };
     });
@@ -321,7 +323,7 @@ export default function OCPurchaseOrderForm() {
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
       }).then(() => {
-        navigate("/beligreige-purchaseorder");
+        navigate("/ordercelup-purchaseorder");
       });
     } catch (err) {
       Swal.fire({
@@ -364,6 +366,7 @@ export default function OCPurchaseOrderForm() {
                 type="button"
                 class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
                 onClick={generateNomorKontrak}
+                hidden={isEdit}
               >
                 Generate
               </button>

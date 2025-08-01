@@ -27,8 +27,8 @@ export default function KJPurchaseContractList() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus packing order?",
-      text: `Apakah kamu yakin ingin menghapus packing order dengan ID ${id}?`,
+      title: "Hapus kain jadi?",
+      text: `Apakah kamu yakin ingin menghapus kain jadi dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -43,7 +43,7 @@ export default function KJPurchaseContractList() {
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data packing order dengan ID ${id} berhasil dihapus.`,
+          text: `Data kain jadi dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
@@ -56,7 +56,7 @@ export default function KJPurchaseContractList() {
           title: "Gagal",
           text:
             error.message ||
-            `Gagal menghapus data packing order dengan ID ${id}`,
+            `Gagal menghapus data kain jadi dengan ID ${id}`,
           icon: "error",
           confirmButtonColor: "#6496df",
           confirmButtonText: "OK",

@@ -97,6 +97,10 @@ export default function BGPurchaseContractForm() {
             : "",
       }));
 
+      const str = data.no_pc;
+      const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
+      const sequenceNumber = parseInt(bagianAkhir, 10); // hasilnya: 1
+
       setForm((prev) => ({
         ...prev,
         jenis_po_id: data.jenis_po_id ?? "",
@@ -106,7 +110,7 @@ export default function BGPurchaseContractForm() {
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
         catatan: data.catatan ?? "",
-        no_seq: data.sequence_number ?? 0,
+        no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
 
@@ -270,25 +274,46 @@ export default function BGPurchaseContractForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      ...form(),
-      sequence_number: Number(form().no_seq),
-      termin: Number(form().termin),
-      ppn_percent: Number(form().ppn),
-      items: form().items.map((i) => ({
-        kain_id: Number(i.fabric_id),
-        lebar_greige: parseFloat(i.lebar_greige),
-        meter_total: parseFloat(i.meter),
-        yard_total: parseFloat(i.yard),
-        harga: parseFloat(i.harga),
-        subtotal: parseFloat(i.subtotal),
-      })),
-    };
-
     try {
       if (isEdit) {
+        const payload = {
+          // ...form(),
+          no_pc: form().sequence_number,
+          supplier_id: Number(form().supplier_id),
+          satuan_unit_id: Number(form().satuan_unit_id),
+          termin: Number(form().termin),
+          ppn_percent: parseFloat(form().ppn),
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            kain_id: Number(i.fabric_id),
+            lebar_greige: parseFloat(i.lebar_greige),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            harga: parseFloat(i.harga),
+            subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await updateDataBeliGreige(user?.token, params.id, payload);
       } else {
+        const payload = {
+          // ...form(),
+          satuan_unit_id: Number(form().satuan_unit_id),
+          supplier_id: Number(form().supplier_id),
+          sequence_number: Number(form().no_seq),
+          termin: Number(form().termin),
+          ppn_percent: Number(form().ppn),
+          catatan: form().catatan,
+          items: form().items.map((i) => ({
+            kain_id: Number(i.fabric_id),
+            lebar_greige: parseFloat(i.lebar_greige),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            harga: parseFloat(i.harga),
+            subtotal: parseFloat(i.subtotal),
+          })),
+        };
+
         await createBeliGreige(user?.token, payload);
       }
 
