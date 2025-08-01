@@ -2,11 +2,9 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import {
-  getAllBeliGreiges,
-  getAllPackingLists,
+  getAllKainJadis,
   getUser,
-  softDeleteBeliGreige,
-  softDeletePackingList,
+  softDeleteKainJadi,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
@@ -41,7 +39,7 @@ export default function KJPurchaseContractList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeleteBeliGreige(id, tokUser?.token);
+        const deleteCustomer = await softDeleteKainJadi(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
@@ -68,7 +66,7 @@ export default function KJPurchaseContractList() {
   };
 
   const handleGetAllBeliGreiges = async (tok) => {
-    const getDataBeliGreiges = await getAllBeliGreiges(tok);
+    const getDataBeliGreiges = await getAllKainJadis(tok);
 
     if (getDataBeliGreiges.status === 200) {
       const sortedData = getDataBeliGreiges.contracts.sort(

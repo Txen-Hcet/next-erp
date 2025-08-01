@@ -9,7 +9,7 @@ import {
   getAllSatuanUnits,
   getAllFabrics,
   getUser,
-  getBeliGreigeOrders,
+  getOrderCelupOrders,
   getAllOrderCelups,
   updateDataOrderCelupOrder,
   createOrderCelupOrder,
@@ -76,16 +76,14 @@ export default function OCPurchaseOrderForm() {
     setFabricOptions(fabrics.kain);
 
     if (isEdit) {
-      const res = await getBeliGreigeOrders(params.id, user?.token);
+      const res = await getOrderCelupOrders(params.id, user?.token);
       const data = res.order;
       const dataItems = res.items;
 
-      console.log(res);
-
       if (!data) return;
 
-      // Normalisasi item
       const normalizedItems = (dataItems || []).map((item) => ({
+        pc_item_id: item.pc_item_id,
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
@@ -93,24 +91,16 @@ export default function OCPurchaseOrderForm() {
         meter: item.meter_total,
         yard: item.yard_total,
         harga: item.harga,
+        hargaFormatted: formatIDR(item.harga),
         subtotal: item.subtotal,
-        subtotalFormatted:
-          item.subtotal > 0
-            ? new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                maximumFractionDigits: 0,
-              }).format(item.subtotal)
-            : "",
+        subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
+        readOnly: true,
       }));
 
       setForm((prev) => ({
         ...prev,
         jenis_po_id: data.jenis_po_id ?? "",
-        pc_id: {
-          id: data.pc_id ?? "",
-          ppn_percent: data.ppn_percent ?? 0,
-        },
+        pc_id: Number(data.pc_id) ?? "",
         sequence_number: data.no_po ?? "",
         no_seq: data.sequence_number ?? 0,
         supplier_id: data.supplier_id ?? "",
@@ -120,6 +110,8 @@ export default function OCPurchaseOrderForm() {
         catatan: data.catatan ?? "",
         items: normalizedItems,
       }));
+
+      handlePurchaseContractChange(data.pc_id);
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
@@ -159,8 +151,8 @@ export default function OCPurchaseOrderForm() {
     );
 
     if (!selectedContract || !selectedContract.items?.length) {
-      const detail = await getOrderCelups(contractId, user?.token); // API ambil detail by ID
-      selectedContract = detail.contract; // overwrite dengan data lengkap
+      const detail = await getOrderCelups(contractId, user?.token);
+      selectedContract = detail.contract;
     }
 
     if (!selectedContract) return;
@@ -176,24 +168,18 @@ export default function OCPurchaseOrderForm() {
     const mappedItems = items.map((item) => {
       const harga = parseFloat(item.harga ?? 0);
 
-      const satuan = satuanUnitOptions()
-        .find((u) => u.id == satuan_unit_id)
-        ?.satuan?.toLowerCase();
-
-      const qty = satuan === "meter" ? 0 : 0;
-      const subtotal = isNaN(qty * harga) ? 0 : qty * harga;
-
+      console.log(item);
       return {
         pc_item_id: item.id,
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
         warna_id: item.warna_id,
-        meter: "",
-        yard: "",
+        meter: item.meter_dalam_proses || "",
+        yard: item.yard_dalam_proses || "",
         harga,
         hargaFormatted: formatIDR(harga),
-        subtotal: subtotal.toFixed(2),
+        subtotal: 0,
         subtotalFormatted: "",
         readOnly: true,
       };
@@ -206,16 +192,17 @@ export default function OCPurchaseOrderForm() {
       form().ppn
     );
 
+    // merge form lama + update yang kosong
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
-      supplier_id,
-      satuan_unit_id,
-      termin,
-      ppn: ppn_percent,
-      catatan: "",
-      items: mappedItems,
-      sequence_number: lastSeq?.no_sequence + 1 || "",
+      supplier_id: prev.supplier_id || supplier_id,
+      satuan_unit_id: prev.satuan_unit_id || satuan_unit_id,
+      termin: prev.termin || termin,
+      ppn: prev.ppn || ppn_percent,
+      catatan: prev.catatan || "",
+      items: prev.items.length ? prev.items : mappedItems,
+      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
   };
 
@@ -234,7 +221,7 @@ export default function OCPurchaseOrderForm() {
     const ppnValue = parseFloat(form().ppn) || 0;
     const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const nomor = `PO/BG/${type}/${mmyy}/${nextNum}`;
+    const nomor = `PO/OC/${type}/${mmyy}/${nextNum}`;
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
@@ -306,23 +293,20 @@ export default function OCPurchaseOrderForm() {
     e.preventDefault();
 
     const payload = {
-      ...form(),
+      // ...form(),
       sequence_number: Number(form().no_seq),
-      pc_id: {
-        id: form().pc_id,
-        ppn_percent: Number(form().ppn),
-      },
+      pc_id: form().pc_id,
       catatan: form().catatan,
       items: form().items.map((i) => ({
         pc_item_id: i.pc_item_id,
-        kain_id: Number(i.fabric_id),
-        lebar_greige: parseFloat(i.lebar_greige),
-        lebar_finish: parseFloat(i.lebar_finish),
-        warna_id: parseFloat(i.warna_id),
+        // kain_id: Number(i.fabric_id),
+        // lebar_greige: parseFloat(i.lebar_greige),
+        // lebar_finish: parseFloat(i.lebar_finish),
+        // warna_id: parseFloat(i.warna_id),
         meter_total: parseFloat(i.meter),
         yard_total: parseFloat(i.yard),
-        harga: parseFloat(i.harga),
-        subtotal: parseFloat(i.subtotal),
+        // harga: parseFloat(i.harga),
+        // subtotal: parseFloat(i.subtotal),
       })),
     };
 
@@ -368,7 +352,7 @@ export default function OCPurchaseOrderForm() {
       <form class="space-y-4" onSubmit={handleSubmit}>
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block mb-1 font-medium">No Kontrak</label>
+            <label class="block mb-1 font-medium">No Order</label>
             <div class="flex gap-2">
               <input
                 class="w-full border bg-gray-200 p-2 rounded"
@@ -401,7 +385,7 @@ export default function OCPurchaseOrderForm() {
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              disabled={isEdit}
+              // disabled={isEdit}
             />
           </div>
           <div>

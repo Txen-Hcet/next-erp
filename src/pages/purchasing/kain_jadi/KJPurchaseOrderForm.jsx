@@ -1,4 +1,4 @@
-import { createSignal, onMount, For } from "solid-js";
+import { createSignal, onMount, For, createEffect } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -9,19 +9,21 @@ import {
   getAllSatuanUnits,
   getAllFabrics,
   getUser,
-  getAllSalesContracts,
-  getAllBeliGreiges,
-  updateDataBeliGreigeOrder,
-  createBeliGreigeOrder,
-  getBeliGreigeOrders,
+  getKainJadiOrders,
+  getAllKainJadis,
+  updateDataKainJadiOrder,
+  createKainJadiOrder,
+  getAllColors,
+  getOrderCelups,
   // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
 import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
 import PurchasingContractDropdownSearch from "../../../components/PurchasingContractDropdownSearch";
 import { Printer, Trash2 } from "lucide-solid";
+import ColorDropdownSearch from "../../../components/ColorDropdownSearch";
 
-export default function KJPurchaseOrderForm() {
+export default function OCPurchaseOrderForm() {
   const navigate = useNavigate();
   const user = getUser();
 
@@ -30,6 +32,7 @@ export default function KJPurchaseOrderForm() {
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [purchaseContracts, setPurchaseContracts] = createSignal([]);
+  const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -46,9 +49,20 @@ export default function KJPurchaseOrderForm() {
     items: [],
   });
 
+  createEffect(async () => {
+    const colors = await getAllColors(user?.token);
+
+    setColorOptions(
+      colors?.warna.map((c) => ({
+        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
+        label: c.kode + " | " + c.deskripsi,
+      })) || []
+    );
+  });
+
   onMount(async () => {
     const [bgc, poTypes, suppliers, units, fabrics] = await Promise.all([
-      getAllBeliGreiges(user?.token),
+      getAllKainJadis(user?.token),
       getAllSOTypes(user?.token),
       getAllSuppliers(user?.token),
       getAllSatuanUnits(user?.token),
@@ -62,7 +76,7 @@ export default function KJPurchaseOrderForm() {
     setFabricOptions(fabrics.kain);
 
     if (isEdit) {
-      const res = await getBeliGreigeOrders(params.id, user?.token);
+      const res = await getKainJadiOrders(params.id, user?.token);
       const data = res.order;
       const dataItems = res.items;
 
@@ -75,6 +89,7 @@ export default function KJPurchaseOrderForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
+        warna_id: item.warna_id,
         meter: item.meter_total,
         yard: item.yard_total,
         harga: item.harga,
@@ -108,7 +123,7 @@ export default function KJPurchaseOrderForm() {
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
-        "bg_o",
+        "oc_o",
         "domestik",
         form().ppn
       );
@@ -124,6 +139,7 @@ export default function KJPurchaseOrderForm() {
         handleItemChange(index, "yard", item.yard);
         handleItemChange(index, "harga", item.harga);
         handleItemChange(index, "lebar_greige", item.lebar_greige);
+        handleItemChange(index, "warna_id", item.warna_id);
       });
     }
   });
@@ -138,9 +154,15 @@ export default function KJPurchaseOrderForm() {
   };
 
   const handlePurchaseContractChange = async (contractId) => {
-    const selectedContract = purchaseContracts().find(
+    let selectedContract = purchaseContracts().find(
       (sc) => sc.id == contractId
     );
+
+    if (!selectedContract || !selectedContract.items?.length) {
+      const detail = await getOrderCelups(contractId, user?.token); // API ambil detail by ID
+      selectedContract = detail.contract; // overwrite dengan data lengkap
+    }
+
     if (!selectedContract) return;
 
     const {
@@ -166,6 +188,7 @@ export default function KJPurchaseOrderForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
+        warna_id: item.warna_id,
         meter: "",
         yard: "",
         harga,
@@ -176,6 +199,15 @@ export default function KJPurchaseOrderForm() {
       };
     });
 
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "oc_o",
+      "domestik",
+      form().ppn
+    );
+
+    console.log(lastSeq);
+
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
@@ -185,13 +217,14 @@ export default function KJPurchaseOrderForm() {
       ppn: ppn_percent,
       catatan: "",
       items: mappedItems,
+      sequence_number: lastSeq?.no_sequence + 1 || "",
     }));
   };
 
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(
       user?.token,
-      "bg_o",
+      "oc_o",
       "domestik",
       form().ppn
     );
@@ -287,6 +320,7 @@ export default function KJPurchaseOrderForm() {
         kain_id: Number(i.fabric_id),
         lebar_greige: parseFloat(i.lebar_greige),
         lebar_finish: parseFloat(i.lebar_finish),
+        warna_id: parseFloat(i.warna_id),
         meter_total: parseFloat(i.meter),
         yard_total: parseFloat(i.yard),
         harga: parseFloat(i.harga),
@@ -296,9 +330,9 @@ export default function KJPurchaseOrderForm() {
 
     try {
       if (isEdit) {
-        await updateDataBeliGreigeOrder(user?.token, params.id, payload);
+        await updateDataKainJadiOrder(user?.token, params.id, payload);
       } else {
-        await createBeliGreigeOrder(user?.token, payload);
+        await createKainJadiOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -318,12 +352,12 @@ export default function KJPurchaseOrderForm() {
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));
-    window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
+    window.open(`/print/ordercelup/order?data=${encodedData}`, "_blank");
   }
 
   return (
     <MainLayout>
-      <h1 class="text-2xl font-bold mb-4">Tambah Order Kain Jadi</h1>
+      <h1 class="text-2xl font-bold mb-4">Tambah Order Celup</h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -369,7 +403,6 @@ export default function KJPurchaseOrderForm() {
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              disabled={isEdit}
             />
           </div>
           <div>
@@ -466,6 +499,7 @@ export default function KJPurchaseOrderForm() {
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
+              <th class="border p-2">Warna</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
@@ -499,6 +533,14 @@ export default function KJPurchaseOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.lebar_finish}
                       readonly
+                    />
+                  </td>
+                  <td class="border p-2">
+                    <ColorDropdownSearch
+                      colors={colorOptions}
+                      form={() => item}
+                      setForm={(val) => handleItemChange(i(), "warna_id", val)}
+                      onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>
                   <td class="border p-2">

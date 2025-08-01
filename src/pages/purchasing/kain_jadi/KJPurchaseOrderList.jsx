@@ -2,9 +2,7 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import {
-  getAllBeliGreigeOrders,
-  getAllPackingLists,
-  getBeliGreigeOrders,
+  getAllKainJadiOrders,
   getUser,
   softDeletePackingList,
 } from "../../../utils/auth";
@@ -68,7 +66,7 @@ export default function KJPurchaseOrderList() {
   };
 
   const handleGetAllPurchaseOrders = async (tok) => {
-    const getDataPurchaseOrders = await getAllBeliGreigeOrders(tok);
+    const getDataPurchaseOrders = await getAllKainJadiOrders(tok);
     
     if (getDataPurchaseOrders.status === 200) {
       const sortedData = getDataPurchaseOrders.orders.sort(

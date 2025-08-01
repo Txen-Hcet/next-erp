@@ -27,7 +27,7 @@ export default function PurchaseContractDropdownSearch({
   });
 
   const selectedContract = createMemo(() =>
-    purchaseContracts().find((p) => p.id == form().jenis_po_id)
+    purchaseContracts().find((p) => p.id == form().pc_id)
   );
 
   const selectContract = (contract) => {

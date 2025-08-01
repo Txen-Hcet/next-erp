@@ -13,7 +13,6 @@ import {
   getOrderCelups,
   getAllColors,
 } from "../../../utils/auth";
-import SearchableSalesContractSelect from "../../../components/SalesContractDropdownSearch";
 import { Printer, Trash2 } from "lucide-solid";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
 import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
@@ -102,7 +101,7 @@ export default function OCPurchaseContractForm() {
             : "",
       }));
 
-      console.log(data)
+      console.log(data);
 
       const str = data.no_pc;
       const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
@@ -160,6 +159,8 @@ export default function OCPurchaseContractForm() {
       form().ppn
     );
 
+    console.log(lastSeq)
+
     const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -167,7 +168,7 @@ export default function OCPurchaseContractForm() {
     const ppnValue = parseFloat(form().ppn) || 0;
     const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const nomor = `PC/BG/${type}/${mmyy}/${nextNum}`;
+    const nomor = `PC/OC/${type}/${mmyy}/${nextNum}`;
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
