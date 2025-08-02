@@ -47,11 +47,11 @@ export default function SalesContractForm() {
     const colors = await getAllColors(user?.token);
     const grades = await getAllGrades(user?.token);
 
-    console.log(fabrics);
     setFabricOptions(
       fabrics?.kain.map((f) => ({
         value: f.id,
-        label: f.corak + " | " + f.konstruksi,
+        corak: f.corak,
+        konstruksi: f.konstruksi,
       })) || ["Pilih"]
     );
 

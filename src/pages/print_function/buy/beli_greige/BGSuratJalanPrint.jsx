@@ -224,34 +224,26 @@ export default function BGSuratJalanPrint(props) {
           <tbody>
             {(data.items || []).map((item, i) => (
               <tr key={i}>
-                <td className="border border-black p-1 text-center">{i + 1}</td>
-                <td className="border border-black p-1 text-center">
-                  {item.kode_kain}
-                </td>
-                <td className="border border-black p-1">{item.jenis_kain}</td>
-                <td className="border border-black p-1 text-center">
-                  {item.lebar}"
-                </td>
-                <td className="border border-black p-1 text-right">
+                <td className="p-1 text-center break-words">{i + 1}</td>
+                <td className="p-1 text-center break-words">{item.kode_kain}</td>
+                <td className="p-1 break-words">{item.jenis_kain}</td>
+                <td className="p-1 text-center break-words">{item.lebar}"</td>
+                <td className="p-1 text-right break-words">
                   {formatRibuan(item.meter_total)}
                 </td>
-                <td className="border border-black p-1 text-center">
-                  {item.satuan_unit}
-                </td>
+                <td className="p-1 text-center break-words">{item.satuan_unit}</td>
               </tr>
             ))}
 
             {/* Tambahin row kosong */}
             {Array.from({ length: 14 - data.items.length }).map((_, i) => (
               <tr key={`empty-${i}`}>
-                <td className="border border-black p-1 text-center h-5">
-                  {data.items.length + i + 1}
-                </td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-right"></td>
+                <td className="p-1 text-center h-5"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-right"></td>
               </tr>
             ))}
           </tbody>

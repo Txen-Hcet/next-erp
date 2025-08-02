@@ -376,7 +376,7 @@ export default function KJPurchaseContractForm() {
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));
-    window.open(`/print/ordercelup/contract?data=${encodedData}`, "_blank");
+    window.open(`/print/kainjadi/contract?data=${encodedData}`, "_blank");
   }
 
   return (

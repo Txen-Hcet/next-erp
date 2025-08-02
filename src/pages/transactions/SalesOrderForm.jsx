@@ -697,7 +697,7 @@ export default function SalesOrderForm() {
           </div>
         </div>
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">Catatan (Packing Order)</label>
           <textarea
             class="w-full border p-2 rounded"
             value={form().catatan}

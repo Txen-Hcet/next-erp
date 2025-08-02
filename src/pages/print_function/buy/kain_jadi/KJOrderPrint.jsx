@@ -155,7 +155,7 @@ export default function KJOrderPrint(props) {
 
           {/* MIDDLE TABLE */}
           <div className="flex flex-col gap-2 w-[20%]">
-            <table className="border-2 border-black table-fixed w-full">
+            <table className="border-2 border-black table-fixed w-full h-full">
               <tbody>
                 <tr className="border-b border-black">
                   <td className="px-2 py-1 w-[30%] whitespace-nowrap">Jenis</td>
@@ -170,7 +170,7 @@ export default function KJOrderPrint(props) {
               </tbody>
             </table>
 
-            <table className="h-full border-2 border-black table-fixed w-full">
+            {/* <table className="h-full border-2 border-black table-fixed w-full">
               <tbody>
                 <tr>
                   <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
@@ -183,7 +183,7 @@ export default function KJOrderPrint(props) {
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </table> */}
           </div>
 
           {/* RIGHT TABLE */}
@@ -243,24 +243,18 @@ export default function KJOrderPrint(props) {
           <tbody>
             {(data.items || []).map((item, i) => (
               <tr key={i}>
-                <td className="border border-black p-1 text-center">{i + 1}</td>
-                <td className="border border-black p-1 text-center">
-                  {item.kode_kain}
-                </td>
-                <td className="border border-black p-1">{item.jenis_kain}</td>
-                <td className="border border-black p-1 text-center">
-                  {item.lebar}"
-                </td>
-                <td className="border border-black p-1 text-right">
+                <td className="p-1 text-center break-words">{i + 1}</td>
+                <td className="p-1 text-center break-words">{item.kode_kain}</td>
+                <td className="p-1 break-words">{item.jenis_kain}</td>
+                <td className="p-1 text-center break-words">{item.lebar}"</td>
+                <td className="p-1 text-right break-words">
                   {formatRibuan(item.meter_total)}
                 </td>
-                <td className="border border-black p-1 text-center">
-                  {item.satuan}
-                </td>
-                <td className="border border-black p-1 text-right">
+                <td className="p-1 text-center break-words">{item.satuan}</td>
+                <td className="p-1 text-right break-words">
                   {formatRupiahNumber(item.harga)}
                 </td>
-                <td className="border border-black p-1 text-right">
+                <td className="p-1 text-right break-words">
                   {item.harga && item.meter_total
                     ? formatRupiahNumber(item.harga * item.meter_total)
                     : "-"}
@@ -271,16 +265,14 @@ export default function KJOrderPrint(props) {
             {/* Tambahin row kosong */}
             {Array.from({ length: 14 - data.items.length }).map((_, i) => (
               <tr key={`empty-${i}`}>
-                <td className="border border-black p-1 text-center h-5">
-                  {data.items.length + i + 1}
-                </td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-right"></td>
-                <td className="border border-black p-1 text-right"></td>
-                <td className="border border-black p-1 text-right"></td>
+                <td className="p-1 text-center h-5"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-right"></td>
+                <td className="p-1 text-right"></td>
+                <td className="p-1 text-right"></td>
               </tr>
             ))}
           </tbody>
@@ -304,38 +296,30 @@ export default function KJOrderPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black px-2 py-1" />
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                DPP
-              </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td colSpan={6} className="px-2 py-1" />
+              <td className="px-2 py-1 text-right font-bold">DPP</td>
+              <td className="px-2 py-1 text-right">
                 {formatRupiahNumber(dataAkhir.dpp)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black px-2 py-1" />
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                Nilai Lain
-              </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td colSpan={6} className="px-2 py-1" />
+              <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
+              <td className="px-2 py-1 text-right">
                 {formatRupiahNumber(dataAkhir.nilai_lain)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black px-2 py-1" />
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                PPN
-              </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td colSpan={6} className="px-2 py-1" />
+              <td className="px-2 py-1 text-right font-bold">PPN</td>
+              <td className="px-2 py-1 text-right">
                 {formatRupiahNumber(dataAkhir.ppn)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black px-2 py-1" />
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                Jumlah Total
-              </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td colSpan={6} className="px-2 py-1" />
+              <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
+              <td className="px-2 py-1 text-right">
                 {formatRupiahNumber(dataAkhir.total)}
               </td>
             </tr>

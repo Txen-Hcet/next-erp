@@ -630,7 +630,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Order Celup KJ
+                            Order Kain Jadi
                           </A>
                         </li>
                       </ul>
