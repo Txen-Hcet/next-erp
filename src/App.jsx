@@ -88,6 +88,13 @@ import JBContractPrint from "./utils/buy/jual_beli/JBContractDummyPrint";
 import JBSuratJalanPrint from "./utils/buy/jual_beli/JBSuratJalanDummyPrint";
 
 function App() {
+  onError((err) => {
+    if (err?.message?.includes("Invalid or expired token")) {
+      // logout();
+      console.log("logout")
+    }
+  });
+
   return (
     <Router>
       <Route path="/" component={LoginPage} />
