@@ -36,7 +36,6 @@ export default function SalesContractForm() {
     currencyList().find((c) => c.id == form().currency_id);
   const [selectedContractDetail, setSelectedContractDetail] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
-  const [colorOptions, setColorOptions] = createSignal([]);
   const [gradeOptions, setGradeOptions] = createSignal([]);
   const [customerType, setCustomerType] = createSignal([]);
   const [unitsType, setUnitsType] = createSignal([]);
@@ -52,13 +51,6 @@ export default function SalesContractForm() {
         value: f.id,
         corak: f.corak,
         konstruksi: f.konstruksi,
-      })) || ["Pilih"]
-    );
-
-    setColorOptions(
-      colors?.warna.map((c) => ({
-        value: c.id,
-        label: c.kode + " | " + c.deskripsi,
       })) || ["Pilih"]
     );
 

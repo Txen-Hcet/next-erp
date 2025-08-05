@@ -75,7 +75,8 @@ export default function SalesOrderForm() {
     setColorOptions(
       colors?.warna.map((c) => ({
         value: c.id,
-        label: c.kode + " | " + c.deskripsi,
+        kode: c.kode,
+        deskripsi: c.deskripsi,
       })) || ["Pilih"]
     );
 
@@ -119,6 +120,8 @@ export default function SalesOrderForm() {
           item.kilogram_total != null ? parseFloat(item.kilogram_total) : 0,
         harga: item.harga != null ? parseFloat(item.harga) : null,
       }));
+
+      console.log(normalizedItems)
 
       // Set form
       setForm({

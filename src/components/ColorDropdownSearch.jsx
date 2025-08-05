@@ -22,11 +22,17 @@ export default function ColorDropdownSearch({
     if (!dropdownRef) return;
     const cleanup = onClickOutside(dropdownRef, () => setIsOpen(false));
     onCleanup(cleanup);
+
+    console.log(colors());
   });
 
   const filteredColors = createMemo(() => {
     const q = search().toLowerCase();
-    return colors().filter((s) => (s.label || "").toLowerCase().includes(q));
+    return colors().filter((f) => {
+      const kode = (f.kode || "").toLowerCase();
+      const deskripsi = (f.deskripsi || "").toLowerCase();
+      return kode.includes(q) || deskripsi.includes(q);
+    });
   });
 
   const selectedColor = createMemo(() =>
@@ -68,7 +74,7 @@ export default function ColorDropdownSearch({
                 class="p-2 hover:bg-blue-100 cursor-pointer"
                 onClick={() => selectColor(s)}
               >
-                {s.label}
+                {s.kode} | {s.deskripsi}
               </div>
             ))
           ) : (

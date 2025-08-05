@@ -15,8 +15,6 @@ export default function FabricDropdownSearch({
     if (!dropdownRef) return;
     const cleanup = onClickOutside(dropdownRef, () => setIsOpen(false));
     onCleanup(cleanup);
-
-    console.log(fabrics())
   });
 
   const filteredFabrics = createMemo(() => {
