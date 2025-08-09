@@ -125,6 +125,7 @@ export default function OCPurchaseContractList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Pembelian</th>
               <th class="py-2 px-2">Supplier</th>
+              <th class="py-2 px-2">Harga</th>
               <th class="py-2 px-2">Total</th>
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-4">Aksi</th>
