@@ -5,6 +5,7 @@ export default function CustomerDropdownSearch({
   customersList, // Ini adalah signal, bukan array langsung
   form,
   setForm,
+  disabled = false,
 }) {
   const [isOpen, setIsOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
@@ -47,15 +48,18 @@ export default function CustomerDropdownSearch({
     <div class="relative" ref={dropdownRef}>
       <button
         type="button"
-        class="w-full border p-2 rounded text-left bg-white/10"
-        onClick={() => setIsOpen(!isOpen())}
+        class={`w-full border p-2 rounded text-left ${
+          disabled ? "bg-gray-200" : "bg-white"
+        } cursor-default`}
+        disabled={disabled}
+        onClick={() => !disabled && setIsOpen(!isOpen())}
       >
         {selectedCustomer()
           ? `${selectedCustomer().kode} - ${selectedCustomer().nama}`
           : "Pilih Customer"}
       </button>
 
-      {isOpen() && (
+      {isOpen() && !disabled && (
         <div class="absolute z-10 w-full bg-white border mt-1 rounded shadow max-h-64 overflow-y-auto">
           <input
             type="text"

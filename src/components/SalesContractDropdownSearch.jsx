@@ -20,8 +20,6 @@ export default function SalesContractDropdownSearch({
     });
 
     onCleanup(cleanup);
-
-    console.log(salesContracts())
   });
 
   const filteredSalesContracts = createMemo(() => {

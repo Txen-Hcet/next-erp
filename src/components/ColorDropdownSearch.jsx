@@ -22,8 +22,6 @@ export default function ColorDropdownSearch({
     if (!dropdownRef) return;
     const cleanup = onClickOutside(dropdownRef, () => setIsOpen(false));
     onCleanup(cleanup);
-
-    console.log(colors());
   });
 
   const filteredColors = createMemo(() => {
@@ -50,7 +48,7 @@ export default function ColorDropdownSearch({
     <div class="relative w-64" ref={dropdownRef}>
       <button
         type="button"
-        class="w-full border p-2 rounded text-left bg-transparent"
+        class="w-full border p-2 rounded text-left bg-white/10"
         onClick={() => !disabled && setIsOpen(!isOpen())}
         disabled={disabled}
       >
