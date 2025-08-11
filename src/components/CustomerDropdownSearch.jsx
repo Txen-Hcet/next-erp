@@ -49,7 +49,7 @@ export default function CustomerDropdownSearch({
       <button
         type="button"
         class={`w-full border p-2 rounded text-left ${
-          disabled ? "bg-gray-200" : "bg-white"
+          disabled ? "bg-gray-200" : "bg-transparent"
         } cursor-default`}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen())}

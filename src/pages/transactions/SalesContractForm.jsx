@@ -3,9 +3,7 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
-  getAllSOTypes,
   getLastSequence,
-  getAllSuppliers,
   getAllSatuanUnits,
   getAllFabrics,
   getUser,
@@ -21,6 +19,7 @@ import {
 import { Printer, Trash2 } from "lucide-solid";
 import FabricDropdownSearch from "../../components/FabricDropdownSearch";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
+import GradeDropdownSearch from "../../components/GradeDropdownSearch";
 
 export default function SalesContractForm() {
   const navigate = useNavigate();
@@ -96,12 +95,7 @@ export default function SalesContractForm() {
     setCustomerType(dataCustomerTypes.data || []);
     setCurrencyList(getCurrencies.data || []);
     setCustomersList(getCustomers.customers || []);
-    setGradeOptions(
-      grades?.data.map((g) => ({
-        value: g.id,
-        label: g.grade,
-      })) || ["Pilih Grade"]
-    );
+    setGradeOptions(grades?.data || []);
 
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
@@ -121,6 +115,8 @@ export default function SalesContractForm() {
         subtotal: item.subtotal ?? "",
         subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
       }));
+
+      console.log(data.items);
 
       setForm((prev) => ({
         ...prev,
@@ -654,19 +650,11 @@ export default function SalesContractForm() {
                     />
                   </td>
                   <td class="border p-2">
-                    <select
-                      class="border p-1 rounded w-full text-sm"
-                      value={item.grade_id ?? ""}
-                      onChange={(e) =>
-                        handleItemChange(i(), "grade_id", e.target.value)
-                      }
-                      required
-                    >
-                      <option value="">Pilih Grade</option>
-                      {gradeOptions().map((opt) => (
-                        <option value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                    <GradeDropdownSearch
+                      grades={gradeOptions}
+                      item={item}
+                      onChange={(val) => handleItemChange(i(), "grade_id", val)}
+                    />
                   </td>
                   <td class="border p-2">
                     <input

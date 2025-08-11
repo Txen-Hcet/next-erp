@@ -3,9 +3,7 @@ import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
 import {
-  getAllSOTypes,
   getLastSequence,
-  getAllSuppliers,
   getAllSatuanUnits,
   getAllFabrics,
   getUser,
@@ -24,6 +22,7 @@ import FabricDropdownSearch from "../../components/FabricDropdownSearch";
 import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import SearchableSalesContractSelect from "../../components/SalesContractDropdownSearch";
 import ColorDropdownSearch from "../../components/ColorDropdownSearch";
+import GradeDropdownSearch from "../../components/GradeDropdownSearch";
 
 export default function SalesOrderForm() {
   const navigate = useNavigate();
@@ -48,6 +47,7 @@ export default function SalesOrderForm() {
     po_cust: "-",
     no_pesan: "",
     validity_contract: "",
+    delivery_date: "",
     customer_id: "",
     currency_id: "",
     kurs: "",
@@ -103,19 +103,8 @@ export default function SalesOrderForm() {
     setCustomerType(dataCustomerTypes.data || []);
     setCurrencyList(getCurrencies.data || []);
     setCustomersList(getCustomers.customers || []);
-    setGradeOptions(
-      grades?.data.map((g) => ({
-        value: g.id,
-        label: g.grade,
-      })) || ["Pilih Grade"]
-    );
-    setColorOptions(
-      colors?.warna.map((c) => ({
-        value: c.id,
-        kode: c.kode,
-        deskripsi: c.deskripsi,
-      })) || ["Pilih"]
-    );
+    setGradeOptions(grades?.data || []);
+    setColorOptions(colors?.warna || ["Pilih"]);
 
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
@@ -168,21 +157,21 @@ export default function SalesOrderForm() {
       });
     } else {
       const today = new Date().toISOString().split("T")[0];
-      const lastSeq = await getLastSequence(
-        user?.token,
-        "so",
-        form().type == 1
-          ? "domestik"
-          : form().type == 2
-          ? "ekspor"
-          : "domestik",
-        form().ppn
-      );
+      // const lastSeq = await getLastSequence(
+      //   user?.token,
+      //   "so",
+      //   form().type == 1
+      //     ? "domestik"
+      //     : form().type == 2
+      //     ? "ekspor"
+      //     : "domestik",
+      //   form().ppn
+      // );
 
       setForm((prev) => ({
         ...prev,
         tanggal: today,
-        sequence_number: lastSeq?.no_sequence + 1 || "",
+        // sequence_number: lastSeq?.no_sequence + 1 || "",
       }));
     }
   });
@@ -196,9 +185,9 @@ export default function SalesOrderForm() {
     try {
       const res = await getSalesContracts(id, user.token);
 
-      const custDetail = res.response || "";
+      const custDetail = res.contract || "";
 
-      const { huruf, nomor } = parseNoPesan(res.response?.no_pesan);
+      const { huruf, ppn, nomor } = parseNoPesan(custDetail.no_sc);
 
       // --- NEW: Map items from Sales Contract ---
       if (isEdit) {
@@ -207,6 +196,7 @@ export default function SalesOrderForm() {
 
         handleSalesOrderChange(
           huruf,
+          ppn,
           nomor,
           custDetail.customer_name,
           custDetail.currency_name,
@@ -214,7 +204,10 @@ export default function SalesOrderForm() {
           Number(custDetail.termin),
           Number(custDetail.ppn_percent),
           custDetail.satuan_unit_id,
-          existingItems // <- jangan kosongin lagi, ambil dari form
+          custDetail.validity_contract,
+          custDetail.customer_id,
+          custDetail.currency_id,
+          custDetail.items || []
         );
       } else {
         const scItems = (custDetail.items || []).map((item, index) => ({
@@ -224,14 +217,15 @@ export default function SalesOrderForm() {
           grade_id: item.grade_id ?? "",
           lebar: item.lebar ? parseFloat(item.lebar) : null,
           gramasi: item.gramasi ? parseFloat(item.gramasi) : null,
-          meter_total: isMeter() ?? 0,
-          yard_total: isYard() ?? 0,
-          kilogram_total: isKilogram() ?? 0,
+          meter_total: item.meter_total ?? 0,
+          yard_total: item.yard_total ?? 0,
+          kilogram_total: item.kilogram_total ?? 0,
           harga: item.harga ? parseFloat(item.harga) : null,
         }));
 
         handleSalesOrderChange(
           huruf,
+          ppn,
           nomor,
           custDetail.customer_name,
           custDetail.currency_name,
@@ -239,15 +233,18 @@ export default function SalesOrderForm() {
           Number(custDetail.termin),
           Number(custDetail.ppn_percent),
           custDetail.satuan_unit_id,
-          scItems
+          custDetail.validity_contract,
+          custDetail.customer_id,
+          custDetail.currency_id,
+          custDetail.items || []
         );
       }
       // Update detail SC
-      setSelectedContractDetail({
-        data: res.response,
-        jenis_cust_sc: huruf,
-        nomor_sc: nomor,
-      });
+      // setSelectedContractDetail({
+      //   data: res.response,
+      //   jenis_cust_sc: huruf,
+      //   nomor_sc: nomor,
+      // });
     } catch (err) {
       console.error("❌ Error fetchSalesContractDetail:", err);
     }
@@ -256,16 +253,18 @@ export default function SalesOrderForm() {
   const parseNoPesan = (no_pesan) => {
     if (!no_pesan) return { huruf: "-", nomor: "" };
 
-    const parts = no_pesan.split("/"); // ["SO", "D", "0625-00099"]
+    const parts = no_pesan.split("/"); // ["SC", "D", "P" "0625-00099"]
 
     const huruf = parts[1] || "-";
-    const nomor = parts[2]?.split("-")[1] || "";
+    const ppn = parts[2] || "-";
+    const nomor = parts[3]?.split("-")[1] || "";
 
-    return { huruf, nomor };
+    return { huruf, ppn, nomor };
   };
 
   const handleSalesOrderChange = async (
-    jenisCust,
+    transType, // D / E
+    ppnType,
     nomorSc,
     custName,
     currencyName,
@@ -273,55 +272,87 @@ export default function SalesOrderForm() {
     termin,
     ppn,
     satuanUnitId,
-    items = [] // <<< default empty
+    validityContract,
+    customerId,
+    currencyId,
+    items = []
   ) => {
     const now = new Date();
     const bulan = String(now.getMonth() + 1).padStart(2, "0");
     const tahun = String(now.getFullYear());
 
-    const getLatestDataSalesContract = await getLastSequence(
+    const getLatestSalesOrderNumber = await getLastSequence(
       user?.token,
       "so",
-      jenisCust
+      transType === "D" ? "domestik" : "ekspor",
+      ppnType === "N" ? 0 : 1
     );
-    setSalesOrderNumber(getLatestDataSalesContract.last_sequence);
 
-    const lastNumber = salesOrderNumber();
+    console.log(getLatestSalesOrderNumber);
+
+    const lastNumber = getLatestSalesOrderNumber?.last_sequence || 0;
     const nextNumber = (lastNumber + 1).toString().padStart(5, "0");
 
-    const noSalesOrder = `SO/${jenisCust}/${bulan}${tahun.slice(
+    const noSalesOrder = `SO/${transType}/${ppnType}/${bulan}${tahun.slice(
       2
     )}/${nomorSc}-${nextNumber}`;
+
+    // Pastikan items sudah di-normalisasi biar field kain/grade/lebar langsung ada
+    const normalizedItems = items.map((item, idx) => ({
+      id: item.id ?? idx + 1,
+      fabric_id: item.kain_id ?? null,
+      grade_id: item.grade_id ?? "",
+      lebar_greige: item.lebar ?? "",
+      gramasi: item.gramasi ?? "",
+      meter: 0,
+      meter_total: item.meter_total ?? "",
+      yard: 0,
+      yard_total: item.yard_total ?? "",
+      kilogram: 0,
+      kilogram_total: item.kilogram_total ?? "",
+      harga: item.harga ?? "",
+      subtotal: item.subtotal ?? "",
+      subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
+    }));
 
     setForm({
       ...form(),
       no_so: noSalesOrder,
+      no_seq: lastNumber + 1,
+      sequence_number: noSalesOrder,
+      type: transType === "D" ? 1 : 2,
+      customer_id: customerId,
       cust_name: custName,
-      type: jenisCust,
-      sequence_number: parseInt(nextNumber),
+      validity_contract: validityContract
+        ? new Date(validityContract).toISOString().split("T")[0]
+        : "",
+      currency_id: currencyId,
       currency_name: currencyName,
       kurs: kurs,
       termin: termin,
       ppn: ppn,
       satuan_unit_id: satuanUnitId,
-      items: items.length > 0 ? items : [], // <<< masukkan items ke form
+      items: normalizedItems,
     });
   };
 
-  const selectedSatuan = () => {
-    const s = satuanUnitOptions().find((u) => u.id == form().satuan_unit_id);
-    return s?.nama_satuan?.toLowerCase() || "";
-  };
+  const totalMeter = () =>
+    form().items.reduce(
+      (sum, item) => sum + (parseFloat(item.meter_total) || 0),
+      0
+    );
 
-  const isFieldEditable = (name) =>
-    name === "sales_contract_id" ||
-    name === "warna_id" ||
-    (["meter", "yard", "kilogram"].includes(name) && selectedSatuan() === name);
+  const totalYard = () =>
+    form().items.reduce(
+      (sum, item) => sum + (parseFloat(item.yard_total) || 0),
+      0
+    );
 
-  const editableAttr = (name) => ({
-    readOnly: !isFieldEditable(name),
-    disabled: !isFieldEditable(name),
-  });
+  const totalKilogram = () =>
+    form().items.reduce(
+      (sum, item) => sum + (parseFloat(item.kilogram_total) || 0),
+      0
+    );
 
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(
@@ -480,63 +511,43 @@ export default function SalesOrderForm() {
     e.preventDefault();
 
     try {
-      const toNum = (val) =>
-        val === "" || val === null || val === undefined
-          ? null
-          : parseFloat(val);
-
-      const customerTypeObj = customerType().find((ct) => ct.id == form().type);
-
       if (isEdit) {
+        // --- UPDATE ---
         const payload = {
-          type: customerTypeObj?.jenis.toLowerCase(),
-          no_sc: form().no_seq,
-          po_cust: form().po_cust,
-          validity_contract: form().validity_contract,
-          customer_id: parseInt(form().customer_id),
-          currency_id: parseInt(form().currency_id),
-          kurs: toNum(form().kurs),
-          termin: toNum(form().termin),
-          ppn_percent: toNum(form().ppn),
-          catatan: form().catatan,
-          satuan_unit_id: toNum(form().satuan_unit_id),
+          no_so: form().sequence_number,
+          sc_id: parseInt(form().sales_contract_id),
+          jenis_so_id: parseInt(form().type),
+          delivery_date: form().delivery_date, // pastikan lo ada input ini
+          komisi: parseFloat(form().komisi) || 0,
+          keterangan: form().catatan || "",
           items: form().items.map((item) => ({
-            id: item.id,
-            kain_id: toNum(item.fabric_id),
-            grade_id: parseInt(item.grade_id) || null,
-            lebar: toNum(item.lebar_greige),
-            gramasi: toNum(item.gramasi),
-            meter_total: toNum(item.meter),
-            yard_total: toNum(item.yard),
-            kilogram_total: toNum(item.kilogram),
-            harga: toNum(item.harga),
+            id: item.id, // wajib ada untuk update
+            sc_item_id: item.sc_item_id || item.id, // tergantung API, pastikan ambil dari SC
+            warna_id: parseInt(item.warna_id) || null,
+            meter_total: item.meter ? parseFloat(item.meter) : null,
+            yard_total: item.yard ? parseFloat(item.yard) : null,
+            kilogram_total: item.kilogram ? parseFloat(item.kilogram) : null,
           })),
         };
 
         await updateDataSalesContract(user?.token, params.id, payload);
       } else {
+        console.log(form());
+        // --- CREATE ---
         const payload = {
-          type: customerTypeObj?.jenis.toLowerCase(),
-          sequence_number: form().no_seq,
-          po_cust: form().po_cust,
-          validity_contract: form().validity_contract,
-          customer_id: parseInt(form().customer_id),
-          currency_id: parseInt(form().currency_id),
-          kurs: toNum(form().kurs),
-          termin: toNum(form().termin),
-          ppn_percent: toNum(form().ppn),
-          catatan: form().catatan,
-          satuan_unit_id: toNum(form().satuan_unit_id),
+          type: form().type == 1 ? "domestik" : "ekspor",
+          sequence_number: form().no_seq, // angka sequence
+          sc_id: parseInt(form().sales_contract_id),
+          jenis_so_id: parseInt(form().type),
+          delivery_date: form().delivery_date, // pastikan ada input
+          komisi: parseFloat(form().komisi) || 0,
+          keterangan: form().catatan || "",
           items: form().items.map((item) => ({
-            id: item.id,
-            kain_id: toNum(item.fabric_id),
-            grade_id: toNum(item.grade_id) || "",
-            lebar: toNum(item.lebar_greige),
-            gramasi: toNum(item.gramasi),
-            meter_total: toNum(item.meter),
-            yard_total: toNum(item.yard),
-            kilogram_total: toNum(item.kilogram),
-            harga: toNum(item.harga),
+            sc_item_id: item.sc_item_id || item.id, // id item di SC
+            warna_id: parseInt(item.warna_id) || null,
+            meter_total: item.meter ? parseFloat(item.meter) : null,
+            yard_total: item.yard ? parseFloat(item.yard) : null,
+            kilogram_total: item.kilogram ? parseFloat(item.kilogram) : null,
           })),
         };
 
@@ -601,7 +612,7 @@ export default function SalesOrderForm() {
               <button
                 type="button"
                 onClick={generateNomorKontrak}
-                class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
+                class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400 hidden"
                 hidden={isEdit || !form().sales_contract_id}
               >
                 Generate
@@ -668,6 +679,7 @@ export default function SalesOrderForm() {
               onInput={(e) =>
                 setForm({ ...form(), validity_contract: e.target.value })
               }
+              readOnly
             />
           </div>
         </div>
@@ -681,7 +693,18 @@ export default function SalesOrderForm() {
               onChange={(id) => setForm({ ...form(), sales_contract_id: id })}
             />
           </div> */}
-        <div class="grid grid-cols-5 gap-4">
+        <div class="grid grid-cols-6 gap-4">
+          <div>
+            <label class="block mb-1 font-medium">Tanggal Pengiriman</label>
+            <input
+              type="date"
+              class="w-full border p-2 rounded"
+              value={form().delivery_date}
+              onInput={(e) =>
+                setForm({ ...form(), delivery_date: e.target.value })
+              }
+            />
+          </div>
           <div>
             <label class="block mb-1 font-medium">Currency</label>
             <select
@@ -780,7 +803,7 @@ export default function SalesOrderForm() {
 
         <button
           type="button"
-          class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4 "
+          class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4 hidden"
           onClick={addItem}
         >
           + Tambah Item
@@ -819,19 +842,12 @@ export default function SalesOrderForm() {
                     />
                   </td>
                   <td class="border p-2">
-                    <select
-                      class="border p-1 rounded w-full text-sm"
-                      value={item.grade_id ?? ""}
-                      onChange={(e) =>
-                        handleItemChange(i(), "grade_id", e.target.value)
-                      }
-                      required
-                    >
-                      <option value="">Pilih Grade</option>
-                      {gradeOptions().map((opt) => (
-                        <option value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                    <GradeDropdownSearch
+                      grades={gradeOptions}
+                      item={item}
+                      onChange={(val) => handleItemChange(i(), "grade_id", val)}
+                      disabled={true}
+                    />
                   </td>
                   <td class="border p-2">
                     <input
@@ -848,9 +864,8 @@ export default function SalesOrderForm() {
                   <td class="border w-72 p-2">
                     <ColorDropdownSearch
                       colors={colorOptions}
-                      form={() => item}
-                      setForm={(val) => handleItemChange(i, "warna_id", val)}
-                      onChange={(val) => handleItemChange(i, "warna_id", val)}
+                      item={item}
+                      onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>
                   <td class="border p-2">
@@ -867,7 +882,6 @@ export default function SalesOrderForm() {
                   </td>
                   <td class="border p-2">
                     <input
-                      {...editableAttr("meter")}
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
@@ -886,7 +900,6 @@ export default function SalesOrderForm() {
                   </td>
                   <td class="border p-2">
                     <input
-                      {...editableAttr("yard")}
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
@@ -905,7 +918,6 @@ export default function SalesOrderForm() {
                   </td>
                   <td class="border p-2">
                     <input
-                      {...editableAttr("kilogram")}
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
@@ -962,9 +974,13 @@ export default function SalesOrderForm() {
           </tbody>
           <tfoot>
             <tr class="font-bold bg-gray-100">
-              <td colSpan="10" class="text-right p-2">
+              <td colSpan="6" class="text-right p-2">
                 TOTAL
               </td>
+              <td class="border p-2">{totalMeter().toFixed(2)}</td>
+              <td class="border p-2">{totalYard().toFixed(2)}</td>
+              <td class="border p-2">{totalKilogram().toFixed(2)}</td>
+              <td></td>
               <td class="border p-2">{formatIDR(totalAll())}</td>
               <td></td>
             </tr>

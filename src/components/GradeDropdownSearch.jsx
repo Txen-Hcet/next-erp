@@ -7,8 +7,8 @@ import {
 } from "solid-js";
 import { onClickOutside } from "./OnClickOutside";
 
-export default function ColorDropdownSearch({
-  colors,
+export default function GradeDropdownSearch({
+  grades,
   item,
   onChange,
   disabled = false,
@@ -23,62 +23,61 @@ export default function ColorDropdownSearch({
     onCleanup(cleanup);
   });
 
-  const filteredColors = createMemo(() => {
+  const filteredGrades = createMemo(() => {
     const q = search().toLowerCase();
-    return colors().filter((f) => {
-      const kode = (f.kode || "").toLowerCase();
-      const deskripsi = (f.deskripsi || "").toLowerCase();
-      return kode.includes(q) || deskripsi.includes(q);
+    return grades().filter((f) => {
+      const grade = (f.grade || "").toLowerCase();
+      return grade.includes(q);
     });
   });
 
   const selectedColor = createMemo(() =>
-    colors().find((s) => s.id == item.warna_id)
+    grades().find((s) => s.id == item.grade_id)
   );
 
-  const selectColor = (color) => {
+  const selectColor = (grade) => {
     setIsOpen(false);
     setSearch("");
-    onChange && onChange(color.id);
+    onChange && onChange(grade.id);
   };
 
   return (
-    <div class="relative w-64" ref={dropdownRef}>
-      <input type="hidden" name="warna_id" value={item.warna_id} />
+    <div class="relative w-20" ref={dropdownRef}>
+      <input type="hidden" name="grade_id" value={item.grade_id} />
+
       <button
         type="button"
-        class={`w-full border p-2 rounded text-left ${
+        class={`w-full border p-2 rounded text-center ${
           disabled ? "bg-gray-200" : "bg-transparent"
         } cursor-default`}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen())}
       >
-        {(selectedColor()?.kode ? selectedColor().kode + " | " : "") +
-          (selectedColor()?.deskripsi || "") || "Pilih Warna..."}
+        {selectedColor()?.grade || "Pilih Grade..."}
       </button>
 
       {isOpen() && !disabled && (
         <div class="absolute z-10 w-full bg-white border mt-1 rounded shadow max-h-64 overflow-y-auto">
           <input
             type="text"
-            placeholder="Cari Warna..."
+            placeholder="Cari Grade..."
             class="w-full p-2 border-b focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={search()}
             onInput={(e) => setSearch(e.target.value)}
             autofocus
           />
-          {filteredColors().length > 0 ? (
-            filteredColors().map((s) => (
+          {filteredGrades().length > 0 ? (
+            filteredGrades().map((s) => (
               <div
                 key={s.id}
-                class="p-2 hover:bg-blue-100 cursor-pointer"
+                class="p-2 hover:bg-blue-100 cursor-pointer text-center"
                 onClick={() => selectColor(s)}
               >
-                {s.kode} | {s.deskripsi}
+                {s.grade}
               </div>
             ))
           ) : (
-            <div class="p-2 text-gray-400">Warna tidak ditemukan</div>
+            <div class="p-2 text-gray-400">Grade tidak ditemukan</div>
           )}
         </div>
       )}
