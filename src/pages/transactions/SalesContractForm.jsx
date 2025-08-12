@@ -250,9 +250,7 @@ export default function SalesContractForm() {
 
       // handle harga
       if (field === "harga") {
-        // const rawHarga = value.replace(/[^\d]/g, "");
-        const hargaNumber = parseFloat(value || "0") || 0;
-
+        const hargaNumber = parseIDR(value) || 0; // gunakan parseIDR
         items[index].harga = hargaNumber;
 
         if (options.triggerFormat) {
