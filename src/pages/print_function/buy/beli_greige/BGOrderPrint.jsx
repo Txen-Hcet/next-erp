@@ -4,29 +4,19 @@ import {
   getCurrencies,
   getFabric,
   getGrades,
+  getSatuanUnits,
   getSupplier,
   getUser,
 } from "../../../../utils/auth";
 
 export default function BGOrderPrint(props) {
   const data = props.data;
-  const [currency, setCurrency] = createSignal(null);
   const [supplier, setSupplier] = createSignal(null);
   const [kainList, setKainList] = createSignal({});
   const [gradeList, setGradeList] = createSignal({});
+  const [satuanUnitList, setSatuanUnitList] = createSignal({});
 
   const tokUser = getUser(); // kalau token dibutuhkan
-
-  async function handleGetCurrency() {
-    try {
-      const res = await getCurrencies(data.currency_id, tokUser?.token);
-      if (res.status === 200) {
-        setCurrency(res.data || null);
-      }
-    } catch (err) {
-      console.error("Error getCurrencies:", err);
-    }
-  }
 
   async function handleGetSupplier() {
     try {
@@ -68,9 +58,22 @@ export default function BGOrderPrint(props) {
     }
   }
 
+  async function handleGetSatuanUnit(satuanUnitId) {
+    try {
+      const res = await getSatuanUnits(satuanUnitId, tokUser?.token);
+      if (res.status === 200) {
+        setSatuanUnitList((prev) => ({
+          ...prev,
+          [satuanUnitId]: res.data,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getGrade:", err);
+    }
+  }
+
   onMount(() => {
     if (tokUser?.token) {
-      handleGetCurrency();
       handleGetSupplier();
       (data.items || []).forEach((item) => {
         if (item.fabric_id) {
@@ -80,6 +83,9 @@ export default function BGOrderPrint(props) {
           handleGetGrade(item.grade_id);
         }
       });
+      if (data.satuan_unit_id) {
+        handleGetSatuanUnit(data.satuan_unit_id);
+      }
     }
   });
 
@@ -106,11 +112,11 @@ export default function BGOrderPrint(props) {
   }
 
   const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter_total || 0),
+    (sum, i) => sum + Number(i.meter || 0),
     0
   );
   const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard_total || 0),
+    (sum, i) => sum + Number(i.yard || 0),
     0
   );
 
@@ -126,10 +132,16 @@ export default function BGOrderPrint(props) {
 
   // Misalnya kamu sudah punya:
   const subTotal = createMemo(() => {
-    return data.items?.reduce(
-      (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
-      0
-    );
+    const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
+
+    return data.items?.reduce((sum, i) => {
+      let qty = 0;
+
+      if (satuan === "Meter") qty = i.meter ?? 0;
+      else if (satuan === "Yard") qty = i.yard ?? 0;
+
+      return sum + (i.harga ?? 0) * qty;
+    }, 0);
   });
 
   const [form, setForm] = createSignal({
@@ -137,27 +149,27 @@ export default function BGOrderPrint(props) {
   });
 
   // DPP = subTotal
-  const dpp = createMemo(() => subTotal());
+  const dpp = createMemo(() => subTotal() / 1.11);
 
   // Nilai Lain dari form
-  const nilaiLain = createMemo(() => parseFloat(form().nilai_lain || 0));
+  const nilaiLain = createMemo(() => parseFloat((dpp() * 11) / 12 || 0));
 
   // PPN = 11% dari (DPP + Nilai Lain)
   const ppn = createMemo(() => {
-    const dasarPajak = dpp() + nilaiLain();
-    return dasarPajak * 0.11;
+    const dasarPajak = nilaiLain() * 0.12;
+    return dasarPajak;
   });
 
   // Jumlah Total = DPP + Nilai Lain + PPN
-  const jumlahTotal = createMemo(() => dpp() + nilaiLain() + ppn());
+  const jumlahTotal = createMemo(() => dpp() + ppn());
 
   // Lalu kalau ingin dijadikan object seperti `data`
-  const dataAkhir = {
+  const dataAkhir = createMemo(() => ({
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
     total: jumlahTotal(),
-  };
+  }));
 
   return (
     <>
@@ -324,21 +336,42 @@ export default function BGOrderPrint(props) {
               <tr key={i}>
                 <td className="p-1 text-center">{i + 1}</td>
                 <td className="p-1 text-center break-words">
-                  {item.kode_kain}
+                  {kainList()[item.fabric_id]?.corak || "-"}
                 </td>
-                <td className="p-1 break-words">{item.jenis_kain}</td>
-                <td className="p-1 text-center break-words">{item.lebar}"</td>
+                <td className="p-1 break-words">
+                  {kainList()[item.fabric_id]?.konstruksi || "-"}
+                </td>
+                <td className="p-1 text-center break-words">
+                  {item.lebar_greige}"
+                </td>
                 <td className="p-1 text-right break-words">
-                  {formatRibuan(item.meter_total)}
+                  {satuanUnitList()[data.satuan_unit_id]?.satuan === "Meter"
+                    ? formatRibuan(item.meter)
+                    : satuanUnitList()[data.satuan_unit_id]?.satuan === "Yard"
+                    ? formatRibuan(item.yard)
+                    : ""}
                 </td>
-                <td className="p-1 text-center break-words">{item.satuan}</td>
+                <td className="p-1 text-center break-words">
+                  {satuanUnitList()[data.satuan_unit_id]?.satuan || "-"}
+                </td>
                 <td className="p-1 text-right break-words">
                   {formatRupiahNumber(item.harga)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {item.harga && item.meter_total
-                    ? formatRupiahNumber(item.harga * item.meter_total)
-                    : "-"}
+                  {(() => {
+                    const satuan =
+                      satuanUnitList()[data.satuan_unit_id]?.satuan;
+                    let qty = 0;
+
+                    if (satuan === "Meter")
+                      qty = item.meter_total ?? item.meter ?? 0;
+                    else if (satuan === "Yard")
+                      qty = item.yard_total ?? item.yard ?? 0;
+
+                    return item.harga && qty
+                      ? formatRupiahNumber(item.harga * qty)
+                      : "-";
+                  })()}
                 </td>
               </tr>
             ))}
@@ -366,7 +399,14 @@ export default function BGOrderPrint(props) {
                 Total
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRupiahNumber(totalMeter)}
+                {(() => {
+                  const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
+
+                  if (satuan === "Meter") return formatRupiahNumber(totalMeter);
+                  if (satuan === "Yard") return formatRupiahNumber(totalYard);
+
+                  return "-";
+                })()}
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold"></td>
               <td className="border border-black px-2 py-1 text-right font-bold">
@@ -380,35 +420,35 @@ export default function BGOrderPrint(props) {
               <td colSpan={6} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.dpp)}
+                {formatRupiahNumber(dataAkhir().dpp)}
               </td>
             </tr>
             <tr>
               <td colSpan={6} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.nilai_lain)}
+                {formatRupiahNumber(dataAkhir().nilai_lain)}
               </td>
             </tr>
             <tr>
               <td colSpan={6} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.ppn)}
+                {formatRupiahNumber(dataAkhir().ppn)}
               </td>
             </tr>
             <tr>
               <td colSpan={6} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.total)}
+                {formatRupiahNumber(dataAkhir().total)}
               </td>
             </tr>
             <tr>
               <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
-                  {data.catatan ?? "-"}
+                  {data.keterangan ?? "-"}
                 </div>
               </td>
             </tr>

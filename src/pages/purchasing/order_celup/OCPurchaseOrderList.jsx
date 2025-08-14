@@ -79,6 +79,37 @@ export default function OCPurchaseOrderList() {
     }
   };
 
+  const qtyCounterbySystem = (po, satuanUnit) => {
+    let total = 0;
+    let terkirim = 0;
+
+    switch (satuanUnit) {
+      case "Meter": // Meter
+        total = parseFloat(po.summary?.total_meter || 0);
+        terkirim = parseFloat(po.summary?.total_meter_dalam_proses || 0);
+        break;
+      case "Yard": // Yard
+        total = parseFloat(po.summary?.total_yard || 0);
+        terkirim = parseFloat(po.summary?.total_yard_dalam_proses || 0);
+        break;
+      case "Kilogram": // Kilogram
+        total = parseFloat(po.summary?.total_kilogram || 0);
+        terkirim = parseFloat(po.summary?.total_kilogram_dalam_proses || 0);
+        break;
+      default:
+        return "-";
+    }
+
+    const sisa = total - terkirim;
+
+    // Kalau udah habis
+    if (sisa <= 0) {
+      return "SELESAI";
+    }
+
+    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
+  };
+
   function formatTanggalIndo(tanggalString) {
     const tanggal = new Date(tanggalString);
     const bulanIndo = [
@@ -129,7 +160,12 @@ export default function OCPurchaseOrderList() {
               <th class="py-2 px-2">No Order</th>
               <th class="py-2 px-2">No PC</th>
               <th class="py-2 px-2">Supplier</th>
-              <th class="py-2 px-2">Total</th>
+              <th class="py-2 px-2 text-center">
+                <div>Qty by System</div>
+                <span class="text-xs text-gray-500">
+                  (Total - Total diproses / Total)
+                </span>
+              </th>
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
@@ -142,9 +178,17 @@ export default function OCPurchaseOrderList() {
                 </td>
                 <td class="py-2 px-4">{po.no_po}</td>
                 <td class="py-2 px-4">{po.no_pc}</td>
-                <td class="py-2 px-4">{po.supplier_code}</td>
+                <td class="py-2 px-4">{po.supplier_name}</td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(po.created_at)}</td> */}
-                <td class="py-2 px-4">{po.summary.total_meter}</td>
+                <td
+                  className={`py-2 px-4 text-center ${
+                    qtyCounterbySystem(po, po.satuan_unit_name) === "SELESAI"
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}
+                >
+                  {qtyCounterbySystem(po, po.satuan_unit_name)}
+                </td>
                 <td class="py-2 px-4">{po.satuan_unit_name}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button

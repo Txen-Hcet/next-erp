@@ -75,7 +75,8 @@ export default function BGPurchaseOrderForm() {
       const normalizedItems = (dataItems || []).map((item) => {
         return {
           id: item.id,
-          fabric_id: item.kain_id,
+          pc_item_id: item.pc_item_id,
+          fabric_id: item.corak_kain,
           lebar_greige: item.lebar_greige,
           meter: item.meter_total,
           yard: item.yard_total,
@@ -92,15 +93,12 @@ export default function BGPurchaseOrderForm() {
         };
       });
 
-      handlePurchaseContractChange(data.pc_id);
+      handlePurchaseContractChange(data.pc_id, normalizedItems);
 
       setForm((prev) => ({
         ...prev,
         jenis_po_id: data.jenis_po_id ?? "",
-        pc_id: {
-          id: data.pc_id ?? "",
-          ppn_percent: data.ppn_percent ?? 0,
-        },
+        id: data.pc_id ?? "",
         sequence_number: data.no_po ?? "",
         no_seq: data.sequence_number ?? 0,
         supplier_id: data.supplier_id ?? "",
@@ -134,7 +132,7 @@ export default function BGPurchaseOrderForm() {
     setLoading(false);
   });
 
-  const handlePurchaseContractChange = async (contractId) => {
+  const handlePurchaseContractChange = async (contractId, overrideItems) => {
     let selectedContract = purchaseContracts().find(
       (sc) => sc.id == contractId
     );
@@ -154,22 +152,27 @@ export default function BGPurchaseOrderForm() {
       items = [],
     } = selectedContract;
 
-    const mappedItems = items.map((item) => {
+    // Pilih sumber data
+    const sourceItems = overrideItems ?? items;
+
+    const mappedItems = sourceItems.map((item) => {
       let qty = 0;
 
-      if (satuan_unit_id === 1) qty = item.meter_dalam_proses || 0;
-      else if (satuan_unit_id === 2) qty = item.yard_dalam_proses || 0;
-      else if (satuan_unit_id === 3) qty = item.kilogram_dalam_proses || 0;
+      if (satuan_unit_id === 1) qty = item.meter || item.meter_total || 0;
+      else if (satuan_unit_id === 2) qty = item.yard || item.yard_total || 0;
+      else if (satuan_unit_id === 3)
+        qty = item.kilogram || item.kilogram_total || 0;
 
       const harga = parseFloat(item.harga ?? 0);
       const subtotal = qty && harga ? qty * harga : 0;
 
       return {
-        pc_item_id: item.id,
-        fabric_id: item.kain_id,
+        id: item.id,
+        pc_item_id: item.pc_item_id,
+        fabric_id: item.kain_id || item.fabric_id,
         lebar_greige: item.lebar_greige,
-        meter: item.meter_dalam_proses || "",
-        yard: item.yard_dalam_proses || "",
+        meter: item.meter || item.meter_total || "",
+        yard: item.yard || item.yard_total || "",
         harga,
         hargaFormatted: formatIDR(harga),
         subtotal,
@@ -185,7 +188,6 @@ export default function BGPurchaseOrderForm() {
       form().ppn
     );
 
-    // merge form lama + update yang kosong
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
@@ -194,7 +196,7 @@ export default function BGPurchaseOrderForm() {
       termin: prev.termin || termin,
       ppn: prev.ppn || ppn_percent,
       keterangan: prev.keterangan || "",
-      items: mappedItems, // selalu update ke hasil mapping baru
+      items: mappedItems,
       sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
   };
@@ -313,6 +315,7 @@ export default function BGPurchaseOrderForm() {
 
     try {
       if (isEdit) {
+        console.log(form().items);
         const payload = {
           // ...form(),
           no_po: form().sequence_number,
@@ -408,6 +411,7 @@ export default function BGPurchaseOrderForm() {
                 type="button"
                 class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
                 onClick={generateNomorKontrak}
+                hidden={isEdit}
               >
                 Generate
               </button>

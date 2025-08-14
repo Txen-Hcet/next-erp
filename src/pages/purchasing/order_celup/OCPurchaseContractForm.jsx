@@ -25,7 +25,6 @@ export default function OCPurchaseContractForm() {
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
-  const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -36,7 +35,7 @@ export default function OCPurchaseContractForm() {
     satuan_unit_id: "",
     termin: "",
     ppn: 0,
-    catatan: "",
+    keterangan: "",
     no_seq: 0,
     items: [],
   });
@@ -51,17 +50,6 @@ export default function OCPurchaseContractForm() {
 
   //   console.log(lastSeq);
   // });
-
-  createEffect(async () => {
-    const colors = await getAllColors(user?.token);
-
-    setColorOptions(
-      colors?.warna.map((c) => ({
-        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
-        label: c.kode + " | " + c.deskripsi,
-      })) || []
-    );
-  });
 
   onMount(async () => {
     const [suppliers, satuanUnits, fabrics] = await Promise.all([
@@ -83,6 +71,7 @@ export default function OCPurchaseContractForm() {
 
       // Normalisasi item
       const normalizedItems = (dataItems || []).map((item) => ({
+        id: item.id,
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
@@ -100,8 +89,6 @@ export default function OCPurchaseContractForm() {
             : "",
       }));
 
-      console.log(data);
-
       const str = data.no_pc;
       const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
       const sequenceNumber = parseInt(bagianAkhir, 10); // hasilnya: 1
@@ -114,7 +101,7 @@ export default function OCPurchaseContractForm() {
         tanggal: new Date(data.created_at).toISOString().split("T")[0] ?? "",
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
-        catatan: data.catatan ?? "",
+        keterangan: data.keterangan ?? "",
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
@@ -290,8 +277,9 @@ export default function OCPurchaseContractForm() {
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
           ppn_percent: Number(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
+            id: Number(i.id),
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(i.lebar_greige),
             lebar_finish: parseFloat(i.lebar_finish),
@@ -310,7 +298,7 @@ export default function OCPurchaseContractForm() {
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
           ppn_percent: Number(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(i.lebar_greige),
@@ -456,11 +444,11 @@ export default function OCPurchaseContractForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">Keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 
