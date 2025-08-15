@@ -632,7 +632,7 @@ export default function SalesContractForm() {
               <th class="border p-2">#</th>
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Grade Kain</th>
-              <th class="border p-2">Lebar Greige</th>
+              <th class="border p-2">Lebar Finish</th>
               <th class="border p-2">Gramasi</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
