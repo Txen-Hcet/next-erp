@@ -297,6 +297,7 @@ export default function MainLayout(props) {
                         ? "bg-gray-700 text-white"
                         : ""
                     }`}
+                    hidden
                   >
                     Users
                   </A>
@@ -796,6 +797,7 @@ export default function MainLayout(props) {
                                 ? "bg-gray-700 text-white"
                                 : ""
                             }`}
+                            hidden
                           >
                             Surat Jalan
                           </A>
@@ -803,7 +805,7 @@ export default function MainLayout(props) {
                       </ul>
                     </li>
                   </ul>
-                  <ul>
+                  <ul hidden>
                     {/* Submenu Level 2: Pembelian Greige */}
                     <li>
                       <button
@@ -846,7 +848,7 @@ export default function MainLayout(props) {
                       </ul>
                     </li>
                   </ul>
-                  <ul>
+                  <ul hidden>
                     {/* Submenu Level 2: Order Celup */}
                     <li>
                       <button
@@ -889,7 +891,7 @@ export default function MainLayout(props) {
                       </ul>
                     </li>
                   </ul>
-                  <ul>
+                  <ul hidden>
                     {/* Submenu Level 2: Kain Jadi */}
                     <li>
                       <button
@@ -931,7 +933,7 @@ export default function MainLayout(props) {
                       </ul>
                     </li>
                   </ul>
-                  <ul>
+                  <ul hidden>
                     {/* Submenu Level 2: Kain Jadi */}
                     <li>
                       <button
