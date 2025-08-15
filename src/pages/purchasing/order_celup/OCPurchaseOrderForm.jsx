@@ -33,6 +33,7 @@ export default function OCPurchaseOrderForm() {
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [purchaseContracts, setPurchaseContracts] = createSignal([]);
   const [colorOptions, setColorOptions] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -50,6 +51,7 @@ export default function OCPurchaseOrderForm() {
   });
 
   onMount(async () => {
+    setLoading(true);
     const [bgc, poTypes, suppliers, units, fabrics, colors] = await Promise.all(
       [
         getAllOrderCelups(user?.token),
@@ -129,6 +131,7 @@ export default function OCPurchaseOrderForm() {
 
       // handlePurchaseContractChange(data.pc_id);
     }
+    setLoading(false);
   });
 
   const formatIDR = (val) => {
@@ -176,7 +179,7 @@ export default function OCPurchaseOrderForm() {
 
       return {
         id: item.id,
-        pc_item_id: item.pc_item_id,
+        pc_item_id: overrideItems?.length > 0 ? item.pc_item_id : item.id,
         fabric_id: item.kain_id || item.fabric_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
@@ -375,6 +378,12 @@ export default function OCPurchaseOrderForm() {
 
   return (
     <MainLayout>
+      {loading() && (
+        <div class="fixed inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md bg-opacity-40 z-50 gap-10">
+          <div class="w-52 h-52 border-[20px] border-white border-t-transparent rounded-full animate-spin"></div>
+          <span class="animate-pulse text-[40px] text-white">Loading...</span>
+        </div>
+      )}
       <h1 class="text-2xl font-bold mb-4">Tambah Order Celup</h1>
       <button
         type="button"

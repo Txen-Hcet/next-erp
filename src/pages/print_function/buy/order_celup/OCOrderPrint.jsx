@@ -2,7 +2,6 @@ import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
 import {
   getColor,
-  getCurrencies,
   getFabric,
   getGrades,
   getSatuanUnits,
@@ -223,7 +222,12 @@ export default function OCOrderPrint(props) {
           padding: "5mm",
         }}
       >
-        <img className="w-40" src={logoNavel} alt="" />
+        <img
+          className="w-40"
+          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          src={logoNavel}
+          alt=""
+        />
         <h1 className="text-2xl uppercase font-bold mb-5">Order Celup</h1>
 
         <div className="w-full flex gap-2 text-sm">
@@ -364,7 +368,7 @@ export default function OCOrderPrint(props) {
                   {kainList()[item.fabric_id]?.konstruksi || "-"}
                 </td>
                 <td className="p-1 break-words">
-                  {kainList()[item.fabric_id]?.konstruksi || "-"}
+                  {warnaList()[item.warna_id]?.deskripsi || "-"}
                 </td>
                 <td className="p-1 text-center break-words">
                   {item.lebar_greige}"

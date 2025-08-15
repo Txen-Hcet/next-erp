@@ -76,6 +76,70 @@ export default function KJPurchaseContractList() {
     }
   };
 
+   const qtyCounterReal = (bg, satuanUnit) => {
+    let total = 0;
+    let terkirim = 0;
+
+    switch (satuanUnit) {
+      case 1: // Meter
+        total = parseFloat(bg.summary?.total_meter || 0);
+        terkirim = parseFloat(bg.summary?.total_meter_dalam_surat_jalan || 0);
+        break;
+      case 2: // Yard
+        total = parseFloat(bg.summary?.total_yard || 0);
+        terkirim = parseFloat(bg.summary?.total_yard_dalam_surat_jalan || 0);
+        break;
+      case 3: // Kilogram
+        total = parseFloat(bg.summary?.total_kilogram || 0);
+        terkirim = parseFloat(
+          bg.summary?.total_kilogram_dalam_surat_jalan || 0
+        );
+        break;
+      default:
+        return "-";
+    }
+
+    const sisa = total - terkirim;
+
+    // Kalau udah habis
+    if (sisa <= 0) {
+      return "SELESAI";
+    }
+
+    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
+  };
+
+  const qtyCounterbySystem = (kj, satuanUnit) => {
+    let total = 0;
+    let terkirim = 0;
+
+    switch (satuanUnit) {
+      case 1: // Meter
+        total = parseFloat(kj.summary?.total_meter || 0);
+        terkirim = parseFloat(kj.summary?.total_meter_dalam_proses || 0);
+        break;
+      case 2: // Yard
+        total = parseFloat(kj.summary?.total_yard || 0);
+        terkirim = parseFloat(kj.summary?.total_yard_dalam_proses || 0);
+        break;
+      case 3: // Kilogram
+        total = parseFloat(kj.summary?.total_kilogram || 0);
+        terkirim = parseFloat(kj.summary?.total_kilogram_dalam_proses || 0);
+        break;
+      default:
+        return "-";
+    }
+
+    const sisa = total - terkirim;
+
+    // Kalau udah habis
+    if (sisa <= 0) {
+      return "SELESAI";
+    }
+
+    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
+  };
+
   function formatTanggalIndo(tanggalString) {
     const tanggal = new Date(tanggalString);
     const bulanIndo = [
@@ -125,34 +189,62 @@ export default function KJPurchaseContractList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Pembelian</th>
               <th class="py-2 px-2">Supplier</th>
-              <th class="py-2 px-2">Total</th>
+              <th class="py-2 px-2 text-center">
+                <div>Qty Faktual</div>
+                <span class="text-xs text-gray-500">
+                  (Total - Total terkirim / Total)
+                </span>
+              </th>
+              <th class="py-2 px-2 text-center">
+                <div>Qty by System</div>
+                <span class="text-xs text-gray-500">
+                  (Total - Total diproses / Total)
+                </span>
+              </th>
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedData().map((sc, index) => (
-              <tr class="border-b" key={sc.id}>
+            {paginatedData().map((kj, index) => (
+              <tr class="border-b" key={kj.id}>
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_pc}</td>
-                <td class="py-2 px-4">{sc.supplier_name}</td>
-                <td class="py-2 px-4"></td>
-                <td class="py-2 px-4">{sc.satuan_unit_name}</td>
-                {/* <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td> */}
+                <td class="py-2 px-4">{kj.no_pc}</td>
+                <td class="py-2 px-4">{kj.supplier_name}</td>
+                <td
+                  class={`py-2 px-4 text-center ${
+                    qtyCounterReal(kj, kj.satuan_unit_id) === "SELESAI"
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}
+                >
+                  {qtyCounterReal(kj, kj.satuan_unit_id)}
+                </td>
+                <td
+                  className={`py-2 px-4 text-center ${
+                    qtyCounterbySystem(kj, kj.satuan_unit_id) === "SELESAI"
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}
+                >
+                  {qtyCounterbySystem(kj, kj.satuan_unit_id)}
+                </td>
+                <td class="py-2 px-4">{kj.satuan_unit_name}</td>
+                {/* <td class="py-2 px-4">{formatTanggalIndo(kj.created_at)}</td> */}
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
-                      navigate(`/kainjadi-purchasecontract/form?id=${sc.id}`)
+                      navigate(`/kainjadi-purchasecontract/form?id=${kj.id}`)
                     }
                   >
                     <Edit size={25} />
                   </button>
                   <button
                     class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(sc.id)}
+                    onClick={() => handleDelete(kj.id)}
                   >
                     <Trash size={25} />
                   </button>

@@ -1,8 +1,111 @@
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
+import {
+  getColor,
+  getFabric,
+  getGrades,
+  getSatuanUnits,
+  getSupplier,
+  getUser,
+} from "../../../../utils/auth";
 
 export default function KJOrderPrint(props) {
   const data = props.data;
+  const [supplier, setSupplier] = createSignal(null);
+  const [kainList, setKainList] = createSignal({});
+  const [gradeList, setGradeList] = createSignal({});
+  const [satuanUnitList, setSatuanUnitList] = createSignal({});
+  const [warnaList, setWarnaList] = createSignal({});
+
+  const tokUser = getUser(); // kalau token dibutuhkan
+
+  async function handleGetSupplier() {
+    try {
+      const res = await getSupplier(data.supplier_id, tokUser?.token);
+
+      if (res.status === 200) {
+        setSupplier(res.suppliers || null);
+      }
+    } catch (err) {
+      console.error("Error getSupplier:", err);
+    }
+  }
+
+  async function handleGetKain(kainId) {
+    try {
+      const res = await getFabric(kainId, tokUser?.token);
+      // if (res.status === 200) {
+      setKainList((prev) => ({
+        ...prev,
+        [kainId]: res,
+      }));
+      // }
+    } catch (err) {
+      console.error("Error getFabric:", err);
+    }
+  }
+
+  // async function handleGetGrade(gradeId) {
+  //   try {
+  //     const res = await getGrades(gradeId, tokUser?.token);
+  //     if (res.status === 200) {
+  //       setGradeList((prev) => ({
+  //         ...prev,
+  //         [gradeId]: res.data,
+  //       }));
+  //     }
+  //   } catch (err) {
+  //     console.error("Error getGrade:", err);
+  //   }
+  // }
+
+  async function handleGetSatuanUnit(satuanUnitId) {
+    try {
+      const res = await getSatuanUnits(satuanUnitId, tokUser?.token);
+      if (res.status === 200) {
+        setSatuanUnitList((prev) => ({
+          ...prev,
+          [satuanUnitId]: res.data,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getGrade:", err);
+    }
+  }
+
+  async function handleGetWarna(warnaId) {
+    try {
+      const res = await getColor(warnaId, tokUser?.token);
+      if (res.status === 200) {
+        setWarnaList((prev) => ({
+          ...prev,
+          [warnaId]: res.warna,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getGrade:", err);
+    }
+  }
+
+  onMount(() => {
+    if (tokUser?.token) {
+      handleGetSupplier();
+      (data.items || []).forEach((item) => {
+        if (item.fabric_id) {
+          handleGetKain(item.fabric_id);
+        }
+        // if (item.grade_id) {
+        //   handleGetGrade(item.grade_id);
+        // }
+        if (item.warna_id) {
+          handleGetWarna(item.warna_id);
+        }
+      });
+      if (data.satuan_unit_id) {
+        handleGetSatuanUnit(data.satuan_unit_id);
+      }
+    }
+  });
 
   function formatRupiahNumber(value) {
     if (typeof value !== "number") {
@@ -27,11 +130,11 @@ export default function KJOrderPrint(props) {
   }
 
   const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter_total || 0),
+    (sum, i) => sum + Number(i.meter || 0),
     0
   );
   const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard_total || 0),
+    (sum, i) => sum + Number(i.yard || 0),
     0
   );
 
@@ -39,12 +142,24 @@ export default function KJOrderPrint(props) {
     return Number(value).toLocaleString("id-ID");
   }
 
+  function formatTanggal(tgl) {
+    if (!tgl) return "-";
+    const [year, month, day] = tgl.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
   // Misalnya kamu sudah punya:
   const subTotal = createMemo(() => {
-    return data.items?.reduce(
-      (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
-      0
-    );
+    const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
+
+    return data.items?.reduce((sum, i) => {
+      let qty = 0;
+
+      if (satuan === "Meter") qty = i.meter ?? 0;
+      else if (satuan === "Yard") qty = i.yard ?? 0;
+
+      return sum + (i.harga ?? 0) * qty;
+    }, 0);
   });
 
   const [form, setForm] = createSignal({
@@ -52,27 +167,27 @@ export default function KJOrderPrint(props) {
   });
 
   // DPP = subTotal
-  const dpp = createMemo(() => subTotal());
+  const dpp = createMemo(() => subTotal() / 1.11);
 
   // Nilai Lain dari form
-  const nilaiLain = createMemo(() => parseFloat(form().nilai_lain || 0));
+  const nilaiLain = createMemo(() => parseFloat((dpp() * 11) / 12 || 0));
 
   // PPN = 11% dari (DPP + Nilai Lain)
   const ppn = createMemo(() => {
-    const dasarPajak = dpp() + nilaiLain();
-    return dasarPajak * 0.11;
+    const dasarPajak = nilaiLain() * 0.12;
+    return dasarPajak;
   });
 
   // Jumlah Total = DPP + Nilai Lain + PPN
-  const jumlahTotal = createMemo(() => dpp() + nilaiLain() + ppn());
+  const jumlahTotal = createMemo(() => dpp() + ppn());
 
   // Lalu kalau ingin dijadikan object seperti `data`
-  const dataAkhir = {
+  const dataAkhir = createMemo(() => ({
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
     total: jumlahTotal(),
-  };
+  }));
 
   return (
     <>
@@ -107,7 +222,12 @@ export default function KJOrderPrint(props) {
           padding: "5mm",
         }}
       >
-        <img className="w-40" src={logoNavel} alt="" />
+        <img
+          className="w-40"
+          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          src={logoNavel}
+          alt=""
+        />
         <h1 className="text-2xl uppercase font-bold mb-5">Kain Jadi Order</h1>
 
         <div className="w-full flex gap-2 text-sm">
@@ -127,7 +247,7 @@ export default function KJOrderPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.customer}
+                  {supplier()?.nama}
                 </td>
               </tr>
               <tr>
@@ -135,7 +255,7 @@ export default function KJOrderPrint(props) {
                   className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.alamat}
+                  {supplier()?.alamat}
                 </td>
               </tr>
               {/* <tr>
@@ -147,52 +267,46 @@ export default function KJOrderPrint(props) {
                 </td>
               </tr> */}
               <tr>
-                <td className="px-2 py-1 whitespace-nowrap">Telp:</td>
+                <td className="px-2 py-1 whitespace-nowrap">
+                  Telp: {supplier()?.no_telp}
+                </td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
           </table>
 
           {/* MIDDLE TABLE */}
-          <div className="flex flex-col gap-2 w-[20%]">
+          {/* <div className="flex flex-col gap-2 w-[20%]">
             <table className="border-2 border-black table-fixed w-full h-full">
               <tbody>
                 <tr className="border-b border-black">
                   <td className="px-2 py-1 w-[30%] whitespace-nowrap">Jenis</td>
                   <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 py-1 w-[65%]">{data.currency_id}</td>
+                  <td className="px-2 py-1 w-[65%] break-words">
+                    {data.currency_id}
+                  </td>
                 </tr>
                 <tr>
                   <td className="px-2 py-1 whitespace-nowrap">Kurs</td>
                   <td className="text-center">:</td>
-                  <td className="px-2 py-1">{formatRupiahNumber(data.kurs)}</td>
+                  <td className="px-2 py-1 break-words">
+                    {formatRupiahNumber(data.kurs)}
+                  </td>
                 </tr>
               </tbody>
             </table>
-
-            {/* <table className="h-full border-2 border-black table-fixed w-full">
-              <tbody>
-                <tr>
-                  <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
-                    PO Customer
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-2 pb-1 text-center break-words max-w-[180px]">
-                    {data.po_cust}
-                  </td>
-                </tr>
-              </tbody>
-            </table> */}
-          </div>
+          </div> */}
 
           {/* RIGHT TABLE */}
-          <table className="w-[35%] border-2 border-black table-fixed text-sm">
+          <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
               {[
-                { label: "No. PO", value: data.no_so },
-                { label: "Tanggal", value: data.tanggal },
-                { label: "Tgl Kirim", value: data.kirim },
+                { label: "No. Kontrak", value: data.sequence_number },
+                { label: "Tanggal", value: formatTanggal(data.tanggal) },
+                {
+                  label: "Validity",
+                  value: formatTanggal(data.validity_contract),
+                },
                 { label: "Payment", value: data.termin + " Hari" },
               ].map((row, idx) => (
                 <tr key={idx} className="border-b border-black">
@@ -214,16 +328,19 @@ export default function KJOrderPrint(props) {
               <th className="border border-black p-1 w-[30px]" rowSpan={2}>
                 No
               </th>
-              <th className="border border-black p-1 w-[70px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[50px]" rowSpan={2}>
                 Kode
               </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[120px]" rowSpan={2}>
                 Jenis Kain
+              </th>
+              <th className="border border-black p-1 w-[120px]" rowSpan={2}>
+                Warna Kain
               </th>
               <th className="border border-black p-1 w-[60px]" rowSpan={2}>
                 Lebar
               </th>
-              <th className="border border-black p-1 w-[100px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[70px]" rowSpan={2}>
                 Quantity
               </th>
               <th
@@ -243,21 +360,47 @@ export default function KJOrderPrint(props) {
           <tbody>
             {(data.items || []).map((item, i) => (
               <tr key={i}>
-                <td className="p-1 text-center break-words">{i + 1}</td>
-                <td className="p-1 text-center break-words">{item.kode_kain}</td>
-                <td className="p-1 break-words">{item.jenis_kain}</td>
-                <td className="p-1 text-center break-words">{item.lebar}"</td>
-                <td className="p-1 text-right break-words">
-                  {formatRibuan(item.meter_total)}
+                <td className="p-1 text-center">{i + 1}</td>
+                <td className="p-1 text-center break-words">
+                  {kainList()[item.fabric_id]?.corak || "-"}
                 </td>
-                <td className="p-1 text-center break-words">{item.satuan}</td>
+                <td className="p-1 break-words">
+                  {kainList()[item.fabric_id]?.konstruksi || "-"}
+                </td>
+                <td className="p-1 break-words">
+                  {warnaList()[item.warna_id]?.deskripsi || "-"}
+                </td>
+                <td className="p-1 text-center break-words">
+                  {item.lebar_greige}"
+                </td>
+                <td className="p-1 text-right break-words">
+                  {satuanUnitList()[data.satuan_unit_id]?.satuan === "Meter"
+                    ? formatRibuan(item.meter)
+                    : satuanUnitList()[data.satuan_unit_id]?.satuan === "Yard"
+                    ? formatRibuan(item.yard)
+                    : ""}
+                </td>
+                <td className="p-1 text-center break-words">
+                  {satuanUnitList()[data.satuan_unit_id]?.satuan || "-"}
+                </td>
                 <td className="p-1 text-right break-words">
                   {formatRupiahNumber(item.harga)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {item.harga && item.meter_total
-                    ? formatRupiahNumber(item.harga * item.meter_total)
-                    : "-"}
+                  {(() => {
+                    const satuan =
+                      satuanUnitList()[data.satuan_unit_id]?.satuan;
+                    let qty = 0;
+
+                    if (satuan === "Meter")
+                      qty = item.meter_total ?? item.meter ?? 0;
+                    else if (satuan === "Yard")
+                      qty = item.yard_total ?? item.yard ?? 0;
+
+                    return item.harga && qty
+                      ? formatRupiahNumber(item.harga * qty)
+                      : "-";
+                  })()}
                 </td>
               </tr>
             ))}
@@ -279,13 +422,20 @@ export default function KJOrderPrint(props) {
           <tfoot>
             <tr>
               <td
-                colSpan={4}
+                colSpan={5}
                 className="border border-black font-bold px-2 py-1"
               >
                 Total
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRupiahNumber(totalMeter)}
+                {(() => {
+                  const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
+
+                  if (satuan === "Meter") return formatRupiahNumber(totalMeter);
+                  if (satuan === "Yard") return formatRupiahNumber(totalYard);
+
+                  return "-";
+                })()}
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold"></td>
               <td className="border border-black px-2 py-1 text-right font-bold">
@@ -296,43 +446,43 @@ export default function KJOrderPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.dpp)}
+                {formatRupiahNumber(dataAkhir().dpp)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.nilai_lain)}
+                {formatRupiahNumber(dataAkhir().nilai_lain)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.ppn)}
+                {formatRupiahNumber(dataAkhir().ppn)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.total)}
+                {formatRupiahNumber(dataAkhir().total)}
               </td>
             </tr>
             <tr>
-              <td colSpan={8} className="border border-black p-2 align-top">
+              <td colSpan={9} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
-                  {data.catatan ?? "-"}
+                  {data.keterangan ?? "-"}
                 </div>
               </td>
             </tr>
             <tr>
-              <td colSpan={8} className="border border-black">
+              <td colSpan={9} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Supplier

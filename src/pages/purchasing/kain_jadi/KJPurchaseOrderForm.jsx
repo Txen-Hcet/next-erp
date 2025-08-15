@@ -33,6 +33,7 @@ export default function KJPurchaseOrderForm() {
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [purchaseContracts, setPurchaseContracts] = createSignal([]);
   const [colorOptions, setColorOptions] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -45,46 +46,40 @@ export default function KJPurchaseOrderForm() {
     satuan_unit_id: "",
     termin: "",
     ppn: "",
-    catatan: "",
+    keterangan: "",
     items: [],
   });
 
-  createEffect(async () => {
-    const colors = await getAllColors(user?.token);
-
-    setColorOptions(
-      colors?.warna.map((c) => ({
-        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
-        label: c.kode + " | " + c.deskripsi,
-      })) || []
-    );
-  });
-
   onMount(async () => {
-    const [bgc, poTypes, suppliers, units, fabrics] = await Promise.all([
-      getAllKainJadis(user?.token),
-      getAllSOTypes(user?.token),
-      getAllSuppliers(user?.token),
-      getAllSatuanUnits(user?.token),
-      getAllFabrics(user?.token),
-    ]);
+    setLoading(true);
+    const [bgc, poTypes, suppliers, units, fabrics, colors] = await Promise.all(
+      [
+        getAllKainJadis(user?.token),
+        getAllSOTypes(user?.token),
+        getAllSuppliers(user?.token),
+        getAllSatuanUnits(user?.token),
+        getAllFabrics(user?.token),
+        getAllColors(user?.token),
+      ]
+    );
 
     setPurchaseContracts(bgc.contracts);
     setJenisPOOptions(poTypes.data);
     setSupplierOptions(suppliers.suppliers);
     setSatuanUnitOptions(units.data);
     setFabricOptions(fabrics.kain);
+    setColorOptions(colors?.warna || ["Pilih"]);
 
     if (isEdit) {
       const res = await getKainJadiOrders(params.id, user?.token);
       const data = res.order;
-      const dataItems = res.items;
+      const dataItems = res.order.items;
 
       if (!data) return;
 
       const normalizedItems = (dataItems || []).map((item) => ({
         pc_item_id: item.pc_item_id,
-        fabric_id: item.kain_id,
+        fabric_id: item.corak_kain,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
         warna_id: item.warna_id,
@@ -97,6 +92,8 @@ export default function KJPurchaseOrderForm() {
         readOnly: true,
       }));
 
+      handlePurchaseContractChange(data.pc_id, normalizedItems);
+
       setForm((prev) => ({
         ...prev,
         jenis_po_id: data.jenis_po_id ?? "",
@@ -107,11 +104,9 @@ export default function KJPurchaseOrderForm() {
         satuan_unit_id: data.satuan_unit_id ?? "",
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
-        catatan: data.catatan ?? "",
+        keterangan: data.keterangan ?? "",
         items: normalizedItems,
       }));
-
-      handlePurchaseContractChange(data.pc_id);
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
@@ -133,10 +128,10 @@ export default function KJPurchaseOrderForm() {
       //   handleItemChange(index, "lebar_greige", item.lebar_greige);
       //   handleItemChange(index, "warna_id", item.warna_id);
       // });
-      
 
       // handlePurchaseContractChange(data.pc_id);
     }
+    setLoading(false);
   });
 
   const formatIDR = (val) => {
@@ -148,7 +143,7 @@ export default function KJPurchaseOrderForm() {
     }).format(val);
   };
 
-  const handlePurchaseContractChange = async (contractId) => {
+  const handlePurchaseContractChange = async (contractId, overrideItems) => {
     let selectedContract = purchaseContracts().find(
       (sc) => sc.id == contractId
     );
@@ -168,33 +163,44 @@ export default function KJPurchaseOrderForm() {
       items = [],
     } = selectedContract;
 
-    const mappedItems = items.map((item) => {
+    // Pilih sumber data
+    const sourceItems = overrideItems ?? items;
+
+    const mappedItems = sourceItems.map((item) => {
+      let qty = 0;
+
+      if (satuan_unit_id === 1) qty = item.meter || item.meter_total || 0;
+      else if (satuan_unit_id === 2) qty = item.yard || item.yard_total || 0;
+      else if (satuan_unit_id === 3)
+        qty = item.kilogram || item.kilogram_total || 0;
+
       const harga = parseFloat(item.harga ?? 0);
+      const subtotal = qty && harga ? qty * harga : 0;
 
       return {
-        pc_item_id: item.id,
-        fabric_id: item.kain_id,
+        id: item.id,
+        pc_item_id: overrideItems?.length > 0 ? item.pc_item_id : item.id,
+        fabric_id: item.kain_id || item.fabric_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
         warna_id: item.warna_id,
-        meter: item.meter_dalam_proses || "",
-        yard: item.yard_dalam_proses || "",
+        meter: item.meter || item.meter_total || "",
+        yard: item.yard || item.yard_total || "",
         harga,
         hargaFormatted: formatIDR(harga),
-        subtotal: 0,
-        subtotalFormatted: formatIDR(item.total_harga),
+        subtotal,
+        subtotalFormatted: formatIDR(subtotal),
         readOnly: true,
       };
     });
 
     const lastSeq = await getLastSequence(
       user?.token,
-      "kj_o",
+      "bg_o",
       "domestik",
       form().ppn
     );
 
-    // merge form lama + update yang kosong
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
@@ -202,8 +208,8 @@ export default function KJPurchaseOrderForm() {
       satuan_unit_id: prev.satuan_unit_id || satuan_unit_id,
       termin: prev.termin || termin,
       ppn: prev.ppn || ppn_percent,
-      catatan: prev.catatan || "",
-      items: prev.items.length ? prev.items : mappedItems,
+      keterangan: prev.keterangan || "",
+      items: mappedItems,
       sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
   };
@@ -294,28 +300,40 @@ export default function KJPurchaseOrderForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = {
-      // ...form(),
-      sequence_number: Number(form().no_seq),
-      pc_id: form().pc_id,
-      catatan: form().catatan,
-      items: form().items.map((i) => ({
-        pc_item_id: i.pc_item_id,
-        // kain_id: Number(i.fabric_id),
-        // lebar_greige: parseFloat(i.lebar_greige),
-        // lebar_finish: parseFloat(i.lebar_finish),
-        // warna_id: parseFloat(i.warna_id),
-        meter_total: parseFloat(i.meter),
-        yard_total: parseFloat(i.yard),
-        // harga: parseFloat(i.harga),
-        // subtotal: parseFloat(i.subtotal),
-      })),
-    };
-
     try {
       if (isEdit) {
+        const payload = {
+          // ...form(),
+          no_po: form().sequence_number,
+          pc_id: form().pc_id,
+          keterangan: form().keterangan,
+          items: form().items.map((i) => ({
+            pc_item_id: i.pc_item_id,
+            warna_id: parseFloat(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+          })),
+        };
+
         await updateDataKainJadiOrder(user?.token, params.id, payload);
       } else {
+        const payload = {
+          // ...form(),
+          sequence_number: Number(form().no_seq),
+          pc_id: form().pc_id,
+          keterangan: form().keterangan,
+          items: form().items.map((i) => ({
+            pc_item_id: i.pc_item_id,
+            // kain_id: Number(i.fabric_id),
+            // lebar_greige: parseFloat(i.lebar_greige),
+            // lebar_finish: parseFloat(i.lebar_finish),
+            warna_id: parseFloat(i.warna_id),
+            meter_total: parseFloat(i.meter),
+            yard_total: parseFloat(i.yard),
+            // harga: parseFloat(i.harga),
+            // subtotal: parseFloat(i.subtotal),
+          })),
+        };
         await createKainJadiOrder(user?.token, payload);
       }
 
@@ -336,11 +354,17 @@ export default function KJPurchaseOrderForm() {
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));
-    window.open(`/print/ordercelup/order?data=${encodedData}`, "_blank");
+    window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
   }
 
   return (
     <MainLayout>
+      {loading() && (
+        <div class="fixed inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md bg-opacity-40 z-50 gap-10">
+          <div class="w-52 h-52 border-[20px] border-white border-t-transparent rounded-full animate-spin"></div>
+          <span class="animate-pulse text-[40px] text-white">Loading...</span>
+        </div>
+      )}
       <h1 class="text-2xl font-bold mb-4">Tambah Order Celup Kain Jadi</h1>
       <button
         type="button"
@@ -459,11 +483,11 @@ export default function KJPurchaseOrderForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">Keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 
@@ -524,8 +548,7 @@ export default function KJPurchaseOrderForm() {
                   <td class="border p-2">
                     <ColorDropdownSearch
                       colors={colorOptions}
-                      form={() => item}
-                      setForm={(val) => handleItemChange(i(), "warna_id", val)}
+                      item={item}
                       onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>

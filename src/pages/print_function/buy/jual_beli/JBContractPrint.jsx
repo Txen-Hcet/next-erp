@@ -107,7 +107,12 @@ export default function JBContractPrint(props) {
           padding: "5mm",
         }}
       >
-        <img className="w-40" src={logoNavel} alt="" />
+        <img
+          className="w-40"
+          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          src={logoNavel}
+          alt=""
+        />
         <h1 className="text-2xl uppercase font-bold mb-5">
           Jual Beli Contract
         </h1>

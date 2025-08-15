@@ -25,6 +25,7 @@ export default function OCPurchaseContractForm() {
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -52,6 +53,7 @@ export default function OCPurchaseContractForm() {
   // });
 
   onMount(async () => {
+    setLoading(true);
     const [suppliers, satuanUnits, fabrics] = await Promise.all([
       getAllSuppliers(user?.token),
       getAllSatuanUnits(user?.token),
@@ -126,6 +128,7 @@ export default function OCPurchaseContractForm() {
         sequence_number: lastSeq?.no_sequence + 1 || "",
       }));
     }
+    setLoading(false);
   });
 
   const formatIDR = (val) => {
@@ -336,6 +339,12 @@ export default function OCPurchaseContractForm() {
 
   return (
     <MainLayout>
+      {loading() && (
+        <div class="fixed inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md bg-opacity-40 z-50 gap-10">
+          <div class="w-52 h-52 border-[20px] border-white border-t-transparent rounded-full animate-spin"></div>
+          <span class="animate-pulse text-[40px] text-white">Loading...</span>
+        </div>
+      )}
       <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Proses</h1>
       <button
         type="button"

@@ -1,7 +1,6 @@
 import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
 import {
-  getCurrencies,
   getFabric,
   getGrades,
   getSupplier,
@@ -179,7 +178,12 @@ export default function OCContractPrint(props) {
           padding: "5mm",
         }}
       >
-        <img className="w-40" src={logoNavel} alt="" />
+        <img
+          className="w-40"
+          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          src={logoNavel}
+          alt=""
+        />
         <h1 className="text-2xl uppercase font-bold mb-5">
           Kontrak Proses Celup
         </h1>
@@ -399,7 +403,7 @@ export default function OCContractPrint(props) {
               <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
-                  {data.catatan ?? "-"}
+                  {data.keterangan ?? "-"}
                 </div>
               </td>
             </tr>

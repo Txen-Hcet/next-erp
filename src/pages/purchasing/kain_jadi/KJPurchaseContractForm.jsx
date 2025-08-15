@@ -25,7 +25,7 @@ export default function KJPurchaseContractForm() {
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
-  const [colorOptions, setColorOptions] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
 
@@ -36,7 +36,7 @@ export default function KJPurchaseContractForm() {
     satuan_unit_id: "",
     termin: "",
     ppn: 0,
-    catatan: "",
+    keterangan: "",
     no_seq: 0,
     items: [],
   });
@@ -52,18 +52,8 @@ export default function KJPurchaseContractForm() {
   //   console.log(lastSeq);
   // });
 
-  createEffect(async () => {
-    const colors = await getAllColors(user?.token);
-
-    setColorOptions(
-      colors?.warna.map((c) => ({
-        id: c.id, // wajib biar ColorDropdownSearch bisa nemu
-        label: c.kode + " | " + c.deskripsi,
-      })) || []
-    );
-  });
-
   onMount(async () => {
+    setLoading(true);
     const [suppliers, satuanUnits, fabrics] = await Promise.all([
       getAllSuppliers(user?.token),
       getAllSatuanUnits(user?.token),
@@ -86,7 +76,6 @@ export default function KJPurchaseContractForm() {
         fabric_id: item.kain_id,
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
-        warna_id: item.warna_id || "",
         meter: item.meter_total,
         yard: item.yard_total,
         harga: item.harga,
@@ -101,8 +90,6 @@ export default function KJPurchaseContractForm() {
             : "",
       }));
 
-      console.log(data);
-
       const str = data.no_pc;
       const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
       const sequenceNumber = parseInt(bagianAkhir, 10); // hasilnya: 1
@@ -115,7 +102,7 @@ export default function KJPurchaseContractForm() {
         tanggal: new Date(data.created_at).toISOString().split("T")[0] ?? "",
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
-        catatan: data.catatan ?? "",
+        keterangan: data.keterangan ?? "",
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
@@ -140,6 +127,7 @@ export default function KJPurchaseContractForm() {
         sequence_number: lastSeq?.no_sequence + 1 || "",
       }));
     }
+    setLoading(false);
   });
 
   const formatIDR = (val) => {
@@ -185,7 +173,6 @@ export default function KJPurchaseContractForm() {
           fabric_id: "",
           lebar_greige: "",
           lebar_finish: "",
-          warna_id: "",
           meter: "",
           yard: "",
           harga: "",
@@ -292,12 +279,11 @@ export default function KJPurchaseContractForm() {
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
           ppn_percent: Number(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(i.lebar_greige),
             lebar_finish: parseFloat(i.lebar_finish),
-            warna_id: Number(i.warna_id),
             meter_total: parseFloat(i.meter),
             yard_total: parseFloat(i.yard),
             harga: parseFloat(i.harga),
@@ -313,12 +299,11 @@ export default function KJPurchaseContractForm() {
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
           ppn_percent: Number(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(i.lebar_greige),
             lebar_finish: parseFloat(i.lebar_finish),
-            warna_id: Number(i.warna_id),
             meter_total: parseFloat(i.meter),
             yard_total: parseFloat(i.yard),
             harga: parseFloat(i.harga),
@@ -351,11 +336,10 @@ export default function KJPurchaseContractForm() {
   //   "satuan_unit_id": 1,
   //   "termin": 30,
   //   "ppn_percent": 0,
-  //   "catatan": "Init",
+  //   "keterangan": "Init",
   //   "items": [
   //     {
   //       "kain_id": 1,
-  //       "warna_id": 2,
   //       "lebar_greige": 30,
   //       "lebar_finish": 27,
   //       "meter_total": 100,
@@ -364,7 +348,6 @@ export default function KJPurchaseContractForm() {
   //     },
   //     {
   //       "kain_id": 2,
-  //       "warna_id": 2,
   //       "lebar_greige": 30,
   //       "lebar_finish": 29,
   //       "meter_total": 100,
@@ -381,6 +364,12 @@ export default function KJPurchaseContractForm() {
 
   return (
     <MainLayout>
+      {loading() && (
+        <div class="fixed inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md bg-opacity-40 z-50 gap-10">
+          <div class="w-52 h-52 border-[20px] border-white border-t-transparent rounded-full animate-spin"></div>
+          <span class="animate-pulse text-[40px] text-white">Loading...</span>
+        </div>
+      )}
       <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Proses</h1>
       <button
         type="button"
@@ -489,11 +478,11 @@ export default function KJPurchaseContractForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">Keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 
@@ -514,7 +503,6 @@ export default function KJPurchaseContractForm() {
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
-              <th class="border p-2">Warna</th>
               <th class="border p-2">Meter</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
@@ -556,14 +544,6 @@ export default function KJPurchaseContractForm() {
                       onBlur={(e) =>
                         handleItemChange(i(), "lebar_finish", e.target.value)
                       }
-                    />
-                  </td>
-                  <td class="border p-2">
-                    <ColorDropdownSearch
-                      colors={colorOptions}
-                      form={() => item}
-                      setForm={(val) => handleItemChange(i(), "warna_id", val)}
-                      onChange={(val) => handleItemChange(i(), "warna_id", val)}
                     />
                   </td>
                   <td class="border p-2">
