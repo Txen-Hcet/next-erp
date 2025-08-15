@@ -824,7 +824,7 @@ export default function SalesOrderForm() {
               <th class="border p-2">#</th>
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Grade Kain</th>
-              <th class="border p-2">Lebar Greige</th>
+              <th class="border p-2">Lebar Finish</th>
               <th class="border p-2">Warna</th>
               <th class="border p-2">Gramasi</th>
               <th class="border p-2">Meter</th>
