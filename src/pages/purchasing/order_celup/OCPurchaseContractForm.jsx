@@ -568,7 +568,7 @@ export default function OCPurchaseContractForm() {
                       type="text"
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
-                      value={formatIDR(item.harga)}
+                      value={item.harga}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "harga", e.target.value)
                       // }

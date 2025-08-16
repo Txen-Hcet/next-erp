@@ -38,6 +38,7 @@ export default function SalesOrderForm() {
   const [gradeOptions, setGradeOptions] = createSignal([]);
   const [salesOrderNumber, setSalesOrderNumber] = createSignal(0);
   const [colorOptions, setColorOptions] = createSignal([]);
+  const [availableSCItems, setAvailableSCItems] = createSignal([]);
   const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
@@ -136,6 +137,7 @@ export default function SalesOrderForm() {
       setForm((prev) => ({
         ...prev,
         tanggal: new Date().toISOString().split("T")[0],
+        items: [],
       }));
     }
 
@@ -153,6 +155,8 @@ export default function SalesOrderForm() {
 
       const custDetail = res.contract || "";
       const existingItems = form().items || [];
+
+      setAvailableSCItems(custDetail.items || []);
 
       const { huruf, ppn, nomor } = parseNoPesan(custDetail.no_sc);
       const tanggalValue = new Date(custDetail.created_at)
@@ -216,19 +220,10 @@ export default function SalesOrderForm() {
           mergedItems
         );
       } else {
-        const scItems = (custDetail.items || []).map((item, index) => ({
-          id: item.id ?? null,
-          kain_id: item.kain_id ?? null,
-          warna_id: item.warna_id ?? null,
-          grade_id: item.grade_id ?? "",
-          lebar: item.lebar ? parseFloat(item.lebar) : null,
-          gramasi: item.gramasi ? parseFloat(item.gramasi) : null,
-          meter_total: item.meter_total ?? 0,
-          yard_total: item.yard_total ?? 0,
-          kilogram_total: item.kilogram_total ?? 0,
-          harga: item.harga ? parseFloat(item.harga) : null,
-        }));
+        // simpan semua item SC ke dropdown
+        setAvailableSCItems(custDetail.items || []);
 
+        // update form tapi items kosong
         handleSalesOrderChange(
           huruf,
           ppn,
@@ -243,7 +238,7 @@ export default function SalesOrderForm() {
           custDetail.validity_contract,
           custDetail.customer_id,
           custDetail.currency_id,
-          custDetail.items || []
+          [] // kosong dulu
         );
       }
       // Update detail SC
@@ -383,17 +378,20 @@ export default function SalesOrderForm() {
 
   const addItem = () => {
     setForm((prev) => {
+      const lastItem = prev.items[prev.items.length - 1] || {};
+
       const newItem = {
-        fabric_id: null,
-        grade_id: "",
-        lebar_greige: "",
-        gramasi: "",
-        meter: "",
-        yard: "",
-        kilogram: "",
-        harga: "",
-        subtotal: "",
-        subtotalFormatted: "",
+        sc_item_id: lastItem.sc_item_id ?? lastItem.id ?? null,
+        fabric_id: lastItem.fabric_id ?? null,
+        grade_id: lastItem.grade_id ?? "",
+        lebar_greige: lastItem.lebar_greige ?? "",
+        gramasi: lastItem.gramasi ?? "",
+        meter: 0,
+        yard: 0,
+        kilogram: 0,
+        harga: lastItem.harga ?? "",
+        // subtotal: "",
+        // subtotalFormatted: "",
       };
 
       return {
@@ -553,7 +551,9 @@ export default function SalesOrderForm() {
           })),
         };
 
-        await createSalesOrder(user?.token, payload);
+        console.log(payload);
+
+        // await createSalesOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -810,9 +810,58 @@ export default function SalesOrderForm() {
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 
+        <div>
+          <label class="block mb-1 font-medium">Tambah Item dari SC</label>
+          <select
+            class="border p-2 rounded"
+            onChange={(e) => {
+              const selectedId = parseInt(e.target.value);
+              const scItem = availableSCItems().find(
+                (si) => si.id === selectedId
+              );
+              if (scItem) {
+                setForm((prev) => ({
+                  ...prev,
+                  items: [
+                    ...prev.items,
+                    {
+                      sc_item_id: scItem.id,
+                      fabric_id: scItem.kain_id,
+                      grade_id: scItem.grade_id,
+                      lebar_greige: scItem.lebar,
+                      gramasi: scItem.gramasi,
+                      harga: scItem.harga,
+                      meter: 0,
+                      yard: 0,
+                      kilogram: 0,
+                      warna_id: null,
+                      subtotal: 0,
+                      subtotalFormatted: "",
+                    },
+                  ],
+                }));
+              }
+              e.target.value = "";
+            }}
+          >
+            <option value="">Pilih Item</option>
+            {availableSCItems().map((si) => (
+              <option value={si.id}>
+                {`${
+                  fabricOptions().find((f) => f.id === si.kain_id)?.corak ||
+                  "Kain"
+                } - ${
+                  fabricOptions().find((g) => g.id === si.kain_id)
+                    ?.konstruksi || ""
+                }`}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="button"
-          class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4 hidden"
+          class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
         >
           + Tambah Item
