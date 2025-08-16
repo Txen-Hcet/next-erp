@@ -56,7 +56,7 @@ export default function SalesOrderForm() {
     kurs: "",
     termin: "",
     ppn_percent: "",
-    catatan: "",
+    keterangan: "",
     satuan_unit_id: "",
     items: [],
   });
@@ -518,16 +518,19 @@ export default function SalesOrderForm() {
           no_so: form().sequence_number,
           sc_id: parseInt(form().sales_contract_id),
           jenis_so_id: parseInt(form().type),
-          // delivery_date: form().delivery_date, // pastikan lo ada input ini
+          delivery_date: form().delivery_date,
           komisi: parseFloat(form().komisi) || 0,
-          keterangan: form().catatan || "",
+          keterangan: form().keterangan || "",
           items: form().items.map((item) => ({
-            id: item.id, // wajib ada untuk update
-            sc_item_id: item.sc_item_id, // tergantung API, pastikan ambil dari SC
-            warna_id: parseInt(item.warna_id) || null,
-            meter_total: item.meter ? parseFloat(item.meter) : null,
-            yard_total: item.yard ? parseFloat(item.yard) : null,
-            kilogram_total: item.kilogram ? parseFloat(item.kilogram) : null,
+            id: item.id, // id item di SO (wajib utk update)
+            sc_item_id: item.sc_item_id, // tetap refer ke SC item
+            warnas: item.warnas.map((w) => ({
+              id: w.id || null, // id warna di SO, kalau ada = update, kalau null = insert baru
+              warna_id: parseInt(w.warna_id) || null,
+              meter: w.meter ? parseFloat(w.meter) : 0,
+              yard: w.yard ? parseFloat(w.yard) : 0,
+              kilogram: w.kilogram ? parseFloat(w.kilogram) : 0,
+            })),
           })),
         };
 
@@ -539,21 +542,35 @@ export default function SalesOrderForm() {
           sequence_number: form().no_seq, // angka sequence
           sc_id: parseInt(form().sales_contract_id),
           jenis_so_id: parseInt(form().type),
-          // // delivery_date: form().delivery_date, // pastikan ada input
+          delivery_date: form().delivery_date,
           komisi: parseFloat(form().komisi) || 0,
-          keterangan: form().catatan || "",
-          items: form().items.map((item) => ({
-            sc_item_id: item.sc_item_id || item.id, // id item di SC
-            warna_id: parseInt(item.warna_id) || null,
-            meter_total: item.meter ? parseFloat(item.meter) : null,
-            yard_total: item.yard ? parseFloat(item.yard) : null,
-            kilogram_total: item.kilogram ? parseFloat(item.kilogram) : null,
-          })),
+          keterangan: form().keterangan || "",
+          items: Object.values(
+            form().items.reduce((acc, item) => {
+              const scItemId = item.sc_item_id || item.id;
+
+              if (!acc[scItemId]) {
+                acc[scItemId] = {
+                  sc_item_id: scItemId,
+                  warnas: [],
+                };
+              }
+
+              acc[scItemId].warnas.push({
+                warna_id: parseInt(item.warna_id) || null,
+                meter: item.meter ? parseFloat(item.meter) : 0,
+                yard: item.yard ? parseFloat(item.yard) : 0,
+                kilogram: item.kilogram ? parseFloat(item.kilogram) : 0,
+              });
+
+              return acc;
+            }, {})
+          ),
         };
 
         console.log(payload);
 
-        // await createSalesOrder(user?.token, payload);
+        await createSalesOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -800,11 +817,11 @@ export default function SalesOrderForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">Keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 
