@@ -72,8 +72,9 @@ export default function UsersList() {
       Swal.fire({
         title: "Gagal",
         text: "Gagal mengambil seluruh data pengguna",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

@@ -45,8 +45,9 @@ export default function CurrencyForm() {
         text: isEdit
           ? "Berhasil mengubah data jenis currency"
           : "Berhasil mebuat jenis currency baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/currencies"));
     } catch (error) {
       Swal.fire({
@@ -55,8 +56,9 @@ export default function CurrencyForm() {
         text: isEdit
           ? "Gagal mengubah data jenis currency"
           : "Gagal membuat data jenis currency baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

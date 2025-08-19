@@ -69,8 +69,9 @@ export default function SuppliersListForm() {
         text: isEdit
           ? "Berhasil mengubah data supplier"
           : "Berhasil mebuat supplier baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/suppliers"));
     } catch (error) {
       Swal.fire({
@@ -79,8 +80,9 @@ export default function SuppliersListForm() {
         text: isEdit
           ? "Gagal mengubah data supplier"
           : "Gagal membuat data supplier baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

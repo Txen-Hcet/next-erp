@@ -52,8 +52,9 @@ export default function FabricForm() {
         text: isEdit
           ? "Berhasil mengubah data kain"
           : "Berhasil mebuat kain baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/fabrics"));
     } catch (error) {
       Swal.fire({
@@ -62,8 +63,9 @@ export default function FabricForm() {
         text: isEdit
           ? "Gagal mengubah data kain"
           : "Gagal membuat data kain baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

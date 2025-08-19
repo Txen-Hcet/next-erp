@@ -91,8 +91,9 @@ export default function SuppliersListForm() {
         text: isEdit
           ? "Berhasil mengubah data customer"
           : "Berhasil mebuat customer baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/customers"));
     } catch (error) {
       Swal.fire({
@@ -101,8 +102,9 @@ export default function SuppliersListForm() {
         text: isEdit
           ? "Gagal mengubah data customer"
           : "Gagal membuat data customer baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

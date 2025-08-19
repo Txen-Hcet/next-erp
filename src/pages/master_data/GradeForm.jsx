@@ -48,8 +48,9 @@ export default function GradeForm() {
         text: isEdit
           ? "Berhasil mengubah data grade"
           : "Berhasil mebuat grade baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/grade"));
     } catch (error) {
       Swal.fire({
@@ -58,8 +59,9 @@ export default function GradeForm() {
         text: isEdit
           ? "Gagal mengubah data grade"
           : "Gagal membuat data grade baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

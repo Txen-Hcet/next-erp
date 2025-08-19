@@ -47,8 +47,9 @@ export default function UnitsForm() {
         text: isEdit
           ? "Berhasil mengubah data satuan unit"
           : "Berhasil mebuat satuan unit baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/units"));
     } catch (error) {
       Swal.fire({
@@ -57,8 +58,9 @@ export default function UnitsForm() {
         text: isEdit
           ? "Gagal mengubah data satuan unit"
           : "Gagal membuat data satuan unit baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

@@ -52,8 +52,9 @@ export default function ColorForm() {
         text: isEdit
           ? "Berhasil mengubah data warna"
           : "Berhasil mebuat warna baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/colors"));
     } catch (error) {
       Swal.fire({
@@ -62,8 +63,9 @@ export default function ColorForm() {
         text: isEdit
           ? "Gagal mengubah data warna"
           : "Gagal membuat data warna baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

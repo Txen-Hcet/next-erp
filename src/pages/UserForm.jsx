@@ -79,8 +79,9 @@ export default function UserForm() {
         icon: "success",
         title: "Berhasil",
         text: isEdit ? "Berhasil mengubah user" : "Berhasil membuat user baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/users"));
     } catch (error) {
       console.log(error);
@@ -90,8 +91,9 @@ export default function UserForm() {
         text:
           error.message ||
           (isEdit ? "Gagal mengubah user" : "Gagal membuat user baru"),
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

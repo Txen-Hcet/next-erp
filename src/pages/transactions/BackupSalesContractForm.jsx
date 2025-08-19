@@ -394,8 +394,9 @@ export default function SalesContractFormBackup() {
         icon: "error",
         title: "Gagal",
         text: serverMessage,
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

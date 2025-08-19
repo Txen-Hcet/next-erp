@@ -19,16 +19,18 @@ export default function LoginPage() {
       Swal.fire({
         title: "Berhasil Login!",
         icon: "success",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/dashboard", { replace: true }));
     } catch (error) {
       Swal.fire({
         title: "Gagal!",
         icon: "error",
         text: "Username atau password salah",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
 
       setError(error.message || "Username atau password salah.");

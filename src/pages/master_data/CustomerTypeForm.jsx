@@ -46,8 +46,9 @@ export default function CustomerTypeForm() {
         text: isEdit
           ? "Berhasil mengubah data jenis customer"
           : "Berhasil mebuat jenis customer baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/customer-type"));
     } catch (error) {
       console.log(error);
@@ -57,8 +58,9 @@ export default function CustomerTypeForm() {
         text: isEdit
           ? "Gagal mengubah data jenis customer"
           : "Gagal membuat data jenis customer baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

@@ -48,8 +48,9 @@ export default function SOTypeForm() {
         text: isEdit
           ? "Berhasil mengubah data jenis SO"
           : "Berhasil mebuat jenis SO baru",
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => navigate("/so-type"));
     } catch (error) {
       const serverMessage =
@@ -63,8 +64,9 @@ export default function SOTypeForm() {
         icon: "error",
         title: "Gagal",
         text: serverMessage,
-        confirmButtonColor: "#6496df",
-        confirmButtonText: "OK",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };
