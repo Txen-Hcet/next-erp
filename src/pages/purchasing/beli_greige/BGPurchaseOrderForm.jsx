@@ -361,6 +361,9 @@ export default function BGPurchaseOrderForm() {
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => {
         navigate("/beligreige-purchaseorder");
       });
@@ -369,6 +372,9 @@ export default function BGPurchaseOrderForm() {
         icon: "error",
         title: "Gagal menyimpan Purchase Order",
         text: err.message,
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };

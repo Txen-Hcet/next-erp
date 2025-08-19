@@ -57,8 +57,10 @@ export default function JBPurchaseContractList() {
           text:
             error.message || `Gagal menghapus data Jual Beli dengan ID ${id}`,
           icon: "error",
-          confirmButtonColor: "#6496df",
-          confirmButtonText: "OK",
+          
+ showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
         });
       }
     }

@@ -139,15 +139,6 @@ export default function BGPurchaseContractForm() {
     setLoading(false);
   });
 
-  const formatIDR = (val) => {
-    if (val === null || val === "") return "";
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(
       user?.token,
@@ -196,13 +187,44 @@ export default function BGPurchaseContractForm() {
     });
   };
 
+  const formatIDR = (val) => {
+    if (val === null || val === "") return "";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
+  const parseIDR = (str) => {
+    if (!str) return "";
+    // Keep digits and optional decimal point
+    const cleaned = str.replace(/[^0-9.]/g, "");
+    return cleaned ? parseFloat(cleaned) : "";
+  };
+
+  const formatNumber = (num) => {
+    if (num == null || num === "") return "";
+    return new Intl.NumberFormat("id-ID").format(num);
+  };
+
+  const parseNumber = (str) => {
+    if (!str) return 0;
+    return parseFloat(str.replace(/\./g, "")) || 0;
+  };
+
   const handleItemChange = (index, field, value, options = {}) => {
     setForm((prev) => {
       const items = [...prev.items];
       items[index] = { ...items[index] };
 
       // always store raw string
-      items[index][field] = value;
+      if (["lebar_greige", "meter", "yard", "harga"].includes(field)) {
+        const numberValue = parseNumber(value);
+        items[index][field] = formatNumber(numberValue);
+      } else {
+        items[index][field] = value;
+      }
 
       const satuanId = prev.satuan_unit_id;
       const satuan = satuanUnitOptions()
@@ -215,7 +237,7 @@ export default function BGPurchaseContractForm() {
       // handle harga
       if (field === "harga") {
         // const rawHarga = value.replace(/[^\d]/g, "");
-        const hargaNumber = parseFloat(value || "0") || 0;
+        const hargaNumber = parseIDR(value || "0") || 0;
 
         items[index].harga = hargaNumber;
 
@@ -246,11 +268,11 @@ export default function BGPurchaseContractForm() {
         if (field === "meter") {
           meter = parseFloat(value) || 0;
           yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
+          items[index].yard = yard > 0 ? formatNumber(yard.toFixed(4)) : "";
         } else if (field === "yard") {
           yard = parseFloat(value) || 0;
           meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
+          items[index].meter = meter > 0 ? formatNumber(meter.toFixed(4)) : "";
         }
       }
 
@@ -323,6 +345,9 @@ export default function BGPurchaseContractForm() {
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => {
         navigate("/beligreige-purchasecontract");
       });
@@ -332,6 +357,9 @@ export default function BGPurchaseContractForm() {
         icon: "error",
         title: "Gagal menyimpan Purchase Order",
         text: err?.message || "Terjadi kesalahan.",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };
@@ -437,22 +465,39 @@ export default function BGPurchaseContractForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            <input
-              type="number"
+            <select
               class="w-full border p-2 rounded"
               value={form().termin}
               onInput={(e) => setForm({ ...form(), termin: e.target.value })}
-            />
+            >
+              <option value="">-- Pilih Termin --</option>
+              <option value="0">0 Hari/Cash</option>
+              <option value="30">30 Hari</option>
+              <option value="45">45 Hari</option>
+              <option value="60">60 Hari</option>
+              <option value="90">90 Hari</option>
+            </select>
           </div>
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            <input
-              type="number"
-              class="w-full border p-2 rounded"
-              value={form().ppn}
-              onInput={(e) => setForm({ ...form(), ppn: e.target.value })}
-            />
+            <label class="flex items-center cursor-pointer gap-3">
+              <div class="relative">
+                <input
+                  type="checkbox"
+                  checked={form().ppn === "11"}
+                  onChange={(e) =>
+                    setForm({ ...form(), ppn: e.target.checked ? "11" : "0" })
+                  }
+                  class="sr-only peer"
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
+              </div>
+              <span class="text-lg text-gray-700">
+                {form().ppn === "11" ? "11%" : "0%"}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -560,7 +605,7 @@ export default function BGPurchaseContractForm() {
                       type="text"
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
-                      value={item.harga}
+                      value={formatIDR(item.harga)}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "harga", e.target.value)
                       // }

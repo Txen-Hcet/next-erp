@@ -52,8 +52,10 @@ export default function ColorsList() {
           title: "Gagal",
           text: error.message || `Gagal menghapus data warna dengan ID ${id}`,
           icon: "error",
-          confirmButtonColor: "#6496df",
-          confirmButtonText: "OK",
+          
+ showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
         });
       }
     }

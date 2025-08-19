@@ -62,8 +62,10 @@ export default function SuppliersList() {
           text:
             error.message || `Gagal menghapus data supplier dengan ID ${id}`,
           icon: "error",
-          confirmButtonColor: "#6496df",
-          confirmButtonText: "OK",
+          
+ showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
         });
       }
     }

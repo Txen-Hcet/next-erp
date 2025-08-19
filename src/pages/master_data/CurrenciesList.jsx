@@ -56,8 +56,10 @@ export default function CurrenciesList() {
           text:
             error.message || `Gagal menghapus data currency dengan ID ${id}`,
           icon: "error",
-          confirmButtonColor: "#6496df",
-          confirmButtonText: "OK",
+          
+ showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
         });
       }
     }

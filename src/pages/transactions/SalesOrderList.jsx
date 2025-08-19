@@ -57,8 +57,10 @@ export default function SalesOrderList() {
           text:
             error.message || `Gagal menghapus data sales order dengan ID ${id}`,
           icon: "error",
-          confirmButtonColor: "#6496df",
-          confirmButtonText: "OK",
+          
+ showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
         });
       }
     }
