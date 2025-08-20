@@ -49,7 +49,7 @@ export default function SalesContractForm() {
     currency_id: "",
     kurs: "",
     termin: "",
-    ppn_percent: "",
+    ppn_percent: 0,
     catatan: "",
     satuan_unit_id: "",
     items: [],
@@ -120,8 +120,6 @@ export default function SalesContractForm() {
         subtotal: item.subtotal ?? "",
         subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
       }));
-
-      console.log(data);
 
       setForm((prev) => ({
         ...prev,
@@ -637,11 +635,11 @@ export default function SalesContractForm() {
               <div class="relative">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11.00"}
+                  checked={form().ppn === 11}
                   onChange={(e) =>
                     setForm({
                       ...form(),
-                      ppn: e.target.checked ? "11.00" : "0.00",
+                      ppn: e.target.checked ? 11 : 0,
                     })
                   }
                   class="sr-only peer"
@@ -650,7 +648,7 @@ export default function SalesContractForm() {
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11.00" ? "11%" : "0%"}
+                {form().ppn === 11 ? "11%" : "0%"}
               </span>
             </label>
           </div>
@@ -842,7 +840,7 @@ export default function SalesContractForm() {
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             hidden={isView}
-            disabled={isView}
+            // disabled={isView}
           >
             Simpan
           </button>

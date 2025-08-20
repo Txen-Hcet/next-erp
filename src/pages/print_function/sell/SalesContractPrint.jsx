@@ -68,6 +68,7 @@ export default function SalesContractPrint(props) {
   }
 
   onMount(() => {
+    console.log(data);
     if (tokUser?.token) {
       handleGetCurrency();
       handleGetCustomer();
@@ -193,10 +194,11 @@ export default function SalesContractPrint(props) {
       >
         <img
           className="w-40"
-          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          hidden={!data.ppn || parseInt(data.ppn) === 0}
           src={logoNavel}
           alt=""
         />
+
         <h1 className="text-2xl uppercase font-bold mb-5">Sales Contract</h1>
 
         <div className="w-full flex gap-2 text-sm">

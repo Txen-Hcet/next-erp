@@ -36,7 +36,7 @@ export default function OCPurchaseOrderForm() {
   const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
-  const isView = params.view === 'true';
+  const isView = params.view === "true";
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",

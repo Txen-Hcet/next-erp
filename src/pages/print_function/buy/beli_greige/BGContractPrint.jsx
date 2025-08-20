@@ -194,7 +194,7 @@ export default function BGContractPrint(props) {
       >
         <img
           className="w-40"
-          hidden={parseInt(data.ppn) !== 0 ? false : true}
+          hidden={!data.ppn || parseInt(data.ppn) === 0}
           src={logoNavel}
           alt=""
         />
