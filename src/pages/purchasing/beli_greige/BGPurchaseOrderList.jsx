@@ -7,7 +7,7 @@ import {
   softDeleteBeliGreigeOrder,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Eye, Trash } from "lucide-solid";
 
 export default function BGPurchaseOrderList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
@@ -61,10 +61,10 @@ export default function BGPurchaseOrderList() {
             error.message ||
             `Gagal menghapus data beli greige order dengan ID ${id}`,
           icon: "error",
-          
- showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -193,6 +193,14 @@ export default function BGPurchaseOrderList() {
                 </td>
                 <td class="py-2 px-4">{po.satuan_unit_name}</td>
                 <td class="py-2 px-4 space-x-2">
+                  <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() =>
+                      navigate(`/beligreige-purchaseorder/form?id=${po.id}&view=true`)
+                    }
+                  >
+                    <Eye size={25} />
+                  </button>
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>

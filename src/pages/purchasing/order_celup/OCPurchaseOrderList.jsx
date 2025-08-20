@@ -7,7 +7,7 @@ import {
   softDeleteOrderCelupOrder,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Eye, Trash } from "lucide-solid";
 
 export default function OCPurchaseOrderList() {
   const [orderCelups, setOrderCelups] = createSignal([]);
@@ -193,6 +193,14 @@ export default function OCPurchaseOrderList() {
                 </td>
                 <td class="py-2 px-4">{po.satuan_unit_name}</td>
                 <td class="py-2 px-4 space-x-2">
+                   <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() =>
+                      navigate(`/ordercelup-purchaseorder/form?id=${po.id}&view=true`)
+                    }
+                  >
+                    <Eye size={25} />
+                  </button>
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>

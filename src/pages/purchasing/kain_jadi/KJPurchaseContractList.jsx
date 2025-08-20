@@ -7,7 +7,7 @@ import {
   softDeleteKainJadi,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Eye, Trash } from "lucide-solid";
 
 export default function KJPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
@@ -236,6 +236,14 @@ export default function KJPurchaseContractList() {
                 <td class="py-2 px-4">{kj.satuan_unit_name}</td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(kj.created_at)}</td> */}
                 <td class="py-2 px-4 space-x-2">
+                   <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() =>
+                      navigate(`/kainjadi-purchasecontract/form?id=${kj.id}&view=true`)
+                    }
+                  >
+                    <Eye size={25} />
+                  </button>
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>

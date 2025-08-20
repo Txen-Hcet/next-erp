@@ -121,6 +121,8 @@ export default function SalesContractForm() {
         subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
       }));
 
+      console.log(data)
+
       setForm((prev) => ({
         ...prev,
         type: data.transaction_type?.toLowerCase() === "domestik" ? 1 : 2,
@@ -376,11 +378,11 @@ export default function SalesContractForm() {
             id: item.id,
             kain_id: toNum(item.fabric_id),
             grade_id: parseInt(item.grade_id) || null,
-            lebar: toNum(item.lebar_greige),
-            gramasi: toNum(item.gramasi),
-            meter_total: toNum(item.meter),
-            yard_total: toNum(item.yard),
-            kilogram_total: toNum(item.kilogram),
+            lebar: toNum(parseNumber(item.lebar_greige)),
+            gramasi: toNum(parseNumber(item.gramasi)),
+            meter_total: toNum(parseNumber(item.meter)),
+            yard_total: toNum(parseNumber(item.yard)),
+            kilogram_total: toNum(parseNumber(item.kilogram)),
             harga: toNum(item.harga),
           })),
         };
@@ -613,22 +615,42 @@ export default function SalesContractForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            <input
-              type="number"
+            <select
               class="w-full border p-2 rounded"
               value={form().termin}
               onInput={(e) => setForm({ ...form(), termin: e.target.value })}
-            />
+            >
+              <option value="">-- Pilih Termin --</option>
+              <option value="0">0 Hari/Cash</option>
+              <option value="30">30 Hari</option>
+              <option value="45">45 Hari</option>
+              <option value="60">60 Hari</option>
+              <option value="90">90 Hari</option>
+            </select>
           </div>
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            <input
-              type="number"
-              class="w-full border p-2 rounded"
-              value={form().ppn}
-              onInput={(e) => setForm({ ...form(), ppn: e.target.value })}
-            />
+            <label class="flex items-center cursor-pointer gap-3">
+              <div class="relative">
+                <input
+                  type="checkbox"
+                  checked={form().ppn === "11.00"}
+                  onChange={(e) =>
+                    setForm({
+                      ...form(),
+                      ppn: e.target.checked ? "11.00" : "0.00",
+                    })
+                  }
+                  class="sr-only peer"
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
+              </div>
+              <span class="text-lg text-gray-700">
+                {form().ppn === "11.00" ? "11%" : "0%"}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -818,6 +840,7 @@ export default function SalesContractForm() {
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             hidden={isView}
+            disabled={isView}
           >
             Simpan
           </button>

@@ -31,6 +31,7 @@ export default function BGPurchaseContractForm() {
   const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
+  const isView = params.view === 'true';
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -123,6 +124,7 @@ export default function BGPurchaseContractForm() {
         handleItemChange(index, "harga", item.harga);
         handleItemChange(index, "lebar_greige", item.lebar_greige);
       });
+      console.log(form());
     } else {
       const lastSeq = await getLastSequence(
         user?.token,
@@ -203,14 +205,25 @@ export default function BGPurchaseContractForm() {
     return cleaned ? parseFloat(cleaned) : "";
   };
 
-  const formatNumber = (num) => {
-    if (num == null || num === "") return "";
-    return new Intl.NumberFormat("id-ID").format(num);
-  };
-
   const parseNumber = (str) => {
     if (!str) return 0;
-    return parseFloat(str.replace(/\./g, "")) || 0;
+
+    // 1. normalize: koma (id) → titik
+    let normalized = str.replace(",", ".");
+
+    // 2. hapus separator ribuan (titik yang diikuti 3 digit, tapi bukan desimal)
+    normalized = normalized.replace(/\.(?=\d{3}(\D|$))/g, "");
+
+    return parseFloat(normalized) || 0;
+  };
+
+  const formatNumber = (num, { decimals } = {}) => {
+    if (isNaN(num)) return "";
+
+    return Number(num).toLocaleString("id-ID", {
+      minimumFractionDigits: decimals ?? 0,
+      maximumFractionDigits: decimals ?? (decimals > 0 ? decimals : 4),
+    });
   };
 
   const handleItemChange = (index, field, value, options = {}) => {
@@ -219,9 +232,24 @@ export default function BGPurchaseContractForm() {
       items[index] = { ...items[index] };
 
       // always store raw string
-      if (["lebar_greige", "meter", "yard", "harga"].includes(field)) {
+      if (field === "lebar_greige") {
+        // integer aja
         const numberValue = parseNumber(value);
-        items[index][field] = formatNumber(numberValue);
+        items[index][field] = numberValue
+          ? formatNumber(numberValue, { decimals: 0 })
+          : "";
+      } else if (field === "meter" || field === "yard") {
+        // bisa sampai 4 decimal
+        const numberValue = parseNumber(value);
+        items[index][field] = numberValue
+          ? formatNumber(numberValue, { decimals: 2 })
+          : "";
+      } else if (field === "harga") {
+        // uang -> 2 decimal
+        const numberValue = parseNumber(value);
+        items[index][field] = numberValue
+          ? formatNumber(numberValue, { decimals: 2 })
+          : "";
       } else {
         items[index][field] = value;
       }
@@ -276,9 +304,9 @@ export default function BGPurchaseContractForm() {
         }
       }
 
-      if (field === "lebar_greige") {
-        items[index].lebar_greige = value;
-      }
+      // if (field === "lebar_greige") {
+      //   items[index].lebar_greige = value;
+      // }
 
       const harga = parseFloat(items[index].harga || "") || 0;
       let qty = 0;
@@ -311,9 +339,9 @@ export default function BGPurchaseContractForm() {
           catatan: form().catatan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
-            lebar_greige: parseFloat(i.lebar_greige),
-            meter_total: parseFloat(i.meter),
-            yard_total: parseFloat(i.yard),
+            lebar_greige: parseFloat(parseNumber(i.lebar_greige)),
+            meter_total: parseFloat(parseNumber(i.meter)),
+            yard_total: parseFloat(parseNumber(i.yard)),
             harga: parseFloat(i.harga),
             subtotal: parseFloat(i.subtotal),
           })),
@@ -331,9 +359,9 @@ export default function BGPurchaseContractForm() {
           catatan: form().catatan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
-            lebar_greige: parseFloat(i.lebar_greige),
-            meter_total: parseFloat(i.meter),
-            yard_total: parseFloat(i.yard),
+            lebar_greige: parseFloat(parseNumber(i.lebar_greige)),
+            meter_total: parseFloat(parseNumber(i.meter)),
+            yard_total: parseFloat(parseNumber(i.yard)),
             harga: parseFloat(i.harga),
             subtotal: parseFloat(i.subtotal),
           })),
@@ -485,9 +513,9 @@ export default function BGPurchaseContractForm() {
               <div class="relative">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11"}
+                  checked={form().ppn === "11.00"}
                   onChange={(e) =>
-                    setForm({ ...form(), ppn: e.target.checked ? "11" : "0" })
+                    setForm({ ...form(), ppn: e.target.checked ? "11.00" : "0.00" })
                   }
                   class="sr-only peer"
                 />
@@ -495,7 +523,7 @@ export default function BGPurchaseContractForm() {
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11" ? "11%" : "0%"}
+                {form().ppn === "11.00" ? "11%" : "0%"}
               </span>
             </label>
           </div>
@@ -643,6 +671,8 @@ export default function BGPurchaseContractForm() {
           <button
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            hidden={isView}
+            disabled={isView}
           >
             Simpan
           </button>

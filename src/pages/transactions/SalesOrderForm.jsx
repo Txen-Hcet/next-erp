@@ -390,10 +390,16 @@ export default function SalesOrderForm() {
   };
 
   const totalMeter = () =>
-    form().items.reduce((sum, item) => sum + (parseFloat(parseNumber(item.meter)) || 0), 0);
+    form().items.reduce(
+      (sum, item) => sum + (parseFloat(parseNumber(item.meter)) || 0),
+      0
+    );
 
   const totalYard = () =>
-    form().items.reduce((sum, item) => sum + (parseFloat(parseNumber(item.yard)) || 0), 0);
+    form().items.reduce(
+      (sum, item) => sum + (parseFloat(parseNumber(item.yard)) || 0),
+      0
+    );
 
   const totalKilogram = () =>
     form().items.reduce(
@@ -539,7 +545,9 @@ export default function SalesOrderForm() {
             sc_item_id: item.sc_item_id,
             meter_total: item.meter ? parseFloat(parseNumber(item.meter)) : 0,
             yard_total: item.yard ? parseFloat(parseNumber(item.yard)) : 0,
-            kilogram_total: item.kilogram ? parseFloat(parseNumber(item.kilogram)) : 0,
+            kilogram_total: item.kilogram
+              ? parseFloat(parseNumber(item.kilogram))
+              : 0,
             // warnas: {
             //   id: item.id || null, // id warna di SO, kalau ada = update, kalau null = insert baru
             //   warna_id: parseInt(item.warna_id) || null,
@@ -576,7 +584,9 @@ export default function SalesOrderForm() {
                 warna_id: parseInt(item.warna_id) || null,
                 meter: item.meter ? parseFloat(parseNumber(item.meter)) : 0,
                 yard: item.yard ? parseFloat(parseNumber(item.yard)) : 0,
-                kilogram: item.kilogram ? parseFloat(parseNumber(item.kilogram)) : 0,
+                kilogram: item.kilogram
+                  ? parseFloat(parseNumber(item.kilogram))
+                  : 0,
               });
 
               return acc;
@@ -812,22 +822,42 @@ export default function SalesOrderForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            <input
-              type="number"
-              class="w-full border p-2 rounded bg-gray-200"
-              value={form().termin ?? ""}
-              onInput={(e) => setForm({ ...form(), termin: e.target.value })}
-            />
+            {/* Hidden input supaya value tetep kebawa */}
+            <input type="hidden" name="termin" value={form().termin} />
+            <select
+              class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
+              value={form().termin}
+              disabled
+            >
+              <option value="">-- Pilih Termin --</option>
+              <option value="0">0 Hari/Cash</option>
+              <option value="30">30 Hari</option>
+              <option value="45">45 Hari</option>
+              <option value="60">60 Hari</option>
+              <option value="90">90 Hari</option>
+            </select>
           </div>
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            <input
-              type="number"
-              class="w-full border p-2 rounded bg-gray-200"
-              value={form().ppn}
-              onInput={(e) => setForm({ ...form(), ppn: e.target.value })}
-            />
+            {/* Hidden input biar tetap ke-submit */}
+            <input type="hidden" name="ppn" value={form().ppn} />
+
+            <label class="flex items-center gap-3">
+              <div class="relative opacity-60 cursor-not-allowed">
+                <input
+                  type="checkbox"
+                  checked={form().ppn === "11.00"}
+                  disabled
+                  class="sr-only peer"
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm peer-checked:translate-x-14 transition-transform"></div>
+              </div>
+              <span class="text-lg text-gray-700">
+                {form().ppn === "11.00" ? "11%" : "0%"}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -1069,9 +1099,13 @@ export default function SalesOrderForm() {
               <td colSpan="6" class="text-right p-2">
                 TOTAL
               </td>
-              <td class="border p-2">{formatNumber(totalMeter().toFixed(2))}</td>
+              <td class="border p-2">
+                {formatNumber(totalMeter().toFixed(2))}
+              </td>
               <td class="border p-2">{formatNumber(totalYard().toFixed(2))}</td>
-              <td class="border p-2">{formatNumber(totalKilogram().toFixed(2))}</td>
+              <td class="border p-2">
+                {formatNumber(totalKilogram().toFixed(2))}
+              </td>
               <td></td>
               <td class="border p-2">{formatIDR(totalAll())}</td>
               <td></td>
@@ -1084,6 +1118,7 @@ export default function SalesOrderForm() {
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
             hidden={isView}
+            disabled={isView}
           >
             Simpan
           </button>

@@ -31,6 +31,7 @@ export default function JBPurchaseContractForm() {
   const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
+  const isView = params.view === 'true';
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -489,22 +490,39 @@ export default function JBPurchaseContractForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            <input
-              type="number"
+            <select
               class="w-full border p-2 rounded"
               value={form().termin}
               onInput={(e) => setForm({ ...form(), termin: e.target.value })}
-            />
+            >
+              <option value="">-- Pilih Termin --</option>
+              <option value="0">0 Hari/Cash</option>
+              <option value="30">30 Hari</option>
+              <option value="45">45 Hari</option>
+              <option value="60">60 Hari</option>
+              <option value="90">90 Hari</option>
+            </select>
           </div>
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            <input
-              type="number"
-              class="w-full border p-2 rounded"
-              value={form().ppn}
-              onInput={(e) => setForm({ ...form(), ppn: e.target.value })}
-            />
+            <label class="flex items-center cursor-pointer gap-3">
+              <div class="relative">
+                <input
+                  type="checkbox"
+                  checked={form().ppn === "11.00"}
+                  onChange={(e) =>
+                    setForm({ ...form(), ppn: e.target.checked ? "11.00" : "0.00" })
+                  }
+                  class="sr-only peer"
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
+              </div>
+              <span class="text-lg text-gray-700">
+                {form().ppn === "11.00" ? "11%" : "0%"}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -658,6 +676,8 @@ export default function JBPurchaseContractForm() {
           <button
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            hidden={isView}
+            disabled={isView}
           >
             Simpan
           </button>

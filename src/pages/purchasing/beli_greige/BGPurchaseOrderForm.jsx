@@ -34,6 +34,7 @@ export default function BGPurchaseOrderForm() {
   const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
+  const isView = params.view === 'true';
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -258,36 +259,85 @@ export default function BGPurchaseOrderForm() {
     });
   };
 
+  const parseNumber = (str) => {
+    if (!str) return 0;
+
+    // 1. normalize: koma (id) → titik
+    let normalized = str.replace(",", ".");
+
+    // 2. hapus separator ribuan (titik yang diikuti 3 digit, tapi bukan desimal)
+    normalized = normalized.replace(/\.(?=\d{3}(\D|$))/g, "");
+
+    return parseFloat(normalized) || 0;
+  };
+
+  const formatNumber = (num, { decimals } = {}) => {
+    if (isNaN(num)) return "";
+
+    return Number(num).toLocaleString("id-ID", {
+      minimumFractionDigits: decimals ?? 0,
+      maximumFractionDigits: decimals ?? (decimals > 0 ? decimals : 4),
+    });
+  };
+
   const handleItemChange = (index, field, value, options = {}) => {
     setForm((prev) => {
       const items = [...prev.items];
+      const item = { ...items[index] };
+
+      // ---- Parse number sesuai field ----
+      if (field === "lebar_greige") {
+        const num = parseNumber(value);
+        item.lebar_greige = num;
+        item.lebar_greigeFormatted = num
+          ? formatNumber(num, { decimals: 0 })
+          : "";
+      } else if (field === "meter") {
+        const num = parseNumber(value);
+        item.meter = num;
+        item.meterFormatted = num ? formatNumber(num, { decimals: 4 }) : "";
+      } else if (field === "yard") {
+        const num = parseNumber(value);
+        item.yard = num;
+        item.yardFormatted = num ? formatNumber(num, { decimals: 4 }) : "";
+      } else if (field === "harga") {
+        const num = parseNumber(value);
+        item.harga = num;
+        item.hargaFormatted = formatIDR(num);
+      } else {
+        item[field] = value;
+      }
+
+      // ---- Konversi meter <-> yard ----
+      if (options.triggerConversion) {
+        if (field === "meter") {
+          const meter = parseNumber(value);
+          const yard = meter * 1.093613;
+
+          item.meter = formatNumber(meter, { decimals: 2 });
+          item.yard = formatNumber(yard, { decimals: 4 });
+        } else if (field === "yard") {
+          const yard = parseNumber(value);
+          const meter = yard * 0.9144;
+
+          item.yard = formatNumber(yard, { decimals: 2 });
+          item.meter = formatNumber(meter, { decimals: 4 });
+        }
+      }
+
+      // ---- Hitung subtotal ----
       const satuan = satuanUnitOptions()
         .find((u) => u.id == prev.satuan_unit_id)
         ?.satuan?.toLowerCase();
-      items[index] = { ...items[index], [field]: value };
 
-      let meter = parseFloat(items[index].meter || 0);
-      let yard = parseFloat(items[index].yard || 0);
+      const qty = satuan === "meter" ? item.meter || 0 : item.yard || 0;
+      const harga = item.harga || 0;
+      const subtotal = qty * harga;
 
-      if (field === "harga") {
-        const harga = parseFloat(value.toString().replace(/[^\d]/g, "") || 0);
-        items[index].harga = harga;
-        items[index].hargaFormatted = formatIDR(harga);
-      }
+      item.subtotal = subtotal;
+      item.subtotalFormatted = subtotal > 0 ? formatIDR(subtotal) : "";
 
-      if (options.triggerConversion) {
-        if (field === "meter") yard = meter * 1.093613;
-        if (field === "yard") meter = yard * 0.9144;
-        items[index].meter = meter.toFixed(4);
-        items[index].yard = yard.toFixed(4);
-      }
-
-      const harga = parseFloat(items[index].harga || 0);
-      const qty = satuan === "meter" ? meter : yard;
-      const subtotal = isNaN(qty * harga) ? 0 : qty * harga;
-      items[index].subtotal = subtotal.toFixed(2);
-      items[index].subtotalFormatted = formatIDR(subtotal);
-
+      items[index] = item;
       return { ...prev, items };
     });
   };
@@ -488,24 +538,42 @@ export default function BGPurchaseOrderForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            <input
-              type="number"
-              class="w-full border bg-gray-200 p-2 rounded"
+            {/* Hidden input supaya value tetep kebawa */}
+            <input type="hidden" name="termin" value={form().termin} />
+            <select
+              class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
               value={form().termin}
-              onInput={(e) => setForm({ ...form(), termin: e.target.value })}
-              readOnly
-            />
+              disabled
+            >
+              <option value="">-- Pilih Termin --</option>
+              <option value="0">0 Hari/Cash</option>
+              <option value="30">30 Hari</option>
+              <option value="45">45 Hari</option>
+              <option value="60">60 Hari</option>
+              <option value="90">90 Hari</option>
+            </select>
           </div>
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            <input
-              type="number"
-              class="w-full border bg-gray-200 p-2 rounded"
-              value={form().ppn}
-              onInput={(e) => setForm({ ...form(), ppn: e.target.value })}
-              readOnly
-            />
+            {/* Hidden input biar tetap ke-submit */}
+            <input type="hidden" name="ppn" value={form().ppn} />
+
+            <label class="flex items-center gap-3">
+              <div class="relative opacity-60 cursor-not-allowed">
+                <input
+                  type="checkbox"
+                  checked={form().ppn === "11.00"}
+                  disabled
+                  class="sr-only peer"
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm peer-checked:translate-x-14 transition-transform"></div>
+              </div>
+              <span class="text-lg text-gray-700">
+                {form().ppn === "11.00" ? "11%" : "0%"}
+              </span>
+            </label>
           </div>
         </div>
 
@@ -557,7 +625,7 @@ export default function BGPurchaseOrderForm() {
                   <td class="border p-2">
                     <input
                       type="number"
-                      class="border p-1 rounded w-full"
+                      class="border p-1 rounded w-full bg-gray-200"
                       value={item.lebar_greige}
                       readonly
                     />
@@ -651,6 +719,8 @@ export default function BGPurchaseOrderForm() {
           <button
             type="submit"
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            hidden={isView}
+            disabled={isView}
           >
             Simpan
           </button>

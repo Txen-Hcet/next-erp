@@ -9,7 +9,7 @@ import {
   softDeletePackingList,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Eye, Trash } from "lucide-solid";
 
 export default function BGPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
@@ -237,11 +237,20 @@ export default function BGPurchaseContractList() {
                 <td class="py-2 px-4">{bg.satuan_unit_name}</td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(bg.created_at)}</td> */}
                 <td class="py-2 px-4 space-x-2">
+                   <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() =>
+                      navigate(`/beligreige-purchasecontract/form?id=${bg.id}&view=true`)
+                    }
+                  >
+                    <Eye size={25} />
+                  </button>
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
                       navigate(`/beligreige-purchasecontract/form?id=${bg.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>

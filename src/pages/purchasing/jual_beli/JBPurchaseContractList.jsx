@@ -7,7 +7,7 @@ import {
   softDeleteJualBeli,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Eye, Trash } from "lucide-solid";
 
 export default function JBPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
@@ -57,10 +57,10 @@ export default function JBPurchaseContractList() {
           text:
             error.message || `Gagal menghapus data Jual Beli dengan ID ${id}`,
           icon: "error",
-          
- showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -185,6 +185,15 @@ export default function JBPurchaseContractList() {
                 <td class="py-2 px-4">{jb.satuan_unit_name}</td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(jb.created_at)}</td> */}
                 <td class="py-2 px-4 space-x-2">
+                  {" "}
+                  <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() =>
+                      navigate(`/jualbeli-purchasecontract/form?id=${jb.id}&view=true`)
+                    }
+                  >
+                    <Eye size={25} />
+                  </button>
                   <button
                     class="text-blue-600 hover:underline"
                     onClick={() =>
