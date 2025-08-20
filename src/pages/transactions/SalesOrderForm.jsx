@@ -190,7 +190,7 @@ export default function SalesOrderForm() {
             subtotalFormatted: subtotal > 0 ? formatIDR(subtotal) : "",
           };
         });
-
+        
         handleSalesOrderChange(
           huruf,
           ppn,
@@ -439,8 +439,10 @@ export default function SalesOrderForm() {
           "harga",
         ].includes(field)
       ) {
-        const numberValue = parseNumber(value);
-        items[index][field] = formatNumber(numberValue);
+        // const numberValue = parseNumber(value);
+        // items[index][field] = formatNumber(numberValue);
+
+        items[index][field] = value;
       } else {
         items[index][field] = value;
       }
@@ -490,13 +492,13 @@ export default function SalesOrderForm() {
           // meter
           meter = parseFloat(value) || 0;
           yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? formatNumber(yard.toFixed(4)) : "";
+          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
           items[index].kilogram = "0";
         } else if (satuanId === 2) {
           // yard
           yard = parseFloat(value) || 0;
           meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? formatNumber(meter.toFixed(4)) : "";
+          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
           items[index].kilogram = "0";
         } else if (satuanId === 3) {
           // kilogram
@@ -543,11 +545,10 @@ export default function SalesOrderForm() {
           items: form().items.map((item) => ({
             id: item.id,
             sc_item_id: item.sc_item_id,
-            meter_total: item.meter ? parseFloat(parseNumber(item.meter)) : 0,
-            yard_total: item.yard ? parseFloat(parseNumber(item.yard)) : 0,
-            kilogram_total: item.kilogram
-              ? parseFloat(parseNumber(item.kilogram))
-              : 0,
+            warna_id: parseInt(item.warna_id) || null,
+            meter_total: item.meter ? parseFloat(item.meter) : 0,
+            yard_total: item.yard ? parseFloat(item.yard) : 0,
+            kilogram_total: item.kilogram ? parseFloat(item.kilogram) : 0,
             // warnas: {
             //   id: item.id || null, // id warna di SO, kalau ada = update, kalau null = insert baru
             //   warna_id: parseInt(item.warna_id) || null,
@@ -582,19 +583,17 @@ export default function SalesOrderForm() {
 
               acc[scItemId].warnas.push({
                 warna_id: parseInt(item.warna_id) || null,
-                meter: item.meter ? parseFloat(parseNumber(item.meter)) : 0,
-                yard: item.yard ? parseFloat(parseNumber(item.yard)) : 0,
-                kilogram: item.kilogram
-                  ? parseFloat(parseNumber(item.kilogram))
-                  : 0,
+                meter: item.meter ? parseFloat(item.meter) : 0,
+                yard: item.yard ? parseFloat(item.yard) : 0,
+                kilogram: item.kilogram ? parseFloat(item.kilogram) : 0,
               });
 
               return acc;
             }, {})
           ),
         };
-
-        await createSalesOrder(user?.token, payload);
+        console.log(log);
+        // await createSalesOrder(user?.token, payload);
       }
 
       Swal.fire({

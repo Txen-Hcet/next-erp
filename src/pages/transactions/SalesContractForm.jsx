@@ -121,7 +121,7 @@ export default function SalesContractForm() {
         subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
       }));
 
-      console.log(data)
+      console.log(data);
 
       setForm((prev) => ({
         ...prev,
@@ -264,8 +264,10 @@ export default function SalesContractForm() {
           "harga",
         ].includes(field)
       ) {
-        const numberValue = parseNumber(value);
-        items[index][field] = formatNumber(numberValue);
+        // const numberValue = parseNumber(value);
+        // items[index][field] = formatNumber(numberValue);
+
+        items[index][field] = value;
       } else {
         items[index][field] = value;
       }
@@ -313,13 +315,13 @@ export default function SalesContractForm() {
           // meter
           meter = parseFloat(value) || 0;
           yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? formatNumber(yard.toFixed(4)) : "";
+          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
           items[index].kilogram = "0";
         } else if (satuanId === 2) {
           // yard
           yard = parseFloat(value) || 0;
           meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? formatNumber(meter.toFixed(4)) : "";
+          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
           items[index].kilogram = "0";
         } else if (satuanId === 3) {
           // kilogram
@@ -378,11 +380,11 @@ export default function SalesContractForm() {
             id: item.id,
             kain_id: toNum(item.fabric_id),
             grade_id: parseInt(item.grade_id) || null,
-            lebar: toNum(parseNumber(item.lebar_greige)),
-            gramasi: toNum(parseNumber(item.gramasi)),
-            meter_total: toNum(parseNumber(item.meter)),
-            yard_total: toNum(parseNumber(item.yard)),
-            kilogram_total: toNum(parseNumber(item.kilogram)),
+            lebar: toNum(item.lebar_greige),
+            gramasi: toNum(item.gramasi),
+            meter_total: toNum(item.meter),
+            yard_total: toNum(item.yard),
+            kilogram_total: toNum(item.kilogram),
             harga: toNum(item.harga),
           })),
         };
@@ -405,11 +407,11 @@ export default function SalesContractForm() {
             id: item.id,
             kain_id: toNum(item.fabric_id),
             grade_id: toNum(item.grade_id) || "",
-            lebar: toNum(parseNumber(item.lebar_greige)),
-            gramasi: toNum(parseNumber(item.gramasi)),
-            meter_total: toNum(parseNumber(item.meter)),
-            yard_total: toNum(parseNumber(item.yard)),
-            kilogram_total: toNum(parseNumber(item.kilogram)),
+            lebar: toNum(item.lebar_greige),
+            gramasi: toNum(item.gramasi),
+            meter_total: toNum(item.meter),
+            yard_total: toNum(item.yard),
+            kilogram_total: toNum(item.kilogram),
             harga: toNum(item.harga),
           })),
         };

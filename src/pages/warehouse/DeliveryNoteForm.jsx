@@ -1,11 +1,4 @@
-import {
-  createSignal,
-  createEffect,
-  For,
-  onMount,
-  Show,
-  createMemo,
-} from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -21,6 +14,7 @@ import {
 } from "../../utils/auth";
 import SuratJalanPrint from "../print_function/sell/SuratJalanPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
+import IndeterminateCheckbox from "../../components/Indeterminate";
 import { Printer, Trash2 } from "lucide-solid";
 
 export default function DeliveryNoteForm() {
@@ -153,8 +147,8 @@ export default function DeliveryNoteForm() {
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(
       user?.token,
-      "sj",
-      "domestik",
+      "s_sj",
+      form().type == 1 ? "domestik" : form().type == 2 ? "ekspor" : "domestik",
       form().ppn // pastikan ini sudah ada dari salesOrder
     );
 
@@ -163,9 +157,10 @@ export default function DeliveryNoteForm() {
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
     const ppnValue = parseFloat(form().ppn) || 0;
-    const type = ppnValue > 0 ? "P" : "N";
+    const ppnType = ppnValue > 0 ? "P" : "N";
+    const type = form().type == 1 ? "D" : form().type == 2 ? "E" : "D";
     const mmyy = `${month}${year}`;
-    const nomor = `SJ/PJ/${type}/${mmyy}/${nextNum}`;
+    const nomor = `SJ/${type}/${ppnType}/${mmyy}/${nextNum}`;
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
@@ -196,11 +191,24 @@ export default function DeliveryNoteForm() {
     });
   };
 
+  const handleSelectAll = (groupIndex, checked) => {
+    setForm((prev) => {
+      const groups = [...prev.itemGroups];
+      groups[groupIndex] = {
+        ...groups[groupIndex],
+        items: groups[groupIndex].items.map((item) =>
+          item.disabled ? item : { ...item, checked }
+        ),
+      };
+      return { ...prev, itemGroups: groups };
+    });
+  };
+
   const handlePackingListChange = async (groupIndex, plId) => {
     if (!plId) return;
 
     const plDetail = await getPackingLists(plId, user?.token);
-    const pl = plDetail?.response;
+    const pl = plDetail?.order;
 
     const typeLetter = pl?.no_pl?.split("/")?.[1] || "";
     let typeValue = "";
@@ -210,7 +218,7 @@ export default function DeliveryNoteForm() {
     const currentGroup = form().itemGroups[groupIndex]; // ✅ ambil data sekarang
     const allRolls = [];
 
-    (pl?.itemGroups || []).forEach((item) => {
+    (pl?.items || []).forEach((item) => {
       (item.rolls || []).forEach((roll) => {
         const wasSent = currentGroup.items.some(
           (it) => it.packing_list_roll_id === roll.id
@@ -218,8 +226,9 @@ export default function DeliveryNoteForm() {
 
         allRolls.push({
           packing_list_roll_id: roll.id,
-          meter: roll.meter_total,
-          yard: roll.yard_total,
+          meter: roll.meter,
+          yard: roll.yard,
+          kilogram: roll.kilogram,
           sales_order_item_id: item.sales_order_item_id,
           konstruksi_kain: item.konstruksi_kain,
           checked: wasSent,
@@ -260,32 +269,61 @@ export default function DeliveryNoteForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const allSelectedItems = [];
-    for (const group of form().itemGroups) {
-      for (const item of group.items) {
-        if (item.checked) {
-          allSelectedItems.push({
-            packing_list_roll_id: Number(item.packing_list_roll_id),
-            meter: parseFloat(item.meter),
-            yard: parseFloat(item.yard),
-          });
-        }
-      }
-    }
+    // Kumpulin semua pl_ids dari itemGroups
+    const plIds = form().itemGroups.map((g) => Number(g.packing_list_id));
 
-    const payload = {
-      no_sj: form().no_sj,
-      sequence_number: form().sequence_number,
-      type: form().itemGroups[0]?.type || "",
-      catatan: form().catatan,
-      items: allSelectedItems,
-    };
+    // Build items → rolls
+    const allItems = form().itemGroups.flatMap((group) => {
+      return group.items
+        .filter((item) => item.checked)
+        .map((item) => {
+          const rolls = (item.rolls || []).map((roll) => ({
+            ...(isEdit ? { id: roll.id } : {}), // kalau update ada id
+            pli_roll_id: roll.id || roll.pli_roll_id,
+            row_num: roll.row_num || 1,
+            col_num: roll.col_num || 1,
+            meter: parseFloat(roll.meter),
+            yard: parseFloat(roll.yard),
+            kilogram: roll.kilogram ?? null,
+          }));
+
+          return {
+            ...(isEdit ? { id: item.id } : {}), // kalau update ada id
+            pl_item_id: item.sales_order_item_id || item.pl_item_id,
+            lot: item.lot || "",
+            meter_total: parseFloat(item.meter) || 0,
+            yard_total: parseFloat(item.yard) || 0,
+            kilogram_total: item.kilogram_total ?? null,
+            rolls,
+          };
+        });
+    });
+
+    // Bedain payload create / update
+    const payload = isEdit
+      ? {
+          no_sj: form().no_sj,
+          pl_ids: plIds,
+          no_mobil: form().no_mobil,
+          sopir: form().sopir,
+          keterangan: form().keterangan,
+          items: allItems,
+        }
+      : {
+          type: form().itemGroups[0]?.type?.toLowerCase() || "domestik",
+          sequence_number: form().no_seq || 1,
+          pl_ids: plIds,
+          no_mobil: form().no_mobil,
+          sopir: form().sopir,
+          keterangan: form().keterangan,
+          items: allItems,
+        };
 
     try {
       if (isEdit) {
         await updateDataDeliveryNote(user?.token, params.id, payload);
       } else {
-        console.log(payload);
+        console.log("CREATE payload:", payload);
         await createDeliveryNote(user?.token, payload);
       }
       Swal.fire({
@@ -335,7 +373,9 @@ export default function DeliveryNoteForm() {
               ppn: so.ppn, // pastikan Sales Order punya property `ppn`
             }));
             getAllPackingLists(user?.token).then((pls) => {
-              const filtered = pls?.filter((pl) => pl.sales_order_id === so.id);
+              const filtered = pls?.packing_lists.filter(
+                (pl) => pl.so_id === so.id
+              );
               setPackingLists(filtered || []);
               if (!filtered || filtered.length === 0) {
                 Swal.fire({
@@ -447,7 +487,31 @@ export default function DeliveryNoteForm() {
                         <th class="border px-2 py-1">Konstruksi Kain</th>
                         <th class="border px-2 py-1">Meter</th>
                         <th class="border px-2 py-1">Yard</th>
-                        <th class="border px-2 py-1">Pilih</th>
+                        <th class="border px-2 py-1 text-center">
+                          <div class="flex flex-col items-center">
+                            <span class="mb-1">Pilih Semua</span>
+                            <IndeterminateCheckbox
+                              checked={
+                                group.items.length > 0 &&
+                                group.items.every(
+                                  (i) => i.checked || i.disabled
+                                )
+                              }
+                              indeterminate={
+                                group.items.some((i) => i.checked) &&
+                                !group.items.every(
+                                  (i) => i.checked || i.disabled
+                                )
+                              }
+                              onChange={(e) =>
+                                handleSelectAll(
+                                  groupIndex(),
+                                  e.currentTarget.checked
+                                )
+                              }
+                            />
+                          </div>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
