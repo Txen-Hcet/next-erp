@@ -158,6 +158,8 @@ export default function BGPurchaseOrderForm() {
 
     const mappedItems = sourceItems.map((item) => {
       let qty = 0;
+      const meterNum = parseFloat(item.meter || item.meter_total || 0);
+      const yardNum = parseFloat(item.yard || item.yard_total || 0);
 
       if (satuan_unit_id === 1) qty = item.meter || item.meter_total || 0;
       else if (satuan_unit_id === 2) qty = item.yard || item.yard_total || 0;
@@ -167,18 +169,22 @@ export default function BGPurchaseOrderForm() {
       const harga = parseFloat(item.harga ?? 0);
       const subtotal = qty && harga ? qty * harga : 0;
 
+      // Return format nilai meter & yard, simpan valuenya
       return {
         id: item.id,
         pc_item_id: item.pc_item_id,
         fabric_id: item.kain_id || item.fabric_id,
         lebar_greige: item.lebar_greige,
-        meter: item.meter || item.meter_total || "",
-        yard: item.yard || item.yard_total || "",
+        meter: formatNumber(meterNum, { decimals: 2 }),
+        meterValue: meterNum,
+        yard: formatNumber(yardNum, { decimals: 2 }),
+        yardValue: yardNum,
         harga,
+        hargaValue: harga, 
         hargaFormatted: formatIDR(harga),
         subtotal,
         subtotalFormatted: formatIDR(subtotal),
-        readOnly: true,
+        readOnly: false,
       };
     });
 
@@ -259,17 +265,18 @@ export default function BGPurchaseOrderForm() {
     });
   };
 
-  const parseNumber = (str) => {
-    if (!str) return 0;
+  const parseNumber = (str) => {
+    if (typeof str !== 'string' || !str) return 0;
 
-    // 1. normalize: koma (id) → titik
-    let normalized = str.replace(",", ".");
+    // 1. Hapus semua karakter KECUALI angka (0-9) dan koma (,)
+    let cleanStr = str.replace(/[^0-9,]/g, "");
 
-    // 2. hapus separator ribuan (titik yang diikuti 3 digit, tapi bukan desimal)
-    normalized = normalized.replace(/\.(?=\d{3}(\D|$))/g, "");
+    // 2. Ganti koma desimal (id) dengan titik (.)
+    cleanStr = cleanStr.replace(",", ".");
 
-    return parseFloat(normalized) || 0;
-  };
+    // 3. Parse menjadi angka
+    return parseFloat(cleanStr) || 0;
+  };
 
   const formatNumber = (num, { decimals } = {}) => {
     if (isNaN(num)) return "";
@@ -284,69 +291,57 @@ export default function BGPurchaseOrderForm() {
     setForm((prev) => {
       const items = [...prev.items];
       const item = { ...items[index] };
-
-      // ---- Parse number sesuai field ----
-      if (field === "lebar_greige") {
+      
+      // Update field yang diubah
+      if (field === "lebar_greige" || field === "meter" || field === "yard" || field === "harga") {
         const num = parseNumber(value);
-        item.lebar_greige = num;
-        item.lebar_greigeFormatted = num
-          ? formatNumber(num, { decimals: 0 })
-          : "";
-      } else if (field === "meter") {
-        const num = parseNumber(value);
-        item.meter = num;
-        item.meterFormatted = num ? formatNumber(num, { decimals: 4 }) : "";
-      } else if (field === "yard") {
-        const num = parseNumber(value);
-        item.yard = num;
-        item.yardFormatted = num ? formatNumber(num, { decimals: 4 }) : "";
-      } else if (field === "harga") {
-        const num = parseNumber(value);
-        item.harga = num;
-        item.hargaFormatted = formatIDR(num);
+        item[field] = num ? formatNumber(num, { 
+          decimals: field === "lebar_greige" ? 0 : 2 
+        }) : "";
+        
+        // Simpan nilai numerik untuk perhitungan
+        item[`${field}Value`] = num;
       } else {
         item[field] = value;
       }
-
-      // ---- Konversi meter <-> yard ----
+      
+      // Konversi
       if (options.triggerConversion) {
         if (field === "meter") {
-          const meter = parseNumber(value);
-          const yard = meter * 1.093613;
-
-          item.meter = formatNumber(meter, { decimals: 2 });
-          item.yard = formatNumber(yard, { decimals: 4 });
+          const meterValue = parseNumber(value);
+          const yardValue = meterValue * 1.093613;
+          item.yard = formatNumber(yardValue, { decimals: 4 });
+          item.yardValue = yardValue;
         } else if (field === "yard") {
-          const yard = parseNumber(value);
-          const meter = yard * 0.9144;
-
-          item.yard = formatNumber(yard, { decimals: 2 });
-          item.meter = formatNumber(meter, { decimals: 4 });
+          const yardValue = parseNumber(value);
+          const meterValue = yardValue * 0.9144;
+          item.meter = formatNumber(meterValue, { decimals: 4 });
+          item.meterValue = meterValue;
         }
       }
-
-      // ---- Hitung subtotal ----
+      
+      // Hitung subtotal
       const satuan = satuanUnitOptions()
         .find((u) => u.id == prev.satuan_unit_id)
         ?.satuan?.toLowerCase();
-
-      const qty = satuan === "meter" ? item.meter || 0 : item.yard || 0;
-      const harga = item.harga || 0;
+      
+      const qty = satuan === "meter" ? (item.meterValue || 0) : (item.yardValue || 0);
+      const harga = item.hargaValue || 0;
       const subtotal = qty * harga;
-
+      
       item.subtotal = subtotal;
-      item.subtotalFormatted = subtotal > 0 ? formatIDR(subtotal) : "";
-
+      item.subtotalFormatted = formatIDR(subtotal);
+      
       items[index] = item;
       return { ...prev, items };
     });
   };
 
   const totalMeter = () =>
-    form().items.reduce((sum, item) => sum + (parseFloat(item.meter) || 0), 0);
+    form().items.reduce((sum, item) => sum + (item.meterValue || 0), 0);
 
   const totalYard = () =>
-    form().items.reduce((sum, item) => sum + (parseFloat(item.yard) || 0), 0);
+    form().items.reduce((sum, item) => sum + (item.yardValue || 0), 0);
 
   const totalKilogram = () =>
     form().items.reduce(
@@ -354,11 +349,11 @@ export default function BGPurchaseOrderForm() {
       0
     );
 
-  const totalAll = () => {
-    return form().items.reduce((sum, item) => {
-      return sum + (parseFloat(item.subtotal) || 0);
-    }, 0);
-  };
+  const totalAll = () => {
+    return form().items.reduce((sum, item) => {
+      return sum + (item.subtotal || 0);
+    }, 0);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -607,6 +602,7 @@ export default function BGPurchaseOrderForm() {
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
               <th class="border p-2">Subtotal</th>
+              <th class="border p-2">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -635,9 +631,9 @@ export default function BGPurchaseOrderForm() {
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
-                        form().satuan_unit_id === 2 ? "bg-gray-200" : ""
+                        parseInt(form().satuan_unit_id) === 2 ? "bg-gray-200" : ""
                       }`}
-                      readOnly={form().satuan_unit_id === 2}
+                      readOnly={parseInt(form().satuan_unit_id) === 2}
                       value={item.meter}
                       onBlur={(e) =>
                         handleItemChange(i(), "meter", e.target.value, {
@@ -652,9 +648,9 @@ export default function BGPurchaseOrderForm() {
                       type="text"
                       inputmode="decimal"
                       class={`border p-1 rounded w-full ${
-                        form().satuan_unit_id === 1 ? "bg-gray-200" : ""
+                        parseInt(form().satuan_unit_id) === 1 ? "bg-gray-200" : ""
                       }`}
-                      readOnly={form().satuan_unit_id === 1}
+                      readOnly={parseInt(form().satuan_unit_id) === 1}
                       value={item.yard}
                       // onInput={(e) =>
                       //   handleItemChange(i(), "yard", e.target.value)
@@ -706,8 +702,8 @@ export default function BGPurchaseOrderForm() {
               <td colSpan="3" class="text-right p-2">
                 TOTAL
               </td>
-              <td class="border p-2">{totalMeter().toFixed(2)}</td>
-              <td class="border p-2">{totalYard().toFixed(2)}</td>
+              <td class="border p-2">{formatNumber(totalMeter(), { decimals: 2 })}</td>
+              <td class="border p-2">{formatNumber(totalYard(), { decimals: 2 })}</td>
               <td></td>
               <td class="border p-2">{formatIDR(totalAll())}</td>
               <td></td>

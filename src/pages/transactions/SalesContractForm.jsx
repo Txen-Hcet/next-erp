@@ -49,8 +49,8 @@ export default function SalesContractForm() {
     currency_id: "",
     kurs: "",
     termin: "",
-    ppn_percent: "",
-    catatan: "",
+    ppn_percent: "0.00",
+    keterangan: "",
     satuan_unit_id: "",
     items: [],
   });
@@ -102,58 +102,63 @@ export default function SalesContractForm() {
     setCustomersList(getCustomers.customers || []);
     setGradeOptions(grades?.data || []);
 
-    if (isEdit) {
-      const res = await getSalesContracts(params.id, user?.token);
-      const data = res.contract;
-      if (!data) return;
+    if (isEdit) {
+      const res = await getSalesContracts(params.id, user?.token);
+      const data = res.contract;
+      if (!data) return;
 
-      const normalizedItems = (data.items || []).map((item, idx) => ({
-        id: item.id,
-        fabric_id: item.kain_id ?? null,
-        grade_id: item.grade_id ?? "",
-        lebar_greige: item.lebar ?? "",
-        gramasi: item.gramasi ?? "",
-        meter: item.meter_total ?? "",
-        yard: item.yard_total ?? "",
-        kilogram: item.kilogram_total ?? "",
-        harga: parseFloat(item.harga) ?? "",
-        subtotal: item.subtotal ?? "",
-        subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
-      }));
+      const normalizedItems = (data.items || []).map((item) => {
+        const lebarValue = parseFloat(item.lebar) || 0;
+        const gramasiValue = parseFloat(item.gramasi) || 0;
+        const meterValue = parseFloat(item.meter_total) || 0;
+        const yardValue = parseFloat(item.yard_total) || 0;
+        const kilogramValue = parseFloat(item.kilogram_total) || 0;
+        const hargaValue = parseFloat(item.harga) || 0;
 
-      console.log(data);
+        const subtotal = hargaValue * (
+          parseInt(data.satuan_unit_id) === 1 ? meterValue :
+          parseInt(data.satuan_unit_id) === 2 ? yardValue :
+          parseInt(data.satuan_unit_id) === 3 ? kilogramValue : 0
+        );
 
-      setForm((prev) => ({
-        ...prev,
-        type: data.transaction_type?.toLowerCase() === "domestik" ? 1 : 2,
-        no_seq: data.no_sc,
-        sequence_number: data.no_sc,
-        no_pesan: data.no_sc ?? "",
-        tanggal: data.created_at
-          ? new Date(data.created_at).toISOString().split("T")[0]
-          : "",
-        po_cust: data.po_cust ?? "",
-        validity_contract: data.validity_contract
-          ? new Date(data.validity_contract).toISOString().split("T")[0]
-          : "",
-        supplier_id: data.supplier_id ?? "",
-        customer_id: data.customer_id ?? "",
-        currency_id: data.currency_id ?? "",
-        kurs: parseFloat(data.kurs) ?? 0,
-        termin: parseInt(data.termin) ?? "",
-        ppn: parseFloat(data.ppn_percent) ?? "",
-        catatan: data.catatan ?? "",
-        satuan_unit_id: parseInt(data.satuan_unit_id) ?? "",
-        items: normalizedItems,
-      }));
+        return {
+          id: item.id,
+          fabric_id: item.kain_id ?? null,
+          grade_id: item.grade_id ?? "",
+          lebar_greige: formatNumber(lebarValue, { decimals: 2, showZero: true }),
+          lebar_greigeValue: lebarValue,
+          gramasi: formatNumber(gramasiValue, { decimals: 2, showZero: true }),
+          gramasiValue: gramasiValue,
+          meter: formatNumber(meterValue, { decimals: 4, showZero: true }),
+          meterValue: meterValue,
+          yard: formatNumber(yardValue, { decimals: 4, showZero: true }),
+          yardValue: yardValue,
+          kilogram: formatNumber(kilogramValue, { decimals: 4, showZero: true }),
+          kilogramValue: kilogramValue,
+          harga: formatIDR(hargaValue),
+          hargaValue: hargaValue,
+          subtotal: subtotal,
+          subtotalFormatted: formatIDR(subtotal),
+        };
+      });
 
-      (data.items || []).forEach((item, index) => {
-        handleItemChange(index, "meter", item.meter_total);
-        handleItemChange(index, "yard", item.yard_total);
-        handleItemChange(index, "harga", item.harga);
-        handleItemChange(index, "lebar_greige", item.lebar);
-      });
-    } else {
+      setForm({
+        type: data.transaction_type?.toLowerCase() === "domestik" ? 1 : 2,
+        no_seq: data.no_sc,
+        sequence_number: data.no_sc,
+        tanggal: data.created_at ? new Date(data.created_at).toISOString().split("T")[0] : "",
+        po_cust: data.po_cust ?? "",
+        validity_contract: data.validity_contract ? new Date(data.validity_contract).toISOString().split("T")[0] : "",
+        customer_id: data.customer_id ?? "",
+        currency_id: data.currency_id ?? "",
+        kurs: formatNumber(parseFloat(data.kurs) || 0),
+        termin: parseInt(data.termin) ?? "",
+        ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
+        keterangan: data.keterangan ?? "",
+        satuan_unit_id: parseInt(data.satuan_unit_id) ?? "",
+        items: normalizedItems,
+      });
+    } else {
       const today = new Date().toISOString().split("T")[0];
       const lastSeq = await getLastSequence(
         user?.token,
@@ -176,18 +181,19 @@ export default function SalesContractForm() {
   });
 
   const generateNomorKontrak = async () => {
+    const ppnValue = parseFloat(form().ppn_percent) || 0;
+
     const lastSeq = await getLastSequence(
       user?.token,
       "sc",
       form().type == 1 ? "domestik" : form().type == 2 ? "ekspor" : "domestik",
-      form().ppn
+      ppnValue
     );
 
     const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
-    const ppnValue = parseFloat(form().ppn) || 0;
     const ppnType = ppnValue > 0 ? "P" : "N";
     const type = form().type == 1 ? "D" : form().type == 2 ? "E" : "D";
     const mmyy = `${month}${year}`;
@@ -200,25 +206,22 @@ export default function SalesContractForm() {
   };
 
   const addItem = () => {
-    setForm((prev) => {
-      const newItem = {
-        fabric_id: null,
-        grade_id: "",
-        lebar_greige: "",
-        gramasi: "",
-        meter: "",
-        yard: "",
-        kilogram: "",
-        harga: "",
-        subtotal: "",
-        subtotalFormatted: "",
-      };
-
-      return {
-        ...prev,
-        items: [...prev.items, newItem],
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          fabric_id: null, grade_id: "",
+          lebar_greige: "", lebar_greigeValue: 0,
+          gramasi: "", gramasiValue: 0,
+          meter: "", meterValue: 0,
+          yard: "", yardValue: 0,
+          kilogram: "", kilogramValue: 0,
+          harga: "", hargaValue: 0,
+          subtotal: 0, subtotalFormatted: "",
+        },
+      ],
+    }));
   };
 
   const removeItem = (index) => {
@@ -234,188 +237,134 @@ export default function SalesContractForm() {
 
   const totalAll = () => {
     return form().items.reduce((sum, item) => {
-      return sum + (parseFloat(item.subtotal) || 0);
+      return sum + (item.subtotal || 0); // Gunakan nilai numerik
     }, 0);
   };
 
-  const formatNumber = (num) => {
-    if (num == null || num === "") return "";
-    return new Intl.NumberFormat("id-ID").format(num);
+  const formatNumber = (num, options = {}) => {
+    const numValue = typeof num === 'string' ? parseNumber(num) : num;
+    if (isNaN(numValue)) return "";
+
+    if (numValue === 0 && options.showZero) {
+      return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: options.decimals ?? 2,
+        maximumFractionDigits: options.decimals ?? 4,
+      }).format(0);
+    }
+    
+    if (numValue === 0) return "";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: options.decimals ?? 0,
+      maximumFractionDigits: options.decimals ?? 4,
+    }).format(numValue);
   };
 
   const parseNumber = (str) => {
-    if (!str) return 0;
-    return parseFloat(str.replace(/\./g, "")) || 0;
+    if (typeof str !== 'string' || !str) return 0;
+    // 1. Hapus semua karakter non-numerik kecuali koma (untuk desimal)
+    const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
   };
 
-  const handleItemChange = (index, field, value, options = {}) => {
+  const handleItemChange = (index, field, value) => {
     setForm((prev) => {
       const items = [...prev.items];
-      items[index] = { ...items[index] };
+      const item = { ...items[index] };
 
-      // always store raw string
-      if (
-        [
-          "lebar_greige",
-          "gramasi",
-          "meter",
-          "yard",
-          "kilogram",
-          "harga",
-        ].includes(field)
-      ) {
-        // const numberValue = parseNumber(value);
-        // items[index][field] = formatNumber(numberValue);
+      // Logika untuk dropdown
+      if (field === 'fabric_id' || field === 'grade_id') {
+        item[field] = value;
+      } 
+      // Logika untuk input numerik
+      else {
+        const numValue = parseNumber(value);
+        item[`${field}Value`] = numValue;
 
-        items[index][field] = value;
-      } else {
-        items[index][field] = value;
-      }
+        let decimals = 2; 
+        if (['meter', 'yard', 'kilogram'].includes(field)) {
+          decimals = 4;
+        }
+        
+        const hasDecimal = String(value).includes(',') || numValue % 1 !== 0;
+        const finalDecimals = hasDecimal ? decimals : 0; 
 
-      const satuanId = parseInt(prev.satuan_unit_id);
-      const satuan = satuanUnitOptions()
-        .find((u) => u.id == satuanId)
-        ?.satuan?.toLowerCase();
-
-      let meter = parseFloat(items[index].meter || "") || 0;
-      let yard = parseFloat(items[index].yard || "") || 0;
-
-      // handle harga
-      if (field === "harga") {
-        const hargaNumber = parseIDR(value) || 0; // gunakan parseIDR
-        items[index].harga = hargaNumber;
-
-        if (options.triggerFormat) {
-          items[index].hargaFormatted = formatIDR(hargaNumber);
+        if (field === 'harga') {
+          item.harga = formatIDR(numValue);
         } else {
-          items[index].hargaFormatted = hargaNumber;
+          item[field] = formatNumber(numValue, { decimals: finalDecimals, showZero: true });
         }
-
-        // hitung subtotal
-        let qty = 0;
-        if (satuanId === 1) qty = meter;
-        else if (satuanId === 2) qty = yard;
-        else if (satuanId === 3)
-          qty = parseFloat(items[index].kilogram || "") || 0;
-
-        const subtotal = qty && hargaNumber ? qty * hargaNumber : 0;
-        items[index].subtotal = subtotal.toFixed(2);
-        items[index].subtotalFormatted =
-          subtotal > 0 ? formatIDR(subtotal) : "";
-
-        return {
-          ...prev,
-          items,
-        };
-      }
-
-      // handle konversi meter/yard
-      if (options.triggerConversion) {
-        if (satuanId === 1) {
-          // meter
-          meter = parseFloat(value) || 0;
-          yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
-          items[index].kilogram = "0";
-        } else if (satuanId === 2) {
-          // yard
-          yard = parseFloat(value) || 0;
-          meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
-          items[index].kilogram = "0";
-        } else if (satuanId === 3) {
-          // kilogram
-          items[index].meter = "0";
-          items[index].yard = "0";
+        
+        const satuanId = parseInt(prev.satuan_unit_id);
+        if (satuanId === 1 && field === 'meter') {
+          item.yardValue = (numValue || 0) * 1.093613;
+          item.yard = formatNumber(item.yardValue, { decimals: 4, showZero: true });
+          item.kilogramValue = 0;
+          item.kilogram = formatNumber(0, { decimals: 4, showZero: true });
+        } else if (satuanId === 2 && field === 'yard') {
+          item.meterValue = (numValue || 0) * 0.9144;
+          item.meter = formatNumber(item.meterValue, { decimals: 4, showZero: true });
+          item.kilogramValue = 0;
+          item.kilogram = formatNumber(0, { decimals: 4, showZero: true });
+        } else if (satuanId === 3 && field === 'kilogram') {
+          item.meterValue = 0; item.meter = formatNumber(0, { decimals: 4, showZero: true });
+          item.yardValue = 0; item.yard = formatNumber(0, { decimals: 4, showZero: true });
         }
       }
+      
+      // Hitung ulang subtotal
+      const satuanId = parseInt(prev.satuan_unit_id);
+      const hargaValue = item.hargaValue || 0;
+      let qtyValue = 0;
+      if (satuanId === 1) qtyValue = item.meterValue || 0;
+      else if (satuanId === 2) qtyValue = item.yardValue || 0;
+      else if (satuanId === 3) qtyValue = item.kilogramValue || 0;
 
-      // if (field === "lebar_greige") {
-      //   items[index].lebar_greige = value;
-      // }
+      const subtotal = qtyValue * hargaValue;
+      item.subtotal = subtotal;
+      item.subtotalFormatted = formatIDR(subtotal);
 
-      const harga = parseFloat(items[index].harga || "") || 0;
-      let qty = 0;
-      if (satuanId === 1) qty = meter;
-      else if (satuanId === 2) qty = yard;
-      else if (satuanId === 3)
-        qty = parseFloat(items[index].kilogram || "") || 0;
-
-      const subtotal = qty && harga ? qty * harga : 0;
-      items[index].subtotal = subtotal.toFixed(2);
-      items[index].subtotalFormatted = subtotal > 0 ? formatIDR(subtotal) : "";
-
-      return {
-        ...prev,
-        items,
-      };
+      items[index] = item;
+      return { ...prev, items };
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
-      const toNum = (val) =>
-        val === "" || val === null || val === undefined
-          ? null
-          : parseFloat(val);
-
       const customerTypeObj = customerType().find((ct) => ct.id == form().type);
 
-      if (isEdit) {
-        const payload = {
-          type: customerTypeObj?.jenis.toLowerCase(),
-          no_sc: form().no_seq,
-          po_cust: form().po_cust,
-          validity_contract: form().validity_contract,
-          customer_id: parseInt(form().customer_id),
-          currency_id: parseInt(form().currency_id),
-          kurs: toNum(form().kurs),
-          termin: toNum(form().termin),
-          ppn_percent: toNum(form().ppn),
-          catatan: form().catatan,
-          satuan_unit_id: toNum(form().satuan_unit_id),
-          items: form().items.map((item) => ({
-            id: item.id,
-            kain_id: toNum(item.fabric_id),
-            grade_id: parseInt(item.grade_id) || null,
-            lebar: toNum(item.lebar_greige),
-            gramasi: toNum(item.gramasi),
-            meter_total: toNum(item.meter),
-            yard_total: toNum(item.yard),
-            kilogram_total: toNum(item.kilogram),
-            harga: toNum(item.harga),
-          })),
-        };
+      const payloadItems = form().items.map((item) => ({
+        id: item.id,
+        kain_id: item.fabric_id,
+        grade_id: item.grade_id,
+        lebar: item.lebar_greigeValue || 0,
+        gramasi: item.gramasiValue || 0,
+        meter_total: item.meterValue || 0,
+        yard_total: item.yardValue || 0,
+        kilogram_total: item.kilogramValue || 0,
+        harga: item.hargaValue || 0,
+      }));
 
+      const payload = {
+        type: customerTypeObj?.jenis.toLowerCase(),
+        po_cust: form().po_cust,
+        validity_contract: form().validity_contract,
+        customer_id: parseInt(form().customer_id),
+        currency_id: parseInt(form().currency_id),
+        kurs: parseNumber(form().kurs),
+        termin: parseInt(form().termin),
+        ppn_percent: form().ppn_percent,
+        keterangan: form().keterangan,
+        satuan_unit_id: parseInt(form().satuan_unit_id),
+        items: payloadItems,
+      };
+
+      if (isEdit) {
+        payload.no_sc = form().no_seq;
         await updateDataSalesContract(user?.token, params.id, payload);
       } else {
-        const payload = {
-          type: customerTypeObj?.jenis.toLowerCase(),
-          sequence_number: form().no_seq,
-          po_cust: form().po_cust,
-          validity_contract: form().validity_contract,
-          customer_id: parseInt(form().customer_id),
-          currency_id: parseInt(form().currency_id),
-          kurs: toNum(form().kurs),
-          termin: toNum(form().termin),
-          ppn_percent: toNum(form().ppn),
-          catatan: form().catatan,
-          satuan_unit_id: toNum(form().satuan_unit_id),
-          items: form().items.map((item) => ({
-            id: item.id,
-            kain_id: toNum(item.fabric_id),
-            grade_id: toNum(item.grade_id) || "",
-            lebar: toNum(item.lebar_greige),
-            gramasi: toNum(item.gramasi),
-            meter_total: toNum(item.meter),
-            yard_total: toNum(item.yard),
-            kilogram_total: toNum(item.kilogram),
-            harga: toNum(item.harga),
-          })),
-        };
-
+        payload.sequence_number = form().no_seq;
         await createSalesContract(user?.token, payload);
       }
 
@@ -637,32 +586,35 @@ export default function SalesContractForm() {
               <div class="relative">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11.00"}
+                  checked={form().ppn_percent === "11.00"}
                   onChange={(e) =>
                     setForm({
                       ...form(),
-                      ppn: e.target.checked ? "11.00" : "0.00",
+                      ppn_percent: e.target.checked ? "11.00" : "0.00",
                     })
                   }
                   class="sr-only peer"
+                  disabled={isView}
                 />
                 <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11.00" ? "11%" : "0%"}
+                {form().ppn_percent === "11.00" ? "11%" : "0%"}
               </span>
             </label>
           </div>
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
-          <textarea
-            class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
-          ></textarea>
+          <label class="block mb-1 font-medium">keterangan</label>
+            <textarea
+                class="w-full border p-2 rounded"
+                value={form().keterangan}
+                onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+                readOnly={isView}
+                classList={{ "bg-gray-200": isView }} 
+            ></textarea>
         </div>
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
@@ -719,9 +671,7 @@ export default function SalesContractForm() {
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
                       value={item.lebar_greige}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "lebar_greige", e.target.value)
-                      }
+                      onBlur={(e) => handleItemChange(i(), "lebar_greige", e.target.value)}
                     />
                   </td>
                   <td class="border p-2">
@@ -730,63 +680,52 @@ export default function SalesContractForm() {
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
                       value={item.gramasi}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "gramasi", e.target.value)
-                      }
+                      onBlur={(e) => handleItemChange(i(), "gramasi", e.target.value)}
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 1
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
+                      class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 1 ? "bg-gray-200" : ""}`}
                       readOnly={parseInt(form().satuan_unit_id) !== 1}
                       value={item.meter}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "meter", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
+                      onBlur={(e) => {
+                        // Hanya trigger jika ini adalah input yang aktif
+                        if (parseInt(form().satuan_unit_id) === 1) {
+                          handleItemChange(i(), "meter", e.target.value);
+                        }
+                      }}
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 2
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
+                      class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 2 ? "bg-gray-200" : ""}`}
                       readOnly={parseInt(form().satuan_unit_id) !== 2}
                       value={item.yard}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "yard", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
+                      onBlur={(e) => {
+                        // Hanya trigger jika ini adalah input yang aktif
+                        if (parseInt(form().satuan_unit_id) === 2) {
+                          handleItemChange(i(), "yard", e.target.value);
+                        }
+                      }}
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 3
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
+                      class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 3 ? "bg-gray-200" : ""}`}
                       readOnly={parseInt(form().satuan_unit_id) !== 3}
                       value={item.kilogram}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "kilogram", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
+                      onBlur={(e) => {
+                        // Hanya trigger jika ini adalah input yang aktif
+                        if (parseInt(form().satuan_unit_id) === 3) {
+                          handleItemChange(i(), "kilogram", e.target.value);
+                        }
+                      }}
                     />
                   </td>
                   <td class="border p-2">
@@ -794,15 +733,8 @@ export default function SalesContractForm() {
                       type="text"
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
-                      value={formatIDR(item.harga)}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "harga", e.target.value)
-                      // }
-                      onBlur={(e) =>
-                        handleItemChange(i(), "harga", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
+                      value={item.harga} // Tampilkan nilai harga yang sudah diformat
+                      onBlur={(e) => handleItemChange(i(), "harga", e.target.value)}
                     />
                   </td>
                   <td class="border p-2">

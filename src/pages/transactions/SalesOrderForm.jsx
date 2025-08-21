@@ -117,20 +117,25 @@ export default function SalesOrderForm() {
       const soData = res.order;
       if (!soData) return;
 
-      const mappedItems = (soData.items || []).map((soItem) => ({
-        id: soItem.id,
-        sc_item_id: soItem.sc_item_id,
-        fabric_id: soItem.kain_id,
-        grade_id: soItem.grade_id,
-        lebar_greige: soItem.lebar,
-        gramasi: soItem.gramasi,
-        warna_id: soItem.warna_id ?? null,
-        meter: soItem.meter_total ?? "",
-        yard: soItem.yard_total ?? "",
-        kilogram: soItem.kilogram_total ?? "",
-        harga: soItem.harga ?? "",
-        subtotalFormatted: soItem.total > 0 ? formatIDR(soItem.total) : "",
-      }));
+      const mappedItems = (soData.items || []).map((soItem) => {
+          const subtotal = (Number(soItem.meter_total) || Number(soItem.yard_total) || Number(soItem.kilogram_total)) * Number(soItem.harga);
+
+          return {
+              id: soItem.id,
+              sc_item_id: soItem.sc_item_id,
+              fabric_id: soItem.kain_id,
+              grade_id: soItem.grade_id,
+              lebar_greige: soItem.lebar,
+              gramasi: soItem.gramasi,
+              warna_id: soItem.warna_id ?? null,
+              meter: soItem.meter_total ?? "0.00",
+              yard: soItem.yard_total ?? "0.00",
+              kilogram: soItem.kilogram_total ?? "0.00",
+              harga: soItem.harga ?? "0.00",
+              subtotal: subtotal,
+              subtotalFormatted: subtotal > 0 ? formatIDR(subtotal) : "",
+          };
+      });
 
       fetchSalesContractDetail(soData.sc_id);
 
@@ -200,7 +205,8 @@ export default function SalesOrderForm() {
           custDetail.currency_name,
           custDetail.kurs,
           Number(custDetail.termin),
-          Number(custDetail.ppn_percent),
+          custDetail.ppn_percent,
+          custDetail.keterangan,
           custDetail.satuan_unit_id,
           custDetail.validity_contract,
           custDetail.customer_id,
@@ -221,7 +227,8 @@ export default function SalesOrderForm() {
           custDetail.currency_name,
           custDetail.kurs,
           Number(custDetail.termin),
-          Number(custDetail.ppn_percent),
+          custDetail.ppn_percent,
+          custDetail.keterangan,
           custDetail.satuan_unit_id,
           custDetail.validity_contract,
           custDetail.customer_id,
@@ -262,7 +269,8 @@ export default function SalesOrderForm() {
     currencyName,
     kurs,
     termin,
-    ppn,
+    ppn_percent,
+    keterangan,
     satuanUnitId,
     validityContract,
     customerId,
@@ -323,7 +331,8 @@ export default function SalesOrderForm() {
       currency_name: currencyName,
       kurs: kurs,
       termin: termin,
-      ppn: ppn,
+      ppn_percent: parseFloat(ppn_percent) > 0 ? "11.00" : "0.00",
+      keterangan: keterangan ?? "",
       satuan_unit_id: satuanUnitId,
       items: normalizedItems,
     });
@@ -390,22 +399,13 @@ export default function SalesOrderForm() {
   };
 
   const totalMeter = () =>
-    form().items.reduce(
-      (sum, item) => sum + (parseFloat(parseNumber(item.meter)) || 0),
-      0
-    );
+    form().items.reduce((sum, item) => sum + (Number(item.meter) || 0), 0);
 
   const totalYard = () =>
-    form().items.reduce(
-      (sum, item) => sum + (parseFloat(parseNumber(item.yard)) || 0),
-      0
-    );
+    form().items.reduce((sum, item) => sum + (Number(item.yard) || 0), 0);
 
   const totalKilogram = () =>
-    form().items.reduce(
-      (sum, item) => sum + (parseFloat(parseNumber(item.kilogram)) || 0),
-      0
-    );
+    form().items.reduce((sum, item) => sum + (Number(item.kilogram) || 0), 0);
 
   const totalAll = () => {
     return form().items.reduce((sum, item) => {
@@ -413,120 +413,66 @@ export default function SalesOrderForm() {
     }, 0);
   };
 
-  const formatNumber = (num) => {
-    if (num == null || num === "") return "";
-    return new Intl.NumberFormat("id-ID").format(num);
+  const formatNumber = (num, decimals = 4) => {
+      const numValue = typeof num === 'string' ? parseFloat(num) : num;
+      if (isNaN(numValue)) return "";
+
+      // Tampilkan desimal hanya jika ada
+      const hasDecimal = numValue % 1 !== 0;
+
+      return new Intl.NumberFormat("id-ID", {
+          minimumFractionDigits: hasDecimal ? Math.min(decimals, 2) : 0, // Tampilkan min 2 desimal jika ada
+          maximumFractionDigits: decimals,
+      }).format(numValue);
   };
 
   const parseNumber = (str) => {
-    if (!str) return 0;
-    return parseFloat(str.replace(/\./g, "")) || 0;
+      if (typeof str !== 'string' || !str) return 0;
+      // Hapus semua karakter kecuali angka dan koma (untuk desimal gaya Indonesia)
+      const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
+      return parseFloat(cleaned) || 0;
   };
 
-  const handleItemChange = (index, field, value, options = {}) => {
-    setForm((prev) => {
-      const items = [...prev.items];
-      items[index] = { ...items[index] };
+  const handleItemChange = (index, field, value) => {
+      setForm((prev) => {
+          const items = [...prev.items];
+          const item = { ...items[index] };
 
-      // always store raw string
-      if (
-        [
-          "lebar_greige",
-          "gramasi",
-          "meter",
-          "yard",
-          "kilogram",
-          "harga",
-        ].includes(field)
-      ) {
-        // const numberValue = parseNumber(value);
-        // items[index][field] = formatNumber(numberValue);
+          const satuanId = parseInt(prev.satuan_unit_id);
+          const numValue = parseNumber(value);
 
-        items[index][field] = value;
-      } else {
-        items[index][field] = value;
-      }
+          // Update nilai berdasarkan field yang diubah
+          if (field === 'meter') {
+              item.meter = numValue;
+              item.yard = numValue * 1.093613;
+              item.kilogram = 0;
+          } else if (field === 'yard') {
+              item.yard = numValue;
+              item.meter = numValue * 0.9144;
+              item.kilogram = 0;
+          } else if (field === 'kilogram') {
+              item.kilogram = numValue;
+              item.meter = 0;
+              item.yard = 0;
+          } else {
+              // Untuk field lain seperti warna_id
+              item[field] = value;
+          }
 
-      const satuanId = parseInt(prev.satuan_unit_id);
-      const satuan = satuanUnitOptions()
-        .find((u) => u.id == satuanId)
-        ?.satuan?.toLowerCase();
+          // Hitung ulang subtotal
+          const harga = parseFloat(item.harga) || 0;
+          let qty = 0;
+          if (satuanId === 1) qty = item.meter || 0;
+          else if (satuanId === 2) qty = item.yard || 0;
+          else if (satuanId === 3) qty = item.kilogram || 0;
 
-      let meter = parseFloat(items[index].meter_total || "") || 0;
-      let yard = parseFloat(items[index].yard_total || "") || 0;
+          const subtotal = qty * harga;
+          item.subtotal = subtotal;
+          item.subtotalFormatted = formatIDR(subtotal);
 
-      // handle harga
-      if (field === "harga") {
-        // const rawHarga = value.replace(/[^\d]/g, "");
-        const hargaNumber = parseFloat(value || "0") || 0;
-
-        items[index].harga = hargaNumber;
-
-        if (options.triggerFormat) {
-          items[index].hargaFormatted = formatIDR(hargaNumber);
-        } else {
-          items[index].hargaFormatted = hargaNumber;
-        }
-
-        // hitung subtotal
-        let qty = 0;
-        if (satuanId === 1) qty = meter;
-        else if (satuanId === 2) qty = yard;
-        else if (satuanId === 3)
-          qty = parseFloat(items[index].kilogram || "") || 0;
-
-        const subtotal = qty && hargaNumber ? qty * hargaNumber : 0;
-        items[index].subtotal = subtotal.toFixed(2);
-        items[index].subtotalFormatted =
-          subtotal > 0 ? formatIDR(subtotal) : "";
-
-        return {
-          ...prev,
-          items,
-        };
-      }
-
-      // handle konversi meter/yard
-      if (options.triggerConversion) {
-        if (satuanId === 1) {
-          // meter
-          meter = parseFloat(value) || 0;
-          yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
-          items[index].kilogram = "0";
-        } else if (satuanId === 2) {
-          // yard
-          yard = parseFloat(value) || 0;
-          meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
-          items[index].kilogram = "0";
-        } else if (satuanId === 3) {
-          // kilogram
-          items[index].meter = "0";
-          items[index].yard = "0";
-        }
-      }
-
-      // if (field === "lebar_greige") {
-      //   items[index].lebar_greige = value;
-      // }
-
-      const harga = parseFloat(items[index].harga || "") || 0;
-      let qty = 0;
-      if (satuanId === 1) qty = meter;
-      else if (satuanId === 2) qty = yard;
-      else if (satuanId === 3)
-        qty = parseFloat(items[index].kilogram || "") || 0;
-
-      const subtotal = qty && harga ? qty * harga : 0;
-      items[index].subtotal = subtotal.toFixed(2);
-      items[index].subtotalFormatted = subtotal > 0 ? formatIDR(subtotal) : "";
-
-      return {
-        ...prev,
-        items,
-      };
-    });
+          items[index] = item;
+          return { ...prev, items };
+      });
   };
 
   const handleSubmit = async (e) => {
@@ -570,30 +516,16 @@ export default function SalesOrderForm() {
           delivery_date: form().delivery_date,
           komisi: parseFloat(form().komisi) || 0,
           keterangan: form().keterangan || "",
-          items: Object.values(
-            form().items.reduce((acc, item) => {
-              const scItemId = item.sc_item_id || item.id;
-
-              if (!acc[scItemId]) {
-                acc[scItemId] = {
-                  sc_item_id: scItemId,
-                  warnas: [],
-                };
-              }
-
-              acc[scItemId].warnas.push({
-                warna_id: parseInt(item.warna_id) || null,
-                meter: item.meter ? parseFloat(item.meter) : 0,
-                yard: item.yard ? parseFloat(item.yard) : 0,
-                kilogram: item.kilogram ? parseFloat(item.kilogram) : 0,
-              });
-
-              return acc;
-            }, {})
-          ),
+          items: form().items.map((item) => ({
+              sc_item_id: item.sc_item_id,
+              warna_id: parseInt(item.warna_id) || null,
+              meter_total: item.meter ? parseFloat(item.meter) : 0,
+              yard_total: item.yard ? parseFloat(item.yard) : 0,
+              kilogram_total: item.kilogram ? parseFloat(item.kilogram) : 0,
+          })),
         };
-        console.log(log);
-        // await createSalesOrder(user?.token, payload);
+        //console.log(payload);
+        await createSalesOrder(user?.token, payload);
       }
 
       Swal.fire({
@@ -846,7 +778,7 @@ export default function SalesOrderForm() {
               <div class="relative opacity-60 cursor-not-allowed">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11.00"}
+                  checked={form().ppn_percent === "11.00"}
                   disabled
                   class="sr-only peer"
                 />
@@ -854,7 +786,7 @@ export default function SalesOrderForm() {
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm peer-checked:translate-x-14 transition-transform"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11.00" ? "11%" : "0%"}
+                {form().ppn_percent === "11.00" ? "11%" : "0%"}
               </span>
             </label>
           </div>
@@ -866,7 +798,7 @@ export default function SalesOrderForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            readOnly={isView}
+            readOnly
           ></textarea>
         </div>
 
@@ -893,9 +825,9 @@ export default function SalesOrderForm() {
                       lebar_greige: scItem.lebar,
                       gramasi: scItem.gramasi,
                       harga: scItem.harga,
-                      meter: 0,
-                      yard: 0,
-                      kilogram: 0,
+                      meter: null,
+                      yard: null,
+                      kilogram: null,
                       warna_id: null,
                       subtotal: 0,
                       subtotalFormatted: "",
@@ -973,12 +905,8 @@ export default function SalesOrderForm() {
                   <td class="border p-2">
                     <input
                       type="text"
-                      inputmode="decimal"
                       class="border p-1 rounded w-full bg-gray-200"
-                      value={item.lebar_greige}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "lebar_greige", e.target.value)
-                      }
+                      value={formatNumber(item.lebar_greige, 2)}
                       readOnly
                     />
                   </td>
@@ -992,83 +920,58 @@ export default function SalesOrderForm() {
                   <td class="border p-2">
                     <input
                       type="text"
-                      inputmode="decimal"
                       class="border p-1 rounded w-full bg-gray-200"
-                      value={item.gramasi}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "gramasi", e.target.value)
-                      }
+                      value={formatNumber(item.gramasi, 2)}
                       readOnly
                     />
                   </td>
                   <td class="border p-2">
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 1
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) !== 1}
-                      value={item.meter}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "meter", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
-                    />
+                      <input
+                          type="text"
+                          inputmode="decimal"
+                          class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 1 ? "bg-gray-200" : ""}`}
+                          readOnly={parseInt(form().satuan_unit_id) !== 1}
+                          value={formatNumber(item.meter)}
+                          onBlur={(e) => {
+                              if (parseInt(form().satuan_unit_id) === 1) {
+                                  handleItemChange(i(), "meter", e.target.value);
+                              }
+                          }}
+                      />
+                  </td>
+                  <td class="border p-2">
+                      <input
+                          type="text"
+                          inputmode="decimal"
+                          class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 2 ? "bg-gray-200" : ""}`}
+                          readOnly={parseInt(form().satuan_unit_id) !== 2}
+                          value={formatNumber(item.yard)}
+                          onBlur={(e) => {
+                              if (parseInt(form().satuan_unit_id) === 2) {
+                                  handleItemChange(i(), "yard", e.target.value);
+                              }
+                          }}
+                      />
+                  </td>
+                  <td class="border p-2">
+                      <input
+                          type="text"
+                          inputmode="decimal"
+                          class={`border p-1 rounded w-full ${parseInt(form().satuan_unit_id) !== 3 ? "bg-gray-200" : ""}`}
+                          readOnly={parseInt(form().satuan_unit_id) !== 3}
+                          value={formatNumber(item.kilogram)}
+                          onBlur={(e) => {
+                              if (parseInt(form().satuan_unit_id) === 3) {
+                                  handleItemChange(i(), "kilogram", e.target.value);
+                              }
+                          }}
+                      />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
-                      inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 2
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) !== 2}
-                      value={item.yard}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "yard", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
-                    />
-                  </td>
-                  <td class="border p-2">
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) !== 3
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) !== 3}
-                      value={item.kilogram}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "kilogram", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
-                    />
-                  </td>
-                  <td class="border p-2">
-                    <input
-                      type="text"
-                      inputmode="decimal"
                       class="border p-1 rounded w-full bg-gray-200"
                       value={formatIDR(item.harga)}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "harga", e.target.value)
-                      // }
-                      onBlur={(e) =>
-                        handleItemChange(i(), "harga", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
                       readOnly
                     />
                   </td>
@@ -1099,11 +1002,11 @@ export default function SalesOrderForm() {
                 TOTAL
               </td>
               <td class="border p-2">
-                {formatNumber(totalMeter().toFixed(2))}
+                {formatNumber(totalMeter())}
               </td>
-              <td class="border p-2">{formatNumber(totalYard().toFixed(2))}</td>
+              <td class="border p-2">{formatNumber(totalYard().toFixed(4))}</td>
               <td class="border p-2">
-                {formatNumber(totalKilogram().toFixed(2))}
+                {formatNumber(totalKilogram())}
               </td>
               <td></td>
               <td class="border p-2">{formatIDR(totalAll())}</td>
