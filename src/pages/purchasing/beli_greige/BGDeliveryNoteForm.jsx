@@ -25,7 +25,7 @@ export default function BGDeliveryNoteForm() {
   const [form, setForm] = createSignal({
     no_sj: "",
     sequence_number: "",
-    catatan: "",
+    keterangan: "",
     itemGroups: [],
   });
 
@@ -80,7 +80,7 @@ export default function BGDeliveryNoteForm() {
       setForm({
         no_sj: dn.no_sj,
         sequence_number: dn.sequence_number,
-        catatan: dn.catatan,
+        keterangan: dn.keterangan,
         itemGroups,
       });
     }
@@ -195,7 +195,7 @@ export default function BGDeliveryNoteForm() {
       no_sj: form().no_sj,
       sequence_number: form().sequence_number,
       type: form().itemGroups[0]?.type || "",
-      catatan: form().catatan,
+      keterangan: form().keterangan,
       items: allSelectedItems,
     };
 
@@ -289,11 +289,11 @@ export default function BGDeliveryNoteForm() {
             />
           </div>
           <div>
-            <label class="block text-sm mb-1">Catatan</label>
+            <label class="block text-sm mb-1">keterangan</label>
             <textarea
               class="w-full border p-2 rounded"
-              value={form().catatan}
-              onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+              value={form().keterangan}
+              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
             ></textarea>
           </div>
         </div>

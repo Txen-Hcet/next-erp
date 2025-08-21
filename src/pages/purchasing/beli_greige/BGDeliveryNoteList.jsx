@@ -132,7 +132,7 @@ export default function BGDeliveryNoteList() {
               <th class="py-2 px-2">No SC</th>
               <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Tanggal Dibuat</th>
-              <th class="py-2 px-2">Catatan</th>
+              <th class="py-2 px-2">keterangan</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -146,7 +146,7 @@ export default function BGDeliveryNoteList() {
                 <td class="py-2 px-4">{sc.no_pl}</td>
                 <td class="py-2 px-4">{sc.col}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
-                <td class="py-2 px-4">{sc.catatan}</td>
+                <td class="py-2 px-4">{sc.keterangan}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-blue-600 hover:underline"

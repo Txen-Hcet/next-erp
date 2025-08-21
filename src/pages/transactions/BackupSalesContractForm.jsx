@@ -73,7 +73,7 @@ export default function SalesContractFormBackup() {
     kurs: "",
     termin: "",
     ppn_percent: "",
-    catatan: "",
+    keterangan: "",
     satuan_unit_id: "",
     items: [],
   });
@@ -142,7 +142,7 @@ export default function SalesContractFormBackup() {
         kurs: parseFloat(salesContracts.kurs) ?? "",
         termin: parseInt(salesContracts.termin) ?? "",
         ppn_percent: parseFloat(salesContracts.ppn_percent) ?? "",
-        catatan: salesContracts.catatan ?? "",
+        keterangan: salesContracts.keterangan ?? "",
         satuan_unit_id: parseInt(salesContracts.satuan_unit_id) ?? "",
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
@@ -353,7 +353,7 @@ export default function SalesContractFormBackup() {
         kurs: toNum(form().kurs),
         termin: toNum(form().termin),
         ppn_percent: toNum(form().ppn_percent),
-        catatan: form().catatan,
+        keterangan: form().keterangan,
         satuan_unit_id: toNum(form().satuan_unit_id),
         items: form().items.map((item) => ({
           id: item.id,
@@ -610,11 +610,11 @@ export default function SalesContractFormBackup() {
           </div>
         </div>
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 

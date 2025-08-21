@@ -13,7 +13,7 @@
 //   currency_id: "USD",
 //   kurs: 14500,
 //   termin: 30,
-//   catatan: "Pengiriman dilakukan dalam 3 batch.",
+//   keterangan: "Pengiriman dilakukan dalam 3 batch.",
 //   items: [
 //     {
 //       kode_kain: "304",

@@ -42,7 +42,7 @@ export default function BGPurchaseContractForm() {
     satuan_unit_id: "",
     termin: "",
     ppn: 0,
-    catatan: "",
+    keterangan: "",
     no_seq: 0,
     items: [],
   });
@@ -112,7 +112,7 @@ export default function BGPurchaseContractForm() {
         satuan_unit_id: data.satuan_unit_id ?? "",
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
-        catatan: data.catatan ?? "",
+        keterangan: data.keterangan ?? "",
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
@@ -336,7 +336,7 @@ export default function BGPurchaseContractForm() {
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
           ppn_percent: parseFloat(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(parseNumber(i.lebar_greige)),
@@ -356,7 +356,7 @@ export default function BGPurchaseContractForm() {
           sequence_number: Number(form().no_seq),
           termin: Number(form().termin),
           ppn_percent: Number(form().ppn),
-          catatan: form().catatan,
+          keterangan: form().keterangan,
           items: form().items.map((i) => ({
             kain_id: Number(i.fabric_id),
             lebar_greige: parseFloat(parseNumber(i.lebar_greige)),
@@ -530,11 +530,11 @@ export default function BGPurchaseContractForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">Catatan</label>
+          <label class="block mb-1 font-medium">keterangan</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 

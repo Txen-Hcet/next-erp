@@ -449,7 +449,7 @@ export default function BGContractPrint(props) {
               <td colSpan={7} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
-                  {data.catatan ?? "-"}
+                  {data.keterangan ?? "-"}
                 </div>
               </td>
             </tr>

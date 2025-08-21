@@ -35,7 +35,7 @@ export default function DeliveryNoteForm() {
     sequence_number: "",
     no_surat_jalan_supplier: "",
     tanggal_surat_jalan: new Date().toISOString().split("T")[0],
-    catatan: "",
+    keterangan: "",
     itemGroups: [],
   });
 
@@ -91,7 +91,7 @@ export default function DeliveryNoteForm() {
         tanggal_surat_jalan: new Date(res.created_at)
           .toISOString()
           .split("T")[0],
-        catatan: res.catatan,
+        keterangan: res.keterangan,
         itemGroups,
         ppn: selectedSO?.ppn ?? 0,
         sales_order_id: selectedSO?.id ?? null,

@@ -259,7 +259,7 @@ export default function PackingOrderPrint(props) {
               <td className="border border-black p-2 align-top" colSpan={7}>
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
-                  {data.catatan ?? "-"}
+                  {data.keterangan ?? "-"}
                 </div>
               </td>
             </tr>

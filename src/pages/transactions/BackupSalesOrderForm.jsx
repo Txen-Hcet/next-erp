@@ -53,7 +53,7 @@ export default function SalesOrderFormBackup() {
     satuan_unit_id: "",
     delivery_date: "",
     komisi: "",
-    catatan: "",
+    keterangan: "",
     type: "",
     sequence_number: "",
     items: [],
@@ -139,7 +139,7 @@ export default function SalesOrderFormBackup() {
         satuan_unit_id: salesOrders.satuan_unit_id ?? "",
         delivery_date: salesOrders.delivery_date?.split("T")[0] ?? "",
         komisi: parseFloat(salesOrders.komisi) ?? "",
-        catatan: "",
+        keterangan: "",
         items: normalizedItems.length > 0 ? normalizedItems : [],
       });
 
@@ -431,7 +431,7 @@ export default function SalesOrderFormBackup() {
         satuan_unit_id: form().satuan_unit_id,
         delivery_date: form().delivery_date,
         komisi: toNum(form().komisi),
-        catatan: form().catatan,
+        keterangan: form().keterangan,
         items: form().items.map((item) => ({
           sales_contract_item_id: item.id,
           kain_id: toNum(item.kain_id),
@@ -697,11 +697,11 @@ export default function SalesOrderFormBackup() {
           </div>
         </div>
         <div>
-          <label class="block mb-1 font-medium">Catatan (Packing Order)</label>
+          <label class="block mb-1 font-medium">keterangan (Packing Order)</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().catatan}
-            onInput={(e) => setForm({ ...form(), catatan: e.target.value })}
+            value={form().keterangan}
+            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
           ></textarea>
         </div>
 
