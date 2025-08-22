@@ -93,6 +93,28 @@ export default function PackingListForm() {
     setLoading(false);
   });
 
+  const formatNumber = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  };
+
+  // Fungsi untuk mengubah string format kembali menjadi angka
+  const parseNumber = (str) => {
+    if (typeof str !== 'string' || !str) return 0;
+    const cleaned = str.replace(/[^\d,]/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  };
+
   // (4) Saat Sales Order berubah
   const handleSalesOrderChange = async (selectedSO) => {
     if (!selectedSO) return;
@@ -281,36 +303,31 @@ export default function PackingListForm() {
 
   const handleRollChange = (groupIndex, rollIndex, field, value) => {
     setForm((prev) => {
-      const copy = [...prev.itemGroups];
-      const group = copy[groupIndex];
-
-      if (!group || !Array.isArray(group.rolls)) return prev;
-
-      const updatedRoll = { ...group.rolls[rollIndex], [field]: value };
+      const newGroups = [...prev.itemGroups];
+      const targetGroup = { ...newGroups[groupIndex] };
+      const newRolls = [...targetGroup.rolls];
+      const updatedRoll = { ...newRolls[rollIndex] };
 
       if (field === "meter") {
-        const meterValue = parseFloat(value || 0);
-        updatedRoll.yard = (meterValue * 1.093613).toFixed(2);
+        const meterValue = parseNumber(value);
+        updatedRoll.meter = meterValue;
+        updatedRoll.yard = meterValue * 1.093613; 
+      } else {
+        updatedRoll[field] = value;
       }
 
-      group.rolls[rollIndex] = updatedRoll;
+      newRolls[rollIndex] = updatedRoll;
 
-      // Update row_num dan col_num otomatis
-      group.rolls = group.rolls.map((roll, idx) => ({
-        ...roll,
-        row_num: idx + 1,
-        col_num: roll.col_num || 1,
-      }));
-
-      // Hitung total meter & yard
-      group.meter_total = group.rolls.reduce(
+      targetGroup.meter_total = newRolls.reduce(
         (sum, r) => sum + Number(r.meter || 0),
         0
       );
-      group.yard_total = parseFloat((group.meter_total * 1.093613).toFixed(2));
+      targetGroup.yard_total = targetGroup.meter_total * 1.093613;
+      
+      targetGroup.rolls = newRolls;
+      newGroups[groupIndex] = targetGroup;
 
-      copy[groupIndex] = group;
-      return { ...prev, itemGroups: copy };
+      return { ...prev, itemGroups: newGroups };
     });
   };
 
@@ -713,16 +730,12 @@ export default function PackingListForm() {
                                     {(r) => (
                                       <div class="flex flex-row">
                                         <input
-                                          type="number"
-                                          class="border p-1 text-right text-xs pr-5 w-full"
-                                          value={r.roll.meter}
-                                          onInput={(e) =>
-                                            handleRollChange(
-                                              i(),
-                                              r.index,
-                                              "meter",
-                                              e.target.value
-                                            )
+                                          type="text"
+                                          inputmode="decimal"
+                                          class="border p-1 text-right text-xs pr-2 w-full"
+                                          value={formatNumber(r.roll.meter || "")}
+                                          onBlur={(e) =>
+                                            handleRollChange(i(), r.index, "meter", e.target.value)
                                           }
                                         />
                                         <button
@@ -744,20 +757,10 @@ export default function PackingListForm() {
                                 {rollChunk.length}
                               </td>
                               <td class="border text-right px-2 align-top">
-                                {rollChunk
-                                  .reduce(
-                                    (sum, r) => sum + Number(r.roll.meter || 0),
-                                    0
-                                  )
-                                  .toFixed(2)}
+                                  {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0))}
                               </td>
                               <td class="border text-right px-2 align-top">
-                                {(
-                                  rollChunk.reduce(
-                                    (sum, r) => sum + Number(r.roll.meter || 0),
-                                    0
-                                  ) * 1.093613
-                                ).toFixed(2)}
+                                  {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0) * 1.093613)}
                               </td>
                             </tr>
                           )
@@ -775,19 +778,10 @@ export default function PackingListForm() {
                           {group.rolls.length}
                         </td>
                         <td class="border px-2 py-1 text-right">
-                          {group.rolls
-                            .reduce((sum, r) => sum + Number(r.meter || 0), 0)
-                            .toFixed(2)}{" "}
-                          m
+                          {formatNumber(group.rolls.reduce((sum, r) => sum + Number(r.meter || 0), 0))} m
                         </td>
                         <td class="border px-2 py-1 text-right">
-                          {(
-                            group.rolls.reduce(
-                              (sum, r) => sum + Number(r.meter || 0),
-                              0
-                            ) * 1.093613
-                          ).toFixed(2)}{" "}
-                          yd
+                          {formatNumber(group.rolls.reduce((sum, r) => sum + Number(r.meter || 0), 0) * 1.093613)} yd
                         </td>
                       </tr>
                     </tbody>
@@ -861,20 +855,10 @@ export default function PackingListForm() {
                     )}
                   </th>
                   <th class="border px-2 py-1 text-right w-24">
-                    {form()
-                      .itemGroups.flatMap((g) => g.rolls)
-                      .reduce((sum, r) => sum + Number(r.meter || 0), 0)
-                      .toFixed(2)}{" "}
-                    m
+                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0))} m
                   </th>
                   <th class="border px-2 py-1 text-right w-24">
-                    {(
-                      form()
-                        .itemGroups.flatMap((g) => g.rolls)
-                        .reduce((sum, r) => sum + Number(r.meter || 0), 0) *
-                      1.093613
-                    ).toFixed(2)}{" "}
-                    yd
+                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0) * 1.093613)} yd
                   </th>
                 </tr>
               </thead>
