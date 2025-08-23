@@ -389,6 +389,7 @@ export default function BGPurchaseContractForm() {
               form={form}
               setForm={setForm}
               onChange={(id) => setForm({ ...form(), supplier_id: id })}
+              disabled={isView}
             />
           </div>
         </div>
@@ -412,6 +413,8 @@ export default function BGPurchaseContractForm() {
                 setForm({ ...form(), satuan_unit_id: e.target.value })
               }
               required
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             >
               <option value="">Pilih Satuan</option>
               <For each={satuanUnitOptions()}>
@@ -426,6 +429,8 @@ export default function BGPurchaseContractForm() {
               class="w-full border p-2 rounded"
               value={form().termin}
               onInput={(e) => setForm({ ...form(), termin: e.target.value })}
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             >
               <option value="">-- Pilih Termin --</option>
               <option value="0">0 Hari/Cash</option>
@@ -447,6 +452,7 @@ export default function BGPurchaseContractForm() {
                     setForm({ ...form(), ppn_percent: e.target.checked ? "11.00" : "0.00" })
                   }
                   class="sr-only peer"
+                  disabled={isView}
                 />
                 <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
@@ -464,6 +470,8 @@ export default function BGPurchaseContractForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+            disabled={isView}
+            classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
 
@@ -473,6 +481,7 @@ export default function BGPurchaseContractForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
+          hidden={isView}
         >
           + Tambah Item
         </button>
@@ -502,6 +511,7 @@ export default function BGPurchaseContractForm() {
                       onChange={(val) =>
                         handleItemChange(i(), "fabric_id", val)
                       }
+                      disabled={isView}
                     />
                   </td>
                   <td class="border p-2">
@@ -513,18 +523,19 @@ export default function BGPurchaseContractForm() {
                       onBlur={(e) =>
                         handleItemChange(i(), "lebar_greige", e.target.value)
                       }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 2
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 2}
+                      class="border p-1 rounded w-full"
+                      classList={{
+                        "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 2,
+                      }}
+                      readOnly={isView || parseInt(form().satuan_unit_id) === 2}
                       value={item.meter}
                       onBlur={(e) => {
                         if (parseInt(form().satuan_unit_id) === 1) {
@@ -537,12 +548,11 @@ export default function BGPurchaseContractForm() {
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 1
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 1}
+                      class="border p-1 rounded w-full"
+                      classList={{
+                        "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 1,
+                      }}
+                      readOnly={isView || parseInt(form().satuan_unit_id) === 1}
                       value={item.yard}
                       onBlur={(e) => {
                         if (parseInt(form().satuan_unit_id) === 2) {
@@ -559,9 +569,10 @@ export default function BGPurchaseContractForm() {
                       value={item.harga}
                       onBlur={(e) =>
                         handleItemChange(i(), "harga", e.target.value, {
-                          triggerConversion: true,
                         })
                       }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
                   <td class="border p-2">
@@ -569,7 +580,8 @@ export default function BGPurchaseContractForm() {
                       type="text"
                       class="border p-1 rounded w-full"
                       value={item.subtotalFormatted ?? ""}
-                      disabled
+                      disabled={true}
+                      classList={{ "bg-gray-200": true }}
                     />
                   </td>
                   <td class="border p-2 text-center">
@@ -577,6 +589,7 @@ export default function BGPurchaseContractForm() {
                       type="button"
                       class="text-red-600 hover:text-red-800 text-xs"
                       onClick={() => removeItem(i())}
+                      disabled={isView}
                     >
                       <Trash2 size={20} />
                     </button>
