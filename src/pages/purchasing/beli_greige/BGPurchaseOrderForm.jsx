@@ -108,7 +108,6 @@ console.log("Struktur data asli dari API (dataItems):", dataItems);
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
         keterangan: data.keterangan ?? "",
-        // items: prev.items,
       }));
     } else {
       const lastSeq = await getLastSequence(
@@ -134,84 +133,103 @@ console.log("Struktur data asli dari API (dataItems):", dataItems);
     setLoading(false);
   });
 
-  const handlePurchaseContractChange = async (contractId, overrideItems) => {
-    let selectedContract = purchaseContracts().find(
-      (sc) => sc.id == contractId
-    );
-
-    if (!selectedContract || !selectedContract.items?.length) {
-      const detail = await getBeliGreiges(contractId, user?.token);
-      selectedContract = detail.contract;
-    }
-
-    if (!selectedContract) return;
-    const {
-      supplier_id,
-      satuan_unit_id,
-      termin,
-      ppn_percent,
-      items = [],
-    } = selectedContract;
-
-    const sourceItems = overrideItems ?? items;
-
-    const mappedItems = sourceItems.map((poItem) => {
-        // 1. Cari item kontrak yang cocok berdasarkan pc_item_id dari item PO
-        const contractItem = selectedContract.items.find(
-            (pcItem) => pcItem.id == poItem.pc_item_id
+    const handlePurchaseContractChange = async (contractId, overrideItems) => {
+        let selectedContract = purchaseContracts().find(
+            (sc) => sc.id == contractId
         );
 
-        // 2. Ambil fabric_id dari item kontrak yang ditemukan
-        const fabricId = contractItem ? (contractItem.kain_id || contractItem.fabric_id) : null;
+        if (!selectedContract || !selectedContract.items?.length) {
+            const detail = await getBeliGreiges(contractId, user?.token);
+            selectedContract = detail.contract;
+        }
 
-        // 3. Lanjutkan kalkulasi seperti biasa menggunakan data dari item PO
-        const meterNum = parseFloat(poItem.meter || 0);
-        const yardNum = parseFloat(poItem.yard || 0);
+        if (!selectedContract) return;
+        const {
+            supplier_id,
+            satuan_unit_id,
+            termin,
+            ppn_percent,
+            items = [],
+        } = selectedContract;
+
+        // Pilih sumber data: item PO (edit) atau item Kontrak (create)
+        const sourceItems = overrideItems ?? items;
+
+        const mappedItems = sourceItems.map((item) => {
+            let fabricId = null;
+            let dataSumber = {};
+
+            if (overrideItems) {
+                const contractItem = selectedContract.items.find(
+                    (pcItem) => pcItem.id == item.pc_item_id
+                );
+                // Ambil ID kain dari item kontrak yang cocok
+                fabricId = contractItem ? (contractItem.kain_id || contractItem.fabric_id || contractItem.kain?.id) : null;
+                // Gunakan item PO sebagai sumber data utama
+                dataSumber = item;
+            } else {
+                // Ambil ID kain langsung dari item kontrak
+                fabricId = item.kain_id || item.fabric_id || item.kain?.id;
+                // Siapkan data sumber dari item kontrak
+                dataSumber = {
+                    id: null,
+                    pc_item_id: item.id, 
+                    lebar_greige: item.lebar_greige,
+                    meter: item.meter_total || item.meter,
+                    yard: item.yard_total || item.yard,
+                    harga: item.harga,
+                };
+            }
+
+            // Kalkulasi menggunakan dataSumber yang sudah disiapkan
+            const meterNum = parseFloat(dataSumber.meter || 0);
+            const yardNum = parseFloat(dataSumber.yard || 0);
+            
+            let qty = 0;
+            if (satuan_unit_id === 1) qty = meterNum;
+            else if (satuan_unit_id === 2) qty = yardNum;
+
+            const harga = parseFloat(dataSumber.harga ?? 0);
+            const subtotal = qty * harga;
+
+            // Return objek item yang siap untuk form state
+            return {
+                id: dataSumber.id,
+                pc_item_id: dataSumber.pc_item_id,
+                fabric_id: fabricId,
+                lebar_greige: dataSumber.lebar_greige,
+                meter: formatNumber(meterNum, { decimals: 2 }),
+                meterValue: meterNum,
+                yard: formatNumber(yardNum, { decimals: 2 }),
+                yardValue: yardNum,
+                harga,
+                hargaValue: harga,
+                hargaFormatted: formatIDR(harga),
+                subtotal,
+                subtotalFormatted: formatIDR(subtotal),
+                readOnly: false,
+            };
+        });
+
+        const lastSeq = await getLastSequence(
+            user?.token,
+            "bg_o",
+            "domestik",
+            form().ppn
+        );
         
-        let qty = 0;
-        if (satuan_unit_id === 1) qty = meterNum;
-        else if (satuan_unit_id === 2) qty = yardNum;
-
-        const harga = parseFloat(poItem.harga ?? 0);
-        const subtotal = qty * harga;
-
-        // 4. Return objek yang lengkap
-        return {
-            id: poItem.id,
-            pc_item_id: poItem.pc_item_id,
-            fabric_id: fabricId,
-            lebar_greige: poItem.lebar_greige,
-            meter: formatNumber(meterNum, { decimals: 2 }),
-            meterValue: meterNum,
-            yard: formatNumber(yardNum, { decimals: 2 }),
-            yardValue: yardNum,
-            harga,
-            hargaValue: harga,
-            hargaFormatted: formatIDR(harga),
-            subtotal,
-            subtotalFormatted: formatIDR(subtotal),
-            readOnly: false,
-        };
-    });
-    //console.log("Data setelah di-map ulang (mappedItems):", mappedItems);
-    const lastSeq = await getLastSequence(
-      user?.token,
-      "bg_o",
-      "domestik",
-      form().ppn
-    );
-    setForm((prev) => ({
-      ...prev,
-      pc_id: contractId,
-      supplier_id: supplier_id,
-      satuan_unit_id: satuan_unit_id,
-      termin: termin,
-      ppn: ppn_percent,
-      keterangan: prev.keterangan || "",
-      items: mappedItems,
-      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
-    }));
-  };
+        setForm((prev) => ({
+            ...prev,
+            pc_id: contractId,
+            supplier_id: supplier_id,
+            satuan_unit_id: satuan_unit_id,
+            termin: termin,
+            ppn: ppn_percent,
+            keterangan: prev.keterangan || "",
+            items: mappedItems,
+            sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
+        }));
+    };
 
   const formatIDR = (val) => {
     if (val === null || val === "") return "";
@@ -245,27 +263,32 @@ console.log("Struktur data asli dari API (dataItems):", dataItems);
     }));
   };
 
-  const addItem = () => {
-    setForm((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          pc_item_id: null,
-          kain_id: "",
-          lebar_greige: 0,
-          meter: 0,
-          meterValue: 0,
-          yard: 0,
-          yardValue: 0,
-          harga: 0,
-          hargaValue: 0,
-          subtotal: 0,
-          subtotalFormatted: "",
-        },
-      ],
-    }));
-  };
+  const addItem = () => {
+    // 1. Ambil semua item yang sudah ada di form saat ini
+    const existingItems = form().items;
+
+    // 2. Periksa apakah ada item untuk diduplikasi
+    if (!existingItems || existingItems.length === 0) {
+      Swal.fire("Peringatan", "Tidak ada item untuk diduplikasi. Silakan pilih Purchase Contract terlebih dahulu.", "warning");
+      return;
+    }
+
+    // 3. Buat salinan dari setiap item yang ada
+    // Penting: Setel `id` menjadi `null` untuk setiap item baru agar database tahu ini adalah entri baru
+    const newItemsToDuplicate = existingItems.map(item => ({
+      ...item, // Salin semua properti dari item yang ada
+      id: null, // Reset ID agar dianggap sebagai item baru saat disimpan
+    }));
+
+    // 4. Tambahkan item hasil duplikasi ke akhir daftar yang sudah ada
+    setForm((prev) => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        ...newItemsToDuplicate
+      ],
+    }));
+  };
 
   const removeItem = (index) => {
     setForm((prev) => {
@@ -593,6 +616,7 @@ const handleItemChange = (index, field, value) => {
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
           //hidden
+disabled={!form().pc_id}
         >
           + Tambah Item
         </button>
