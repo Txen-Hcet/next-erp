@@ -1,4 +1,4 @@
-import { createSignal, onMount, For, createEffect } from "solid-js";
+import { createSignal, onMount, For, Show } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -15,7 +15,6 @@ import {
   createOrderCelupOrder,
   getAllColors,
   getOrderCelups,
-  // createPurchaseOrder,
 } from "../../../utils/auth";
 import SupplierDropdownSearch from "../../../components/SupplierDropdownSearch";
 import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
@@ -27,7 +26,6 @@ export default function OCPurchaseOrderForm() {
   const navigate = useNavigate();
   const user = getUser();
 
-  const [jenisPOOptions, setJenisPOOptions] = createSignal([]);
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
@@ -37,6 +35,9 @@ export default function OCPurchaseOrderForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const isView = params.view === "true";
+
+  // State untuk menyimpan item asli dari kontrak sebagai template
+  const [contractItems, setContractItems] = createSignal([]);
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -53,19 +54,15 @@ export default function OCPurchaseOrderForm() {
 
   onMount(async () => {
     setLoading(true);
-    const [bgc, poTypes, suppliers, units, fabrics, colors] = await Promise.all(
-      [
-        getAllOrderCelups(user?.token),
-        getAllSOTypes(user?.token),
-        getAllSuppliers(user?.token),
-        getAllSatuanUnits(user?.token),
-        getAllFabrics(user?.token),
-        getAllColors(user?.token),
-      ]
-    );
+    const [bgc, suppliers, units, fabrics, colors] = await Promise.all([
+      getAllOrderCelups(user?.token),
+      getAllSuppliers(user?.token),
+      getAllSatuanUnits(user?.token),
+      getAllFabrics(user?.token),
+      getAllColors(user?.token),
+    ]);
 
     setPurchaseContracts(bgc.contracts);
-    setJenisPOOptions(poTypes.data);
     setSupplierOptions(suppliers.suppliers);
     setSatuanUnitOptions(units.data);
     setFabricOptions(fabrics.kain);
@@ -77,27 +74,33 @@ export default function OCPurchaseOrderForm() {
       const dataItems = res.order.items;
 
       if (!data) return;
-
-      const normalizedItems = (dataItems || []).map((item) => ({
-        pc_item_id: item.pc_item_id,
-        fabric_id: item.corak_kain,
-        lebar_greige: item.lebar_greige,
-        lebar_finish: item.lebar_finish,
-        warna_id: item.warna_id,
-        meter: item.meter_total,
-        yard: item.yard_total,
-        harga: item.harga,
-        hargaFormatted: formatIDR(item.harga),
-        subtotal: item.subtotal,
-        subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
-        readOnly: true,
-      }));
+        console.log("1. OPSI KAIN YANG TERSEDIA:", fabrics.kain);
+  console.log("2. DATA ITEM DARI API:", dataItems);
+      // FIX: Menambahkan nama kain (fabric_name) agar tampil di mode edit/view
+      const normalizedItems = (dataItems || []).map((item) => {
+        const fabric = fabrics.kain.find((f) => f.id == item.corak_kain);
+        return {
+          pc_item_id: item.pc_item_id,
+          fabric_id: item.corak_kain,
+          fabric_name: fabric ? fabric.nama_kain : "Tidak ditemukan",
+          lebar_greige: item.lebar_greige,
+          lebar_finish: item.lebar_finish,
+          warna_id: item.warna_id,
+          meter: item.meter_total,
+          yard: item.yard_total,
+          harga: item.harga,
+          hargaFormatted: formatIDR(item.harga),
+          subtotal: item.subtotal,
+          subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
+          readOnly: true, // Dropdown jenis kain selalu disabled
+          isDeletable: true, // Item awal di mode edit tidak bisa dihapus
+        };
+      });
 
       handlePurchaseContractChange(data.pc_id, normalizedItems);
 
       setForm((prev) => ({
         ...prev,
-        jenis_po_id: data.jenis_po_id ?? "",
         pc_id: Number(data.pc_id) ?? "",
         sequence_number: data.no_po ?? "",
         no_seq: data.sequence_number ?? 0,
@@ -108,35 +111,12 @@ export default function OCPurchaseOrderForm() {
         keterangan: data.keterangan ?? "",
         items: normalizedItems,
       }));
-    } else {
-      const lastSeq = await getLastSequence(
-        user?.token,
-        "oc_o",
-        "domestik",
-        form().ppn
-      );
-
-      setForm((prev) => ({
-        ...prev,
-        sequence_number: lastSeq?.no_sequence + 1 || "",
-      }));
-
-      // form().items.forEach((item, index) => {
-      //   // Panggil ulang handleItemChange untuk field-field penting
-      //   handleItemChange(index, "meter", item.meter);
-      //   handleItemChange(index, "yard", item.yard);
-      //   handleItemChange(index, "harga", item.harga);
-      //   handleItemChange(index, "lebar_greige", item.lebar_greige);
-      //   handleItemChange(index, "warna_id", item.warna_id);
-      // });
-
-      // handlePurchaseContractChange(data.pc_id);
     }
     setLoading(false);
   });
 
   const formatIDR = (val) => {
-    if (val === null || val === "") return "";
+    if (val === null || val === "" || isNaN(val)) return "";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
@@ -156,32 +136,33 @@ export default function OCPurchaseOrderForm() {
 
     if (!selectedContract) return;
 
-    const {
-      supplier_id,
-      satuan_unit_id,
-      termin,
-      ppn_percent,
-      items = [],
-    } = selectedContract;
+    const noKontrak =
+      purchaseContracts().find((pc) => pc.id == contractId)?.no_pc || "";
+    let newPpnValue = "0";
+    if (noKontrak.includes("/P/")) {
+      newPpnValue = "11.00";
+    }
 
-    // Pilih sumber data
+    const { supplier_id, satuan_unit_id, termin, items = [] } = selectedContract;
+
     const sourceItems = overrideItems ?? items;
 
     const mappedItems = sourceItems.map((item) => {
       let qty = 0;
-
       if (satuan_unit_id === 1) qty = item.meter || item.meter_total || 0;
       else if (satuan_unit_id === 2) qty = item.yard || item.yard_total || 0;
-      else if (satuan_unit_id === 3)
-        qty = item.kilogram || item.kilogram_total || 0;
 
       const harga = parseFloat(item.harga ?? 0);
       const subtotal = qty && harga ? qty * harga : 0;
+      const fabric = fabricOptions().find(
+        (f) => f.id == (item.kain_id || item.fabric_id)
+      );
 
       return {
         id: item.id,
         pc_item_id: overrideItems?.length > 0 ? item.pc_item_id : item.id,
         fabric_id: item.kain_id || item.fabric_id,
+        fabric_name: item.fabric_name || (fabric ? fabric.nama_kain : ""),
         lebar_greige: item.lebar_greige,
         lebar_finish: item.lebar_finish,
         warna_id: item.warna_id,
@@ -191,27 +172,23 @@ export default function OCPurchaseOrderForm() {
         hargaFormatted: formatIDR(harga),
         subtotal,
         subtotalFormatted: formatIDR(subtotal),
-        readOnly: true,
+        readOnly: true, // Dropdown jenis kain selalu disabled
+        isDeletable: true,
       };
     });
 
-    const lastSeq = await getLastSequence(
-      user?.token,
-      "bg_o",
-      "domestik",
-      form().ppn
-    );
+    // Simpan item kontrak sebagai template
+    setContractItems(mappedItems);
 
     setForm((prev) => ({
       ...prev,
       pc_id: contractId,
-      supplier_id: prev.supplier_id || supplier_id,
-      satuan_unit_id: prev.satuan_unit_id || satuan_unit_id,
-      termin: prev.termin || termin,
-      ppn: prev.ppn || ppn_percent,
+      supplier_id: supplier_id,
+      satuan_unit_id: satuan_unit_id,
+      termin: termin,
+      ppn: newPpnValue,
       keterangan: prev.keterangan || "",
       items: mappedItems,
-      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
   };
 
@@ -238,22 +215,26 @@ export default function OCPurchaseOrderForm() {
     }));
   };
 
+  // FIX: Fungsi untuk menambah seluruh item dari kontrak
   const addItem = () => {
-    setForm((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        {
-          kain_id: "",
-          lebar_greige: 0,
-          lebar_finish: 0,
-          meter: 0,
-          yard: 0,
-          harga: 0,
-          subtotal: 0,
-        },
-      ],
-    }));
+    setForm((prev) => {
+      if (contractItems().length === 0) return prev;
+
+      const newItemGroup = contractItems().map((contractItem) => ({
+        ...contractItem,
+        warna_id: "",
+        meter: "",
+        yard: "",
+        subtotal: 0,
+        subtotalFormatted: "",
+        isDeletable: true, // Item baru ini bisa dihapus
+      }));
+
+      return {
+        ...prev,
+        items: [...prev.items, ...newItemGroup],
+      };
+    });
   };
 
   const removeItem = (index) => {
@@ -304,25 +285,18 @@ export default function OCPurchaseOrderForm() {
   const totalYard = () =>
     form().items.reduce((sum, item) => sum + (parseFloat(item.yard) || 0), 0);
 
-  const totalKilogram = () =>
-    form().items.reduce(
-      (sum, item) => sum + (parseFloat(item.kilogram) || 0),
+  const totalAll = () => {
+    return form().items.reduce(
+      (sum, item) => sum + (parseFloat(item.subtotal) || 0),
       0
     );
-
-  const totalAll = () => {
-    return form().items.reduce((sum, item) => {
-      return sum + (parseFloat(item.subtotal) || 0);
-    }, 0);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
       if (isEdit) {
         const payload = {
-          // ...form(),
           no_po: form().sequence_number,
           pc_id: form().pc_id,
           keterangan: form().keterangan,
@@ -333,30 +307,21 @@ export default function OCPurchaseOrderForm() {
             yard_total: parseFloat(i.yard),
           })),
         };
-
         await updateDataOrderCelupOrder(user?.token, params.id, payload);
       } else {
         const payload = {
-          // ...form(),
           sequence_number: Number(form().no_seq),
           pc_id: form().pc_id,
           keterangan: form().keterangan,
           items: form().items.map((i) => ({
             pc_item_id: i.pc_item_id,
-            // kain_id: Number(i.fabric_id),
-            // lebar_greige: parseFloat(i.lebar_greige),
-            // lebar_finish: parseFloat(i.lebar_finish),
             warna_id: parseFloat(i.warna_id),
             meter_total: parseFloat(i.meter),
             yard_total: parseFloat(i.yard),
-            // harga: parseFloat(i.harga),
-            // subtotal: parseFloat(i.subtotal),
           })),
         };
-
         await createOrderCelupOrder(user?.token, payload);
       }
-
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
@@ -416,15 +381,6 @@ export default function OCPurchaseOrderForm() {
               </button>
             </div>
           </div>
-          <div hidden>
-            <label class="block mb-1 font-medium">Jenis Order</label>
-            <input
-              type="date"
-              class="w-full border bg-gray-200 p-2 rounded"
-              value="BG"
-              readOnly
-            />
-          </div>
           <div>
             <label class="block mb-1 font-medium">No Purchase Contract</label>
             <PurchasingContractDropdownSearch
@@ -432,7 +388,7 @@ export default function OCPurchaseOrderForm() {
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              // disabled={isEdit}
+              disabled={isEdit}
             />
           </div>
           <div>
@@ -459,14 +415,11 @@ export default function OCPurchaseOrderForm() {
 
           <div>
             <label class="block mb-1 font-medium">Satuan Unit</label>
-
-            {/* Hidden input to carry the value */}
             <input
               type="hidden"
               name="satuan_unit_id"
               value={form().satuan_unit_id}
             />
-
             <select
               class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
               value={form().satuan_unit_id}
@@ -481,7 +434,6 @@ export default function OCPurchaseOrderForm() {
 
           <div>
             <label class="block mb-1 font-medium">Termin</label>
-            {/* Hidden input supaya value tetep kebawa */}
             <input type="hidden" name="termin" value={form().termin} />
             <select
               class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
@@ -499,14 +451,12 @@ export default function OCPurchaseOrderForm() {
 
           <div>
             <label class="block mb-1 font-medium">PPN (%)</label>
-            {/* Hidden input biar tetap ke-submit */}
             <input type="hidden" name="ppn" value={form().ppn} />
-
             <label class="flex items-center gap-3">
               <div class="relative opacity-60 cursor-not-allowed">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11.00"}
+                  checked={parseFloat(form().ppn) > 0}
                   disabled
                   class="sr-only peer"
                 />
@@ -514,7 +464,7 @@ export default function OCPurchaseOrderForm() {
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm peer-checked:translate-x-14 transition-transform"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11.00" ? "11%" : "0%"}
+                {parseFloat(form().ppn) > 0 ? "11%" : "0%"}
               </span>
             </label>
           </div>
@@ -535,7 +485,6 @@ export default function OCPurchaseOrderForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
-          hidden
         >
           + Tambah Item
         </button>
@@ -552,6 +501,7 @@ export default function OCPurchaseOrderForm() {
               <th class="border p-2">Yard</th>
               <th class="border p-2">Harga</th>
               <th class="border p-2">Subtotal</th>
+              <th class="border p-2">Aksi</th>
             </tr>
           </thead>
           <tbody>
@@ -570,17 +520,17 @@ export default function OCPurchaseOrderForm() {
                   <td class="border p-2">
                     <input
                       type="number"
-                      class="border p-1 rounded w-full"
+                      class="border p-1 rounded w-full bg-gray-200"
                       value={item.lebar_greige}
-                      readonly
+                      readOnly
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="number"
-                      class="border p-1 rounded w-full"
+                      class="border p-1 rounded w-full bg-gray-200"
                       value={item.lebar_finish}
-                      readonly
+                      readOnly
                     />
                   </td>
                   <td class="border p-2">
@@ -616,9 +566,6 @@ export default function OCPurchaseOrderForm() {
                       }`}
                       readOnly={form().satuan_unit_id === 1}
                       value={item.yard}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "yard", e.target.value)
-                      // }
                       onBlur={(e) =>
                         handleItemChange(i(), "yard", e.target.value, {
                           triggerConversion: true,
@@ -630,24 +577,22 @@ export default function OCPurchaseOrderForm() {
                   <td class="border p-2">
                     <input
                       type="text"
-                      class="border p-2 rounded w-full"
+                      class="border p-2 rounded w-full bg-gray-200"
                       value={item.hargaFormatted || ""}
-                      onBlur={(e) =>
-                        handleItemChange(i(), "harga", e.target.value)
-                      }
-                      readOnly={item.readOnly}
+                      readOnly
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
-                      class="border p-1 rounded w-full"
+                      class="border p-1 rounded w-full bg-gray-200"
                       value={item.subtotalFormatted ?? ""}
-                      readonly
+                      readOnly
                     />
                   </td>
                   <td class="border p-2 text-center">
-                    {!item.readOnly && (
+                    {/* FIX: Kondisi untuk menampilkan tombol hapus */}
+                    <Show when={item.isDeletable}>
                       <button
                         type="button"
                         class="text-red-600 hover:text-red-800 text-xs"
@@ -655,12 +600,12 @@ export default function OCPurchaseOrderForm() {
                       >
                         <Trash2 size={20} />
                       </button>
-                    )}
+                    </Show>
                   </td>
                 </tr>
               )}
             </For>
-          </tbody>{" "}
+          </tbody>
           <tfoot>
             <tr class="font-bold bg-gray-100">
               <td colSpan="5" class="text-right p-2">
