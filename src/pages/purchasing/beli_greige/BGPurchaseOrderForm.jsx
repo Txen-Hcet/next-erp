@@ -521,7 +521,7 @@ const handleItemChange = (index, field, value) => {
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              disabled={isEdit || isView} // <-- PASTIKAN BARIS INI ADA
+              disabled={isView || isEdit}
             />
           </div>
           <div>
@@ -608,6 +608,8 @@ const handleItemChange = (index, field, value) => {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+            disabled={isView}
+            classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
@@ -615,8 +617,7 @@ const handleItemChange = (index, field, value) => {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
-          //hidden
-disabled={!form().pc_id}
+          hidden={isView}
         >
           + Tambah Item
         </button>
@@ -651,21 +652,22 @@ disabled={!form().pc_id}
                       type="number"
                       class="border p-1 rounded w-full bg-gray-200"
                       value={item.lebar_greige}
-                      readonly
+                      disabled={true}
+                      //classList={{ "bg-gray-200": isView || isEdit }}
                     />
                   </td>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 2 ? "bg-gray-200" : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 2}
+                      class="border p-1 rounded w-full"
+                      classList={{
+                        "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 2,
+                      }}
+                      disabled={isView || parseInt(form().satuan_unit_id) === 2}
                       value={item.meter}
                       onBlur={(e) =>
                         handleItemChange(i(), "meter", e.target.value, {
-                          //triggerConversion: true,
                         })
                       }
                       required
@@ -675,14 +677,14 @@ disabled={!form().pc_id}
                     <input
                       type="text"
                       inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 1 ? "bg-gray-200" : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 1}
+                      class="border p-1 rounded w-full"
+                      classList={{
+                        "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 1,
+                      }}
+                      disabled={isView || parseInt(form().satuan_unit_id) === 1}
                       value={item.yard}
                       onBlur={(e) =>
                         handleItemChange(i(), "yard", e.target.value, {
-                          //triggerConversion: true,
                         })
                       }
                       required
@@ -696,7 +698,8 @@ disabled={!form().pc_id}
                       onBlur={(e) =>
                         handleItemChange(i(), "harga", e.target.value)
                       }
-                      readonly
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
                   <td class="border p-2">
@@ -704,7 +707,8 @@ disabled={!form().pc_id}
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200"
                       value={item.subtotalFormatted ?? ""}
-                      readonly
+                      disabled={true}
+                      classList={{ "bg-gray-200": true }}
                     />
                   </td>
                   <td class="border p-2 text-center">
@@ -713,6 +717,7 @@ disabled={!form().pc_id}
                         type="button"
                         class="text-red-600 hover:text-red-800 text-xs"
                         onClick={() => removeItem(i())}
+                        disabled={isView}
                       >
                         <Trash2 size={20} />
                       </button>
