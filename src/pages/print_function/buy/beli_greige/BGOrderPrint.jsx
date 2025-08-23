@@ -288,9 +288,9 @@ export default function BGOrderPrint(props) {
               const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
               let qty = 0;
               if (satuan === "Meter") {
-                qty = parseFloat(item.meter) || 0;
+                qty = item.meterValue || 0;
               } else if (satuan === "Yard") {
-                qty = parseFloat(item.yard) || 0;
+                qty = item.yardValue || 0;
               }
 
               return (
