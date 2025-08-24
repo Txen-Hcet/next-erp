@@ -206,6 +206,7 @@ export default function BGPurchaseOrderList() {
                     onClick={() =>
                       navigate(`/beligreige-purchaseorder/form?id=${po.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>

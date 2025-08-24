@@ -249,6 +249,7 @@ export default function OCPurchaseContractList() {
                     onClick={() =>
                       navigate(`/ordercelup-purchasecontract/form?id=${oc.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>

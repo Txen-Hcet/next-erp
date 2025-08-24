@@ -249,6 +249,7 @@ export default function KJPurchaseContractList() {
                     onClick={() =>
                       navigate(`/kainjadi-purchasecontract/form?id=${kj.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>
