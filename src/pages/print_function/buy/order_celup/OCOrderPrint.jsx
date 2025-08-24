@@ -19,6 +19,40 @@ export default function OCOrderPrint(props) {
 
   const tokUser = getUser(); // kalau token dibutuhkan
 
+  function formatAngka(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatRupiah(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+     if (value === 0) {
+        return "Rp 0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatTanggal(tgl) {
+    if (!tgl) return "-";
+    const [year, month, day] = tgl.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
   async function handleGetSupplier() {
     try {
       const res = await getSupplier(data.supplier_id, tokUser?.token);
@@ -34,30 +68,14 @@ export default function OCOrderPrint(props) {
   async function handleGetKain(kainId) {
     try {
       const res = await getFabric(kainId, tokUser?.token);
-      // if (res.status === 200) {
       setKainList((prev) => ({
         ...prev,
         [kainId]: res,
       }));
-      // }
     } catch (err) {
       console.error("Error getFabric:", err);
     }
   }
-
-  // async function handleGetGrade(gradeId) {
-  //   try {
-  //     const res = await getGrades(gradeId, tokUser?.token);
-  //     if (res.status === 200) {
-  //       setGradeList((prev) => ({
-  //         ...prev,
-  //         [gradeId]: res.data,
-  //       }));
-  //     }
-  //   } catch (err) {
-  //     console.error("Error getGrade:", err);
-  //   }
-  // }
 
   async function handleGetSatuanUnit(satuanUnitId) {
     try {
@@ -107,17 +125,6 @@ export default function OCOrderPrint(props) {
     }
   });
 
-  function formatRupiahNumber(value) {
-    if (typeof value !== "number") {
-      value = parseFloat(value);
-    }
-    if (isNaN(value)) return "-";
-    return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  }
-
   const itemsPerPage = 14;
   const itemPages = paginateItems(data.items ?? [], itemsPerPage);
 
@@ -129,65 +136,43 @@ export default function OCOrderPrint(props) {
     return pages;
   }
 
-  const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter || 0),
-    0
-  );
-  const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard || 0),
-    0
+  const totalMeter = createMemo(() => 
+    data.items?.reduce((sum, i) => sum + (i.meterValue || 0), 0)
   );
 
-  function formatRibuan(value) {
-    return Number(value).toLocaleString("id-ID");
-  }
+  const totalYard = createMemo(() =>
+    data.items?.reduce((sum, i) => sum + (i.yardValue || 0), 0)
+  );
 
-  function formatTanggal(tgl) {
-    if (!tgl) return "-";
-    const [year, month, day] = tgl.split("-");
-    return `${day}-${month}-${year}`;
-  }
+  const isPPN = createMemo(() => parseFloat(data.ppn) > 0);
 
-  // Misalnya kamu sudah punya:
   const subTotal = createMemo(() => {
-    const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
-
-    return data.items?.reduce((sum, i) => {
-      let qty = 0;
-
-      if (satuan === "Meter") qty = i.meter ?? 0;
-      else if (satuan === "Yard") qty = i.yard ?? 0;
-
-      return sum + (i.harga ?? 0) * qty;
-    }, 0);
+    return (data.items || []).reduce(
+      (sum, item) => sum + (item.subtotal || 0),
+      0
+    );
   });
 
-  const [form, setForm] = createSignal({
-    nilai_lain: 0,
+  const dpp = createMemo(() => {
+    return subTotal() * 1.11;
   });
 
-  // DPP = subTotal
-  const dpp = createMemo(() => subTotal() / 1.11);
+  const nilaiLain = createMemo(() => {
+    return dpp() * (11 / 12);
+  });
 
-  // Nilai Lain dari form
-  const nilaiLain = createMemo(() => parseFloat((dpp() * 11) / 12 || 0));
-
-  // PPN = 11% dari (DPP + Nilai Lain)
   const ppn = createMemo(() => {
-    const dasarPajak = nilaiLain() * 0.12;
-    return dasarPajak;
+    return isPPN() ? dpp() * 0.11 : 0;
   });
 
-  // Jumlah Total = DPP + Nilai Lain + PPN
   const jumlahTotal = createMemo(() => dpp() + ppn());
 
-  // Lalu kalau ingin dijadikan object seperti `data`
-  const dataAkhir = createMemo(() => ({
+  const dataAkhir = {
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
     total: jumlahTotal(),
-  }));
+  };
 
   return (
     <>
@@ -224,7 +209,7 @@ export default function OCOrderPrint(props) {
       >
         <img
           className="w-40"
-          hidden={!data.ppn || parseInt(data.ppn) === 0}
+          hidden={!isPPN()}
           src={logoNavel}
           alt=""
         />
@@ -325,36 +310,15 @@ export default function OCOrderPrint(props) {
         <table className="w-full table-fixed border border-black text-[12px] border-collapse mt-3">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-black p-1 w-[30px]" rowSpan={2}>
-                No
-              </th>
-              <th className="border border-black p-1 w-[50px]" rowSpan={2}>
-                Kode
-              </th>
-              <th className="border border-black p-1 w-[120px]" rowSpan={2}>
-                Jenis Kain
-              </th>
-              <th className="border border-black p-1 w-[120px]" rowSpan={2}>
-                Warna Kain
-              </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Lebar
-              </th>
-              <th className="border border-black p-1 w-[70px]" rowSpan={2}>
-                Quantity
-              </th>
-              <th
-                className="border border-black p-1 w-[70px] text-center"
-                rowSpan={2}
-              >
-                Satuan Unit
-              </th>
-              <th className="border border-black p-1 w-[100px]" rowSpan={2}>
-                Harga
-              </th>
-              <th className="border border-black p-1 w-[130px]" rowSpan={2}>
-                Jumlah
-              </th>
+              <th className="border border-black p-1 w-[30px]" rowspan={2}>No</th>
+              <th className="border border-black p-1 w-[50px]" rowspan={2}>Kode</th>
+              <th className="border border-black p-1 w-[120px]" rowspan={2}>Jenis Kain</th>
+              <th className="border border-black p-1 w-[120px]" rowspan={2}>Warna Kain</th>
+              <th className="border border-black p-1 w-[60px]" rowspan={2}>Lebar</th>
+              <th className="border border-black p-1 w-[70px]" rowspan={2}>Quantity</th>
+              <th className="border border-black p-1 w-[70px]" rowspan={2}>Satuan Unit</th>
+              <th className="border border-black p-1 w-[100px]" rowspan={2}>Harga</th>
+              <th className="border border-black p-1 w-[130px]" rowspan={2}>Jumlah</th>
             </tr>
           </thead>
           <tbody>
@@ -371,20 +335,20 @@ export default function OCOrderPrint(props) {
                   {warnaList()[item.warna_id]?.deskripsi || "-"}
                 </td>
                 <td className="p-1 text-center break-words">
-                  {item.lebar_greige}"
+                  {item.lebar_greige}
                 </td>
                 <td className="p-1 text-right break-words">
                   {satuanUnitList()[data.satuan_unit_id]?.satuan === "Meter"
-                    ? formatRibuan(item.meter)
+                    ? formatAngka(item.meterValue)
                     : satuanUnitList()[data.satuan_unit_id]?.satuan === "Yard"
-                    ? formatRibuan(item.yard)
+                    ? formatAngka(item.yardValue)
                     : ""}
                 </td>
                 <td className="p-1 text-center break-words">
                   {satuanUnitList()[data.satuan_unit_id]?.satuan || "-"}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {formatRupiahNumber(item.harga)}
+                  {formatRupiah(item.harga)}
                 </td>
                 <td className="p-1 text-right break-words">
                   {(() => {
@@ -393,12 +357,12 @@ export default function OCOrderPrint(props) {
                     let qty = 0;
 
                     if (satuan === "Meter")
-                      qty = item.meter_total ?? item.meter ?? 0;
+                      qty = item.meterValue || 0;
                     else if (satuan === "Yard")
-                      qty = item.yard_total ?? item.yard ?? 0;
+                      qty = item.yardValue || 0;
 
                     return item.harga && qty
-                      ? formatRupiahNumber(item.harga * qty)
+                      ? formatRupiah(item.harga * qty)
                       : "-";
                   })()}
                 </td>
@@ -414,8 +378,7 @@ export default function OCOrderPrint(props) {
                 <td className="p-1 text-center"></td>
                 <td className="p-1 text-center"></td>
                 <td className="p-1 text-right"></td>
-                <td className="p-1 text-right"></td>
-                <td className="p-1 text-right"></td>
+
               </tr>
             ))}
           </tbody>
@@ -431,8 +394,8 @@ export default function OCOrderPrint(props) {
                 {(() => {
                   const satuan = satuanUnitList()[data.satuan_unit_id]?.satuan;
 
-                  if (satuan === "Meter") return formatRupiahNumber(totalMeter);
-                  if (satuan === "Yard") return formatRupiahNumber(totalYard);
+                  if (satuan === "Meter") return formatAngka(totalMeter());
+                  if (satuan === "Yard") return formatAngka(totalYard());
 
                   return "-";
                 })()}
@@ -442,35 +405,35 @@ export default function OCOrderPrint(props) {
                 Sub Total
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(subTotal())}
+                {formatRupiah(subTotal())}
               </td>
             </tr>
             <tr>
               <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir().dpp)}
+                {formatRupiah(dataAkhir.dpp)}
               </td>
             </tr>
             <tr>
               <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir().nilai_lain)}
+                {formatRupiah(dataAkhir.nilai_lain)}
               </td>
             </tr>
             <tr>
               <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir().ppn)}
+                {formatRupiah(dataAkhir.ppn)}
               </td>
             </tr>
             <tr>
               <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir().total)}
+                {formatRupiah(dataAkhir.total)}
               </td>
             </tr>
             <tr>
