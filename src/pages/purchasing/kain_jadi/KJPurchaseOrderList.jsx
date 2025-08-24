@@ -203,6 +203,7 @@ export default function KJPurchaseOrderList() {
                     onClick={() =>
                       navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>
