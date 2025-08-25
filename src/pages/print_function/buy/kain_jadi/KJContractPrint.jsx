@@ -316,7 +316,7 @@ export default function KJContractPrint(props) {
             </tr>
             <tr>
               <th
-                colsSpan={2} className="border border-black p-1 w-full"
+                colSpan={2} className="border border-black p-1 w-full"
                 hidden={data.satuan_unit_id == 2 ? true : false}
               >
                 (Meter)
@@ -345,11 +345,13 @@ export default function KJContractPrint(props) {
                 <td className="p-1 text-center break-words">
                   {item.lebar_finish}
                 </td>
-                <td className="p-1 text-right break-words">
-                  {formatAngka(item.meterValue)}
-                </td>
-                <td className="p-1 text-right break-words">
-                  {formatAngka(item.yardValue)}
+                <td
+                  className="p-1 text-right break-words"
+                  colSpan={2}
+                >
+                  {data.satuan_unit_id == 1
+                    ? formatAngka(item.meterValue)
+                    : formatAngka(item.yardValue)}
                 </td>
                 <td className="p-1 text-right break-words">
                   {formatRupiah(item.hargaValue)}
