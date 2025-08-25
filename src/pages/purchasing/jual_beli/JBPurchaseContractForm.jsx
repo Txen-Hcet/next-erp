@@ -1,4 +1,4 @@
-import { createSignal, createEffect, For, onMount } from "solid-js";
+import { createSignal, createEffect, For, onMount, Show } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import MainLayout from "../../../layouts/MainLayout";
 import Swal from "sweetalert2";
@@ -26,12 +26,20 @@ export default function JBPurchaseContractForm() {
 
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [customerOptions, setCustomerOptions] = createSignal([]);
-  const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([]);
+  const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([
+    { id: 1, satuan: 'Meter' },
+    { id: 2, satuan: 'Yard' },
+    { id: 3, satuan: 'Kilogram' },
+  ]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [colorOptions, setColorOptions] = createSignal([]);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const isView = params.view === 'true';
+  const filteredSatuanOptions = () =>
+    satuanUnitOptions().filter(
+      (u) => u.satuan.toLowerCase() !== "kilogram"
+    );
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -41,11 +49,38 @@ export default function JBPurchaseContractForm() {
     customer_id: "",
     satuan_unit_id: "",
     termin: "",
-    ppn: 0,
+    ppn_percent: "0.00",
     keterangan: "",
     no_seq: 0,
     items: [],
   });
+
+  const formatNumber = (num, options = {}) => {
+    const numValue = typeof num === 'string' ? parseNumber(num) : num;
+    if (isNaN(numValue)) return "";
+
+    // Opsi untuk menampilkan "0,00" jika diperlukan
+    if (numValue === 0 && options.showZero) {
+      return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: options.decimals ?? 0,
+        maximumFractionDigits: options.decimals ?? 2,
+      }).format(0);
+    }
+    
+    if (numValue === 0) return "";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: options.decimals ?? 0,
+      maximumFractionDigits: options.decimals ?? 4,
+    }).format(numValue);
+  };
+
+  const parseNumber = (str) => {
+    if (typeof str !== 'string' || !str) return 0;
+    // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
+    const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  };
 
   // createEffect(async () => {
   //   lastSeq = await getLastSequence(
@@ -82,24 +117,32 @@ export default function JBPurchaseContractForm() {
       if (!data) return;
 
       // Normalisasi item
-      const normalizedItems = (dataItems || []).map((item) => ({
-        fabric_id: item.kain_id,
-        lebar_kain: item.lebar_kain,
-        warna_id: item.warna_id || "",
-        meter: item.meter_total,
-        yard: item.yard_total,
-        harga: item.harga,
-        subtotal: item.subtotal,
-        subtotalFormatted:
-          item.subtotal > 0
-            ? new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                maximumFractionDigits: 0,
-              }).format(item.subtotal)
-            : "",
-      }));
+      const normalizedItems = (dataItems || []).map((item) =>{
+        const meterValue = parseFloat(item.meter_total) || 0;
+        const yardValue = parseFloat(item.yard_total) || 0;
+        const hargaValue = parseFloat(item.harga) || 0;
+        const lebarKainValue = parseFloat(item.lebar_kain) || 0;
+        
+        const subtotal = hargaValue * (
+          parseInt(data.satuan_unit_id) === 1 ? meterValue :
+          parseInt(data.satuan_unit_id) === 2 ? yardValue : 0
+        );
 
+        return{
+          fabrid_id: item.kain_id,
+          lebar_kain: formatNumber(lebarKainValue, { decimals: 0 }),
+          lebar_kainValue: lebarKainValue,
+          meter: formatNumber(meterValue, { decimals: 2, showZero: true }),
+          meterValue: meterValue,
+          yard: formatNumber(yardValue, { decimals: 2, showZero: true }),
+          yardValue: yardValue,
+          harga: formatIDR(hargaValue),
+          hargaValue: hargaValue,
+          subtotal: subtotal,
+          subtotalFormatted: formatIDR(subtotal),
+        };
+      });
+      
       const str = data.no_jb;
       const bagianAkhir = str.split("-")[1]; // hasilnya: "0001"
       const sequenceNumber = parseInt(bagianAkhir, 10); // hasilnya: 1
@@ -109,53 +152,26 @@ export default function JBPurchaseContractForm() {
         sequence_number: data.no_jb ?? "",
         jenis_jb_id: data.jenis_jb_id ?? "",
         supplier_id: data.supplier_id ?? "",
+        warna_id: data.warna_id ?? "",
         customer_id: data.customer_id ?? "",
         satuan_unit_id: data.satuan_unit_id ?? "",
         tanggal: new Date(data.created_at).toISOString().split("T")[0] ?? "",
         termin: data.termin ?? "",
-        ppn: data.ppn_percent ?? "",
+        ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
-
-      form().items.forEach((item, index) => {
-        // Panggil ulang handleItemChange untuk field-field penting
-        handleItemChange(index, "meter", item.meter);
-        handleItemChange(index, "yard", item.yard);
-        handleItemChange(index, "harga", item.harga);
-        handleItemChange(index, "lebar_kain", item.lebar_kain);
-      });
-    } else {
-      const lastSeq = await getLastSequence(
-        user?.token,
-        "jb",
-        "domestik",
-        form().ppn
-      );
-
-      setForm((prev) => ({
-        ...prev,
-        sequence_number: lastSeq?.no_sequence + 1 || "",
-      }));
     }
+      setLoading(false);
   });
-
-  const formatIDR = (val) => {
-    if (val === null || val === "") return "";
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
 
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(
       user?.token,
       "jb",
       "domestik",
-      form().ppn
+      form().ppn_percent
     );
 
     const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
@@ -180,12 +196,12 @@ export default function JBPurchaseContractForm() {
         ...prev.items,
         {
           fabric_id: "",
-          lebar_kain: "",
+          lebar_kain: "", lebar_kainValue: 0,
           warna_id: "",
-          meter: "",
-          yard: "",
-          harga: "",
-          subtotal: "",
+          meter: "", meterValue: 0,
+          yard: "", yardValue: 0,
+          harga: "", hargaValue: 0,
+          subtotal: 0, subtotalFormatted: "",
         },
       ],
     }));
@@ -199,81 +215,49 @@ export default function JBPurchaseContractForm() {
     });
   };
 
-  const handleItemChange = (index, field, value, options = {}) => {
+ const handleItemChange = (index, field, value) => {
     setForm((prev) => {
       const items = [...prev.items];
-      items[index] = { ...items[index] };
+      const item = { ...items[index] };
+      const satuanId = parseInt(prev.satuan_unit_id);
 
-      // always store raw string
-      items[index][field] = value;
+      if (field === 'fabric_id') {
+        item[field] = value;
+      }
+      else {
+        const numValue = parseNumber(value);
+        item[`${field}Value`] = numValue;
 
-      const satuanId = prev.satuan_unit_id;
-      const satuan = satuanUnitOptions()
-        .find((u) => u.id == satuanId)
-        ?.satuan?.toLowerCase();
+        let decimals = 2;
+        if (['meter', 'yard'].includes(field)) decimals = 2;
+        if (field === 'lebar_greige') decimals = 0;
 
-      let meter = parseFloat(items[index].meter || "") || 0;
-      let yard = parseFloat(items[index].yard || "") || 0;
-
-      // handle harga
-      if (field === "harga") {
-        // const rawHarga = value.replace(/[^\d]/g, "");
-        const hargaNumber = parseFloat(value || "0") || 0;
-
-        items[index].harga = hargaNumber;
-
-        if (options.triggerFormat) {
-          items[index].hargaFormatted = formatIDR(hargaNumber);
+        if (field === 'harga') {
+          item.harga = formatIDR(numValue);
         } else {
-          items[index].hargaFormatted = hargaNumber;
+          item[field] = formatNumber(numValue, { decimals });
         }
-
-        // hitung subtotal
-        let qty = 0;
-        if (satuan === "meter") qty = meter;
-        else if (satuan === "yard") qty = yard;
-
-        const subtotal = qty && hargaNumber ? qty * hargaNumber : 0;
-        items[index].subtotal = subtotal.toFixed(2);
-        items[index].subtotalFormatted =
-          subtotal > 0 ? formatIDR(subtotal) : "";
-
-        return {
-          ...prev,
-          items,
-        };
-      }
-
-      // handle konversi meter/yard
-      if (options.triggerConversion) {
-        if (field === "meter") {
-          meter = parseFloat(value) || 0;
-          yard = meter * 1.093613;
-          items[index].yard = yard > 0 ? yard.toFixed(4) : "";
-        } else if (field === "yard") {
-          yard = parseFloat(value) || 0;
-          meter = yard * 0.9144;
-          items[index].meter = meter > 0 ? meter.toFixed(4) : "";
+        
+        if (satuanId === 1 && field === 'meter') {
+          item.yardValue = numValue * 1.093613;
+          item.yard = formatNumber(item.yardValue, { decimals: 2, showZero: true });
+        } else if (satuanId === 2 && field === 'yard') {
+          item.meterValue = numValue * 0.9144;
+          item.meter = formatNumber(item.meterValue, { decimals: 2, showZero: true });
         }
       }
+      
+      const hargaValue = item.hargaValue || 0;
+      let qtyValue = 0;
+      if (satuanId === 1) qtyValue = item.meterValue || 0;
+      else if (satuanId === 2) qtyValue = item.yardValue || 0;
 
-      if (field === "lebar_kain") {
-        items[index].lebar_kain = value;
-      }
+      const subtotal = qtyValue * hargaValue;
+      item.subtotal = subtotal;
+      item.subtotalFormatted = formatIDR(subtotal);
 
-      const harga = parseFloat(items[index].harga || "") || 0;
-      let qty = 0;
-      if (satuan === "meter") qty = meter;
-      else if (satuan === "yard") qty = yard;
-
-      const subtotal = qty && harga ? qty * harga : 0;
-      items[index].subtotal = subtotal.toFixed(2);
-      items[index].subtotalFormatted = subtotal > 0 ? formatIDR(subtotal) : "";
-
-      return {
-        ...prev,
-        items,
-      };
+      items[index] = item;
+      return { ...prev, items };
     });
   };
 
@@ -281,6 +265,14 @@ export default function JBPurchaseContractForm() {
     e.preventDefault();
 
     try {
+      const payloadItems = form().items.map((i) =>({
+        kain_id: Number(i.fabric_id),
+        lebar_kain: i.lebar_kainValue || 0,
+        meter_total: i.meterValue || 0,
+        yard_total: i.yardValue || 0,
+        harga: i.hargaValue || 0,
+        subtotal: i.subtotal || 0,
+      }));
       if (isEdit) {
         const payload = {
           no_jb: form().sequence_number,
@@ -289,19 +281,10 @@ export default function JBPurchaseContractForm() {
           supplier_id: Number(form().supplier_id),
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
-          ppn_percent: Number(form().ppn),
+          ppn_percent: parseFloat(form().ppn_percent),
           keterangan: form().keterangan,
-          items: form().items.map((i) => ({
-            kain_id: Number(i.fabric_id),
-            lebar_kain: parseFloat(i.lebar_kain),
-            warna_id: Number(i.warna_id),
-            meter_total: parseFloat(i.meter),
-            yard_total: parseFloat(i.yard),
-            harga: parseFloat(i.harga),
-            // subtotal: parseFloat(i.subtotal),
-          })),
+          items: payloadItems
         };
-
         await updateDataJualBeli(user?.token, params.id, payload);
       } else {
         const payload = {
@@ -311,25 +294,19 @@ export default function JBPurchaseContractForm() {
           supplier_id: Number(form().supplier_id),
           satuan_unit_id: Number(form().satuan_unit_id),
           termin: Number(form().termin),
-          ppn_percent: Number(form().ppn),
+          ppn_percent: parseFloat(form().ppn_percent),
           keterangan: form().keterangan,
-          items: form().items.map((i) => ({
-            kain_id: Number(i.fabric_id),
-            lebar_kain: parseFloat(i.lebar_kain),
-            warna_id: Number(i.warna_id),
-            meter_total: parseFloat(i.meter),
-            yard_total: parseFloat(i.yard),
-            harga: parseFloat(i.harga),
-            // subtotal: parseFloat(i.subtotal),
-          })),
+          items: payloadItems,
         };
-
         await createJualBeli(user?.token, payload);
       }
 
       Swal.fire({
         icon: "success",
         title: "Purchase Order berhasil disimpan!",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       }).then(() => {
         navigate("/jualbeli-purchasecontract");
       });
@@ -339,36 +316,12 @@ export default function JBPurchaseContractForm() {
         icon: "error",
         title: "Gagal menyimpan Purchase Order",
         text: err?.message || "Terjadi kesalahan.",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
       });
     }
   };
-
-  // {
-  //   "sequence_number": 3,
-  //   "supplier_id": 1,
-  //   "satuan_unit_id": 1,
-  //   "termin": 30,
-  //   "ppn_percent": 0,
-  //   "keterangan": "Init",
-  //   "items": [
-  //     {
-  //       "kain_id": 1,
-  //       "warna_id": 2,
-  //       "lebar_kain": 30,
-  //       "meter_total": 100,
-  //       "yard_total": 106,
-  //       "harga": 25000
-  //     },
-  //     {
-  //       "kain_id": 2,
-  //       "warna_id": 2,
-  //       "lebar_kain": 30,
-  //       "meter_total": 100,
-  //       "yard_total": 106,
-  //       "harga": 27000
-  //     }
-  //   ]
-  // }
 
   function handlePrint() {
     const encodedData = encodeURIComponent(JSON.stringify(form()));
@@ -432,6 +385,7 @@ export default function JBPurchaseContractForm() {
               form={form}
               setForm={setForm}
               onChange={(id) => setForm({ ...form(), supplier_id: id })}
+              disabled={isView}
             />
           </div>
           <div>
@@ -443,6 +397,7 @@ export default function JBPurchaseContractForm() {
                 setForm({ ...form(), jenis_jb_id: e.target.value })
               }
               required
+              disabled={isView}
             >
               <option value="">Pilih Jenis Jual Beli</option>
               <option value="1">Greige</option>
@@ -469,6 +424,7 @@ export default function JBPurchaseContractForm() {
               form={form}
               setForm={setForm}
               onChange={(id) => setForm({ ...form(), customer_id: id })}
+              disabled={isView}
             />
           </div>
           <div>
@@ -480,9 +436,11 @@ export default function JBPurchaseContractForm() {
                 setForm({ ...form(), satuan_unit_id: e.target.value })
               }
               required
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             >
               <option value="">Pilih Satuan</option>
-              <For each={satuanUnitOptions()}>
+              <For each={filteredSatuanOptions()}>
                 {(u) => <option value={u.id}>{u.satuan}</option>}
               </For>
             </select>
@@ -494,9 +452,11 @@ export default function JBPurchaseContractForm() {
               class="w-full border p-2 rounded"
               value={form().termin}
               onInput={(e) => setForm({ ...form(), termin: e.target.value })}
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             >
               <option value="">-- Pilih Termin --</option>
-              <option value="0">0 Hari/Cash</option>
+              <option value="0">Cash</option>
               <option value="30">30 Hari</option>
               <option value="45">45 Hari</option>
               <option value="60">60 Hari</option>
@@ -510,17 +470,18 @@ export default function JBPurchaseContractForm() {
               <div class="relative">
                 <input
                   type="checkbox"
-                  checked={form().ppn === "11.00"}
+                  checked={form().ppn_percent === "11.00"}
                   onChange={(e) =>
-                    setForm({ ...form(), ppn: e.target.checked ? "11.00" : "0.00" })
+                    setForm({ ...form(), ppn_percent: e.target.checked ? "11.00" : "0.00" })
                   }
                   class="sr-only peer"
+                  disabled={isView}
                 />
                 <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
               </div>
               <span class="text-lg text-gray-700">
-                {form().ppn === "11.00" ? "11%" : "0%"}
+                {form().ppn_percent === "11.00" ? "11%" : "0%"}
               </span>
             </label>
           </div>
@@ -532,6 +493,8 @@ export default function JBPurchaseContractForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+            disabled={isView}
+            classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
 
@@ -541,6 +504,7 @@ export default function JBPurchaseContractForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
+          hidden={isView}
         >
           + Tambah Item
         </button>
@@ -552,8 +516,13 @@ export default function JBPurchaseContractForm() {
               <th class="border p-2">Jenis Kain</th>
               <th class="border p-2">Lebar Kain</th>
               <th class="border p-2">Warna</th>
-              <th class="border p-2">Meter</th>
-              <th class="border p-2">Yard</th>
+              <Show when={parseInt(form().satuan_unit_id) === 1}>
+                <th class="border p-2">Meter</th>
+              </Show>
+
+              <Show when={parseInt(form().satuan_unit_id) === 2}>
+                <th class="border p-2">Yard</th>
+              </Show>
               <th class="border p-2">Harga</th>
               <th class="border p-2">Subtotal</th>
               <th class="border p-2">Aksi</th>
@@ -571,6 +540,7 @@ export default function JBPurchaseContractForm() {
                       onChange={(val) =>
                         handleItemChange(i(), "fabric_id", val)
                       }
+                      disabled={isView}
                     />
                   </td>
                   <td class="border p-2">
@@ -582,6 +552,8 @@ export default function JBPurchaseContractForm() {
                       onBlur={(e) =>
                         handleItemChange(i(), "lebar_kain", e.target.value)
                       }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
                   <td class="border p-2">
@@ -589,64 +561,60 @@ export default function JBPurchaseContractForm() {
                       colors={colorOptions}
                       item={item}
                       onChange={(val) => handleItemChange(i(), "warna_id", val)}
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
-                  <td class="border p-2">
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 2
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 2}
-                      value={item.meter}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "meter", e.target.value)
-                      // }
-                      onBlur={(e) =>
-                        handleItemChange(i(), "meter", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
-                    />
-                  </td>
-                  <td class="border p-2">
-                    <input
-                      type="text"
-                      inputmode="decimal"
-                      class={`border p-1 rounded w-full ${
-                        parseInt(form().satuan_unit_id) === 1
-                          ? "bg-gray-200"
-                          : ""
-                      }`}
-                      readOnly={parseInt(form().satuan_unit_id) === 1}
-                      value={item.yard}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "yard", e.target.value)
-                      // }
-                      onBlur={(e) =>
-                        handleItemChange(i(), "yard", e.target.value, {
-                          triggerConversion: true,
-                        })
-                      }
-                    />
-                  </td>
+                  <Show when={parseInt(form().satuan_unit_id) === 1}>
+                    <td class="border p-2">
+                      <input
+                        type="text"
+                        inputmode="decimal"
+                        class="border p-1 rounded w-full"
+                        classList={{
+                          "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 2,
+                        }}
+                        readOnly={isView || parseInt(form().satuan_unit_id) === 2}
+                        value={item.meter}
+                        onBlur={(e) => {
+                          if (parseInt(form().satuan_unit_id) === 1) {
+                              handleItemChange(i(), "meter", e.target.value);
+                          }
+                        }}
+                      />
+                    </td>
+                  </Show>
+                  <Show when={parseInt(form().satuan_unit_id) === 2}>
+                    <td class="border p-2">
+                      <input
+                        type="text"
+                        inputmode="decimal"
+                        class="border p-1 rounded w-full"
+                        classList={{
+                          "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 1,
+                        }}
+                        readOnly={isView || parseInt(form().satuan_unit_id) === 1}
+                        value={item.yard}
+                        onBlur={(e) => {
+                          if (parseInt(form().satuan_unit_id) === 2) {
+                              handleItemChange(i(), "yard", e.target.value);
+                          }
+                        }}
+                      />
+                    </td>
+                  </Show>
                   <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
                       class="border p-1 rounded w-full"
-                      value={formatIDR(item.harga)}
-                      // onInput={(e) =>
-                      //   handleItemChange(i(), "harga", e.target.value)
-                      // }
+                      value={item.harga}
                       onBlur={(e) =>
                         handleItemChange(i(), "harga", e.target.value, {
-                          triggerConversion: true,
                         })
                       }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                     />
                   </td>
                   <td class="border p-2">
@@ -654,7 +622,8 @@ export default function JBPurchaseContractForm() {
                       type="text"
                       class="border p-1 rounded w-full"
                       value={item.subtotalFormatted ?? ""}
-                      disabled
+                      disabled={true}
+                      classList={{ "bg-gray-200": true }}
                     />
                   </td>
                   <td class="border p-2 text-center">
@@ -662,6 +631,7 @@ export default function JBPurchaseContractForm() {
                       type="button"
                       class="text-red-600 hover:text-red-800 text-xs"
                       onClick={() => removeItem(i())}
+                      disabled={isView}
                     >
                       <Trash2 size={20} />
                     </button>
