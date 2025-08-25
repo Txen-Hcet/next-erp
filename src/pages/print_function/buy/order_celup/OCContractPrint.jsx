@@ -294,15 +294,18 @@ export default function OCContractPrint(props) {
               <th className="border border-black p-1 w-[8%]" rowSpan={2}>
                 Kode
               </th>
-              <th className="border border-black p-1 w-[20%]" rowSpan={2}>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>
                 Jenis Kain
               </th>
-              <th className="border border-black p-1 w-[8%]" rowSpan={2}>
-                Lebar
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
+                Lebar Greige
+              </th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
+                Lebar Finish
               </th>
               <th
                 className="border border-black p-1 w-[18%] text-center"
-                colSpan={1}
+                colSpan={2}
               >
                 Quantity
               </th>
@@ -315,13 +318,13 @@ export default function OCContractPrint(props) {
             </tr>
             <tr>
               <th
-                className="border border-black p-1 w-full"
+                colSpan={2} className="border border-black p-1 w-full"
                 hidden={data.satuan_unit_id == 2 ? true : false}
               >
                 (Meter)
               </th>
               <th
-                className="border border-black p-1 w-[14%]"
+                colSpan={2} className="border border-black p-1 w-[14%]"
                 hidden={data.satuan_unit_id == 1 ? true : false}
               >
                 (Yard)
@@ -341,17 +344,16 @@ export default function OCContractPrint(props) {
                 <td className="p-1 text-center break-words">
                   {item.lebar_greige}
                 </td>
-                 <td
-                  className="p-1 text-right break-words"
-                  hidden={data.satuan_unit_id == 2 ? true : false}
-                >
-                  {formatAngka(item.meterValue)}
+                <td className="p-1 text-center break-words">
+                  {item.lebar_finish}
                 </td>
                 <td
                   className="p-1 text-right break-words"
-                  hidden={data.satuan_unit_id == 1 ? true : false}
+                  colSpan={2}
                 >
-                  {formatAngka(item.yardValue)}
+                  {data.satuan_unit_id == 1
+                    ? formatAngka(item.meterValue)
+                    : formatAngka(item.yardValue)}
                 </td>
                 <td className="p-1 text-right break-words">
                   {formatRupiah(item.hargaValue)}
@@ -379,15 +381,15 @@ export default function OCContractPrint(props) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={4} className="border border-black px-2 py-1" />
+              <td colSpan={5} className="border border-black font-bold px-2 py-1" >Total</td>
               <td
-                className="border border-black px-2 py-1 text-right font-bold"
+                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
                 hidden={data.satuan_unit_id == 2 ? true : false}
               >
                 {formatAngka(totalMeter())}
               </td>
               <td
-                className="border border-black px-2 py-1 text-right font-bold"
+                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
                 hidden={data.satuan_unit_id == 1 ? true : false}
               >
                 {formatAngka(totalYard())}
@@ -400,35 +402,35 @@ export default function OCContractPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={5} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.dpp)}
               </td>
             </tr>
             <tr>
-              <td colSpan={5} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.nilai_lain)}
               </td>
             </tr>
             <tr>
-              <td colSpan={5} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.ppn)}
               </td>
             </tr>
             <tr>
-              <td colSpan={5} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.total)}
               </td>
             </tr>
             <tr>
-              <td colSpan={7} className="border border-black p-2 align-top">
+              <td colSpan={9} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -436,7 +438,7 @@ export default function OCContractPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={7} className="border border-black">
+              <td colSpan={9} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Supplier
