@@ -22,7 +22,7 @@ jobs:
           port: 22
           script: |
             echo "🚀 Deploying to Navel server via SSH key..."
-            cd /home/***/htdocs/navel.nexttechenterprise.site || exit
+            cd /home/nexttechenterprise-navel/htdocs/navel.nexttechenterprise.site || exit
             git fetch origin
             git reset --hard origin/main
             rm -rf node_modules package-lock.json
