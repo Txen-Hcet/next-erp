@@ -1,4 +1,4 @@
-name: Deploy to Server
+name: Deploy to Navel ERP
 
 on:
   push:
@@ -18,36 +18,13 @@ jobs:
         with:
           host: ${{ secrets.NVERP_HOST }}
           username: ${{ secrets.NVERP_USER }}
-          password: ${{ secrets.NVERP_PASSWORD }}
+          key: ${{ secrets.NVERP_KEY }}
           port: 22
           script: |
-            echo "Starting deployment process..."
-
-            # Cek node & npm di server
-            node -v
-            npm -v
-
-            # Pindah ke folder project
+            echo "🚀 Deploying to Navel server via SSH key..."
             cd /home/navel-erp/htdocs/navel.nexttechenterprise.site || exit
-
-            # Git pull
-             git fetch origin
-             git reset --hard origin/main
-
-            # Install dependencies
+            git fetch origin
+            git reset --hard origin/main
             npm install
-            npm install serve --save
-
-            # Build
             npm run build
-
-            # Jalankan PM2
             pm2 startOrReload ecosystem.config.cjs
-
-            # Save PM2 list
-            pm2 save
-
-            # PM2 startup
-            pm2 startup systemd -u calvin-next --hp /home/calvin-next
-
-            echo "Deployment complete!"
