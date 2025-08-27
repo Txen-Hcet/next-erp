@@ -271,7 +271,7 @@ export default function OCContractPrint(props) {
                   label: "Validity",
                   value: formatTanggal(data.validity_contract),
                 },
-                { label: "Payment", value: data.termin + " Hari" },
+                { label: "Payment", value: data.termin == 0 ? "Cash" : data.termin + " Hari" }
               ].map((row, idx) => (
                 <tr key={idx} className="border-b border-black">
                   <td className="font-bold px-2 w-[30%] whitespace-nowrap">
@@ -360,9 +360,16 @@ export default function OCContractPrint(props) {
                   {formatRupiah(item.hargaValue)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {item.hargaValue && item.meterValue
-                    ? formatRupiah(item.hargaValue * item.meterValue)
-                    : "-"}
+                  {(() => {
+                    // Tentukan kuantitas yang benar berdasarkan satuan unit
+                    const qtyValue = data.satuan_unit_id == 1 ? item.meterValue : item.yardValue;
+                    
+                    // Hitung subtotal baris
+                    const lineSubtotal = item.hargaValue * qtyValue;
+
+                    // Tampilkan hasilnya jika valid
+                    return item.hargaValue && qtyValue ? formatRupiah(lineSubtotal) : "-";
+                  })()}
                 </td>
               </tr>
             ))}
