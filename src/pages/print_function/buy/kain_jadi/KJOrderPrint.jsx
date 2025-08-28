@@ -209,8 +209,8 @@ export default function KJOrderPrint(props) {
           padding: "5mm",
         }}
       >
-        <img className="w-40" hidden={!isPPN()} src={logoNavel} alt="" />
-        <h1 className="text-2xl uppercase font-bold mb-5">Kain Jadi Order</h1>
+        <img className="w-24" hidden={!isPPN()} src={logoNavel} alt="" />
+        <h1 className="text-xl uppercase font-bold">Kain Jadi Order</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}

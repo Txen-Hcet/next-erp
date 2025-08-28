@@ -198,12 +198,12 @@ export default function BGOrderPrint(props) {
         }}
       >
         <img
-          className="w-40"
+          className="w-24"
           hidden={!isPPN()}
           src={logoNavel}
           alt=""
         />
-        <h1 className="text-2xl uppercase font-bold mb-5">Order Beli Greige</h1>
+        <h1 className="text-xl uppercase font-bold">Order Beli Greige</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}

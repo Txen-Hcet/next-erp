@@ -205,12 +205,12 @@ export default function SalesOrderPrint(props) {
         }}
       >
         <img
-          className="w-40"
+          className="w-24"
           hidden={!data.ppn || parseInt(data.ppn) === 0}
           src={logoNavel}
           alt=""
         />
-        <h1 className="text-2xl uppercase font-bold mb-5">Sales Order</h1>
+        <h1 className="text-2xl uppercase font-bold">Sales Order</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}
