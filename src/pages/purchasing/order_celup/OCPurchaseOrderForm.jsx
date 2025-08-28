@@ -636,8 +636,8 @@ const handleItemChange = (index, field, value) => {
               <Show when={parseInt(form().satuan_unit_id) === 2}>
                 <th class="border p-2">Yard</th>
               </Show>
-              <th class="border p-2">Harga</th>
-              <th class="border p-2">Subtotal</th>
+              <th class="border p-2" hidden>Harga</th>
+              <th class="border p-2" hidden>Subtotal</th>
               <th class="border p-2">Aksi</th>
             </tr>
           </thead>
@@ -716,7 +716,7 @@ const handleItemChange = (index, field, value) => {
                       />
                     </td>
                   </Show>
-                  <td class="border p-2">
+                  <td class="border p-2" hidden>
                     <input
                       type="text"
                       class="border p-2 rounded w-full bg-gray-200"
@@ -728,7 +728,7 @@ const handleItemChange = (index, field, value) => {
                       classList={{ "bg-gray-200": isView || isEdit }}
                     />
                   </td>
-                  <td class="border p-2">
+                  <td class="border p-2" hidden>
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200"
@@ -765,7 +765,7 @@ const handleItemChange = (index, field, value) => {
                 <td class="border p-2">{formatNumber(totalYard(), { decimals: 2 })}</td>
               </Show>
               <td></td>
-              <td class="border p-2">{formatIDR(totalAll())}</td>
+              <td class="border p-2" hidden>{formatIDR(totalAll())}</td>
               <td></td>
             </tr>
           </tfoot>

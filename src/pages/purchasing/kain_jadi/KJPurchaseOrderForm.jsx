@@ -30,21 +30,19 @@ export default function KJPurchaseOrderForm() {
   const [jenisPOOptions, setJenisPOOptions] = createSignal([]);
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([
-      { id: 1, satuan: 'Meter' },
-      { id: 2, satuan: 'Yard' },
-      { id: 3, satuan: 'Kilogram' },
-    ]);
+    { id: 1, satuan: "Meter" },
+    { id: 2, satuan: "Yard" },
+    { id: 3, satuan: "Kilogram" },
+  ]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [purchaseContracts, setPurchaseContracts] = createSignal([]);
   const [colorOptions, setColorOptions] = createSignal([]);
   const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
-  const isView = params.view === 'true';
+  const isView = params.view === "true";
   const filteredSatuanOptions = () =>
-    satuanUnitOptions().filter(
-      (u) => u.satuan.toLowerCase() !== "kilogram"
-    );
+    satuanUnitOptions().filter((u) => u.satuan.toLowerCase() !== "kilogram");
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -60,7 +58,7 @@ export default function KJPurchaseOrderForm() {
   });
 
   const formatIDR = (val) => {
-    const numValue = typeof val === 'string' ? parseNumber(val) : val;
+    const numValue = typeof val === "string" ? parseNumber(val) : val;
     if (isNaN(numValue) || numValue === 0) return "";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -71,7 +69,7 @@ export default function KJPurchaseOrderForm() {
   };
 
   const parseNumber = (str) => {
-    if (typeof str !== 'string' || !str) return 0;
+    if (typeof str !== "string" || !str) return 0;
     // 1. Hapus semua karakter KECUALI angka (0-9) dan koma (,)
     let cleanStr = str.replace(/[^0-9,]/g, "");
     // 2. Ganti koma desimal (id) dengan titik (.)
@@ -83,8 +81,8 @@ export default function KJPurchaseOrderForm() {
   const formatNumber = (num, { decimals } = {}) => {
     if (isNaN(num)) return "";
     return Number(num).toLocaleString("id-ID", {
-    minimumFractionDigits: decimals ?? 0,
-    maximumFractionDigits: decimals ?? (decimals > 0 ? decimals : 2),
+      minimumFractionDigits: decimals ?? 0,
+      maximumFractionDigits: decimals ?? (decimals > 0 ? decimals : 2),
     });
   };
 
@@ -116,7 +114,7 @@ export default function KJPurchaseOrderForm() {
       if (!data) return;
 
       const normalizedItems = (dataItems || []).map((item) => {
-        return{
+        return {
           pc_item_id: item.pc_item_id,
           fabric_id: item.corak_kain,
           lebar_greige: item.lebar_greige,
@@ -128,13 +126,14 @@ export default function KJPurchaseOrderForm() {
           harga_celup: item.harga_celup,
           subtotal: 0,
           subtotalFormatted:
-            item.subtotal > 0 ? 
-              new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                maximumFractionDigits: 0,
-              }).format(item.subtotal) : "",
-        }
+            item.subtotal > 0
+              ? new Intl.NumberFormat("id-ID", {
+                  style: "currency",
+                  currency: "IDR",
+                  maximumFractionDigits: 0,
+                }).format(item.subtotal)
+              : "",
+        };
       });
 
       handlePurchaseContractChange(data.pc_id, normalizedItems);
@@ -179,104 +178,111 @@ export default function KJPurchaseOrderForm() {
   });
 
   const handlePurchaseContractChange = async (contractId, overrideItems) => {
-      let selectedContract = purchaseContracts().find(
-          (sc) => sc.id == contractId
-      );
+    let selectedContract = purchaseContracts().find(
+      (sc) => sc.id == contractId
+    );
 
-      if (!selectedContract || !selectedContract.items?.length) {
-          const detail = await getKainJadis(contractId, user?.token);
-          selectedContract = detail.contract;
+    if (!selectedContract || !selectedContract.items?.length) {
+      const detail = await getKainJadis(contractId, user?.token);
+      selectedContract = detail.contract;
+    }
+
+    if (!selectedContract) return;
+    const {
+      supplier_id,
+      satuan_unit_id,
+      termin,
+      ppn_percent,
+      items = [],
+    } = selectedContract;
+
+    const sourceItems = overrideItems ?? items;
+
+    const mappedItems = sourceItems.map((item) => {
+      let fabricId = null;
+      let dataSumber = {};
+
+      const originalContractItem =
+        selectedContract.items.find((contractItem) =>
+          overrideItems
+            ? contractItem.id == item.pc_item_id
+            : contractItem.id == item.id
+        ) || {};
+
+      if (overrideItems) {
+        const contractItem = selectedContract.items.find(
+          (pcItem) => pcItem.id == item.pc_item_id
+        );
+        fabricId = contractItem
+          ? contractItem.kain_id ||
+            contractItem.fabric_id ||
+            contractItem.kain?.id
+          : null;
+        dataSumber = item;
+      } else {
+        fabricId = item.kain_id || item.fabric_id || item.kain?.id;
+        dataSumber = {
+          id: null,
+          pc_item_id: item.id,
+          lebar_greige: item.lebar_greige,
+          lebar_finish: item.lebar_finish,
+          meter: item.meter_total || item.meter,
+          yard: item.yard_total || item.yard,
+          harga_greige: item.harga_greige,
+          harga_maklun: item.harga_maklun,
+        };
       }
 
-      if (!selectedContract) return;
-      const {
-          supplier_id,
-          satuan_unit_id,
-          termin,
-          ppn_percent,
-          items = [],
-      } = selectedContract;
+      const meterNum = parseFloat(dataSumber.meter || 0);
+      const yardNum = parseFloat(dataSumber.yard || 0);
 
-      const sourceItems = overrideItems ?? items;
+      let qty = 0;
+      if (satuan_unit_id === 1) qty = meterNum;
+      else if (satuan_unit_id === 2) qty = yardNum;
 
-      const mappedItems = sourceItems.map((item) => {
-          let fabricId = null;
-          let dataSumber = {};
+      const hargaGreige = parseFloat(originalContractItem.harga_greige ?? 0);
+      const hargaMaklun = parseFloat(originalContractItem.harga_maklun ?? 0);
+      const subtotal = (hargaGreige + hargaMaklun) * qty;
 
-          const originalContractItem = selectedContract.items.find(
-            (contractItem) => (overrideItems ? contractItem.id == item.pc_item_id : contractItem.id == item.id)
-          ) || {};
+      return {
+        id: dataSumber.id,
+        pc_item_id: dataSumber.pc_item_id,
+        fabric_id: fabricId,
+        warna_id: dataSumber.warna_id,
+        lebar_greige: dataSumber.lebar_greige,
+        lebar_finish: dataSumber.lebar_finish,
+        meter: formatNumber(meterNum, { decimals: 2 }),
+        meterValue: meterNum,
+        yard: formatNumber(yardNum, { decimals: 2 }),
+        yardValue: yardNum,
+        harga_greigeValue: hargaGreige,
+        harga_greigeFormatted: formatIDR(hargaGreige),
+        harga_maklunValue: hargaMaklun,
+        harga_maklunFormatted: formatIDR(hargaMaklun),
+        subtotal,
+        subtotalFormatted: formatIDR(subtotal),
+        readOnly: false,
+      };
+    });
 
-          if (overrideItems) {
-              const contractItem = selectedContract.items.find(
-                  (pcItem) => pcItem.id == item.pc_item_id
-              );
-              fabricId = contractItem ? (contractItem.kain_id || contractItem.fabric_id || contractItem.kain?.id) : null;
-              dataSumber = item;
-          } else {
-              fabricId = item.kain_id || item.fabric_id || item.kain?.id;
-              dataSumber = {
-                  id: null,
-                  pc_item_id: item.id, 
-                  lebar_greige: item.lebar_greige,
-                  lebar_finish: item.lebar_finish,
-                  meter: item.meter_total || item.meter,
-                  yard: item.yard_total || item.yard,
-                  harga_greige: item.harga_greige,
-                  harga_maklun: item.harga_maklun,
-              };
-          }
+    const lastSeq = await getLastSequence(
+      user?.token,
+      "kj_o",
+      "domestik",
+      form().ppn
+    );
 
-          const meterNum = parseFloat(dataSumber.meter || 0);
-          const yardNum = parseFloat(dataSumber.yard || 0);
-          
-          let qty = 0;
-          if (satuan_unit_id === 1) qty = meterNum;
-          else if (satuan_unit_id === 2) qty = yardNum;
-
-          const hargaGreige = parseFloat(originalContractItem.harga_greige ?? 0);
-          const hargaMaklun = parseFloat(originalContractItem.harga_maklun ?? 0);
-          const subtotal = (hargaGreige + hargaMaklun) * qty;
-
-          return {
-              id: dataSumber.id,
-              pc_item_id: dataSumber.pc_item_id,
-              fabric_id: fabricId,
-              warna_id: dataSumber.warna_id,
-              lebar_greige: dataSumber.lebar_greige,
-              lebar_finish: dataSumber.lebar_finish,
-              meter: formatNumber(meterNum, { decimals: 2 }),
-              meterValue: meterNum,
-              yard: formatNumber(yardNum, { decimals: 2 }),
-              yardValue: yardNum,
-              harga_greigeValue: hargaGreige,
-              harga_greigeFormatted: formatIDR(hargaGreige),
-              harga_maklunValue: hargaMaklun,
-              harga_maklunFormatted: formatIDR(hargaMaklun),
-              subtotal,
-              subtotalFormatted: formatIDR(subtotal),
-              readOnly: false,
-          };
-      });
-
-      const lastSeq = await getLastSequence(
-          user?.token,
-          "kj_o",
-          "domestik",
-          form().ppn
-      );
-      
-      setForm((prev) => ({
-          ...prev,
-          pc_id: contractId,
-          supplier_id: supplier_id,
-          satuan_unit_id: satuan_unit_id,
-          termin: termin,
-          ppn: ppn_percent,
-          keterangan: prev.keterangan || "",
-          items: mappedItems,
-          sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
-      }));
+    setForm((prev) => ({
+      ...prev,
+      pc_id: contractId,
+      supplier_id: supplier_id,
+      satuan_unit_id: satuan_unit_id,
+      termin: termin,
+      ppn: ppn_percent,
+      keterangan: prev.keterangan || "",
+      items: mappedItems,
+      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
+    }));
   };
 
   const generateNomorKontrak = async () => {
@@ -306,21 +312,22 @@ export default function KJPurchaseOrderForm() {
     const existingItems = form().items;
 
     if (!existingItems || existingItems.length === 0) {
-      Swal.fire("Peringatan", "Tidak ada item untuk diduplikasi. Silakan pilih Purchase Contract terlebih dahulu.", "warning");
+      Swal.fire(
+        "Peringatan",
+        "Tidak ada item untuk diduplikasi. Silakan pilih Purchase Contract terlebih dahulu.",
+        "warning"
+      );
       return;
     }
 
-    const newItemsToDuplicate = existingItems.map(item => ({
+    const newItemsToDuplicate = existingItems.map((item) => ({
       ...item,
       id: null,
     }));
 
     setForm((prev) => ({
       ...prev,
-      items: [
-        ...prev.items,
-        ...newItemsToDuplicate
-      ],
+      items: [...prev.items, ...newItemsToDuplicate],
     }));
   };
 
@@ -333,57 +340,57 @@ export default function KJPurchaseOrderForm() {
   };
 
   const handleItemChange = (index, field, value) => {
-      setForm((prev) => {
-        const items = [...prev.items];
-        const item = { ...items[index] };
-        const satuanId = parseInt(prev.satuan_unit_id);
-    
-        // Handle perubahan ID (warna, kain)
-        if (field === "warna_id" || field === "kain_id") {
-          item[field] = value;
-        } 
-        // Handle perubahan nilai numerik (qty, dll.)
-        else { 
-          const numValue = parseNumber(value);
-          item[`${field}Value`] = numValue; // Selalu simpan nilai angka murni
-    
-          // Format tampilan untuk input yang diubah
-          item[field] = formatNumber(numValue, {
-              decimals: ["lebar_greige", "lebar_finish"].includes(field) ? 0 : 2,
-          });
-    
-          // Logika konversi antara meter dan yard
-          if (satuanId === 1 && field === "meter") {
-            const yardValue = numValue * 1.093613;
-            item.yardValue = yardValue;
-            item.yard = formatNumber(yardValue, { decimals: 2 });
-          } else if (satuanId === 2 && field === "yard") {
-            const meterValue = numValue * 0.9144;
-            item.meterValue = meterValue;
-            item.meter = formatNumber(meterValue, { decimals: 2 });
-          }
+    setForm((prev) => {
+      const items = [...prev.items];
+      const item = { ...items[index] };
+      const satuanId = parseInt(prev.satuan_unit_id);
+
+      // Handle perubahan ID (warna, kain)
+      if (field === "warna_id" || field === "kain_id") {
+        item[field] = value;
+      }
+      // Handle perubahan nilai numerik (qty, dll.)
+      else {
+        const numValue = parseNumber(value);
+        item[`${field}Value`] = numValue; // Selalu simpan nilai angka murni
+
+        // Format tampilan untuk input yang diubah
+        item[field] = formatNumber(numValue, {
+          decimals: ["lebar_greige", "lebar_finish"].includes(field) ? 0 : 2,
+        });
+
+        // Logika konversi antara meter dan yard
+        if (satuanId === 1 && field === "meter") {
+          const yardValue = numValue * 1.093613;
+          item.yardValue = yardValue;
+          item.yard = formatNumber(yardValue, { decimals: 2 });
+        } else if (satuanId === 2 && field === "yard") {
+          const meterValue = numValue * 0.9144;
+          item.meterValue = meterValue;
+          item.meter = formatNumber(meterValue, { decimals: 2 });
         }
-    
-        // --- BAGIAN PERBAIKAN UTAMA ---
-        // Selalu hitung ulang subtotal setiap kali ada perubahan pada item.
-        const hargaGreigeValue = item.harga_greigeValue || 0;
-        const hargaMaklunValue = item.harga_maklunValue || 0;
-        let qtyValue = 0;
-    
-        if (satuanId === 1) {
-          qtyValue = item.meterValue || 0;
-        } else if (satuanId === 2) {
-          qtyValue = item.yardValue || 0;
-        }
-    
-        const subtotal = (hargaGreigeValue + hargaMaklunValue) * qtyValue;
-        item.subtotal = subtotal;
-        item.subtotalFormatted = formatIDR(subtotal);
-        // --- AKHIR PERBAIKAN ---
-    
-        items[index] = item;
-        return { ...prev, items };
-      });
+      }
+
+      // --- BAGIAN PERBAIKAN UTAMA ---
+      // Selalu hitung ulang subtotal setiap kali ada perubahan pada item.
+      const hargaGreigeValue = item.harga_greigeValue || 0;
+      const hargaMaklunValue = item.harga_maklunValue || 0;
+      let qtyValue = 0;
+
+      if (satuanId === 1) {
+        qtyValue = item.meterValue || 0;
+      } else if (satuanId === 2) {
+        qtyValue = item.yardValue || 0;
+      }
+
+      const subtotal = (hargaGreigeValue + hargaMaklunValue) * qtyValue;
+      item.subtotal = subtotal;
+      item.subtotalFormatted = formatIDR(subtotal);
+      // --- AKHIR PERBAIKAN ---
+
+      items[index] = item;
+      return { ...prev, items };
+    });
   };
 
   const totalMeter = () =>
@@ -400,7 +407,7 @@ export default function KJPurchaseOrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form().no_seq && !isEdit){
+    if (!form().no_seq && !isEdit) {
       Swal.fire({
         icon: "warning",
         title: "Generate Nomor PO",
@@ -466,7 +473,10 @@ export default function KJPurchaseOrderForm() {
   };
 
   function handlePrint() {
-    console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(form()));
+    console.log(
+      "📄 Data yang dikirim ke halaman Print:",
+      JSON.stringify(form())
+    );
     const encodedData = encodeURIComponent(JSON.stringify(form()));
     window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
   }
@@ -526,7 +536,7 @@ export default function KJPurchaseOrderForm() {
               form={form}
               setForm={setForm}
               onChange={handlePurchaseContractChange}
-              disabled={isEdit || isView }
+              disabled={isEdit || isView}
             />
           </div>
           <div>
@@ -618,7 +628,7 @@ export default function KJPurchaseOrderForm() {
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
             disabled={isView}
-            classList={{ "bg-gray-200" : isView }}
+            classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
 
@@ -628,31 +638,31 @@ export default function KJPurchaseOrderForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
-          hidden={ isView }
+          hidden={isView}
         >
           + Tambah Item
         </button>
 
         <table class="w-full text-sm border border-gray-300 mb-4">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="border p-2 w-[4%]">#</th>
-            <th class="border p-2 w-[20%]">Jenis Kain</th>
-            <th class="border p-2 w-[9%]">Lebar Greige</th>
-            <th class="border p-2 w-[9%]">Lebar Finish</th>
-            <th class="border p-2 w-[12%]">Warna</th>
-            <Show when={parseInt(form().satuan_unit_id) === 1}>
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="border p-2 w-[4%]">#</th>
+              <th class="border p-2 w-[20%]">Jenis Kain</th>
+              <th class="border p-2 w-[9%]">Lebar Greige</th>
+              <th class="border p-2 w-[9%]">Lebar Finish</th>
+              <th class="border p-2 w-[12%]">Warna</th>
+              <Show when={parseInt(form().satuan_unit_id) === 1}>
                 <th class="border p-2 w-[10%]">Meter</th>
-            </Show>
-            <Show when={parseInt(form().satuan_unit_id) === 2}>
+              </Show>
+              <Show when={parseInt(form().satuan_unit_id) === 2}>
                 <th class="border p-2 w-[10%]">Yard</th>
-            </Show>
-            <th class="border p-2 w-[12%]">Harga Greige</th>
-            <th class="border p-2 w-[12%]">Harga Celup</th>
-            <th class="border p-2 w-[12%]">Subtotal</th>
-            <th class="border p-2 w-[4%]">Aksi</th>
-          </tr>
-        </thead>
+              </Show>
+              <th class="border p-2 w-[12%]" hidden>Harga Greige</th>
+              <th class="border p-2 w-[12%]" hidden>Harga Celup</th>
+              <th class="border p-2 w-[12%]" hidden>Subtotal</th>
+              <th class="border p-2 w-[4%]">Aksi</th>
+            </tr>
+          </thead>
           <tbody>
             <For each={form().items}>
               {(item, i) => (
@@ -699,13 +709,16 @@ export default function KJPurchaseOrderForm() {
                         inputmode="decimal"
                         class="border p-1 rounded w-full"
                         classList={{
-                          "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 2,
+                          "bg-gray-200":
+                            isView || parseInt(form().satuan_unit_id) === 2,
                         }}
-                        readOnly={isView || parseInt(form().satuan_unit_id) === 2}
+                        readOnly={
+                          isView || parseInt(form().satuan_unit_id) === 2
+                        }
                         value={item.meter}
                         onBlur={(e) => {
                           if (parseInt(form().satuan_unit_id) === 1) {
-                              handleItemChange(i(), "meter", e.target.value);
+                            handleItemChange(i(), "meter", e.target.value);
                           }
                         }}
                       />
@@ -718,19 +731,22 @@ export default function KJPurchaseOrderForm() {
                         inputmode="decimal"
                         class="border p-1 rounded w-full"
                         classList={{
-                          "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 1,
+                          "bg-gray-200":
+                            isView || parseInt(form().satuan_unit_id) === 1,
                         }}
-                        readOnly={isView || parseInt(form().satuan_unit_id) === 1}
+                        readOnly={
+                          isView || parseInt(form().satuan_unit_id) === 1
+                        }
                         value={item.yard}
                         onBlur={(e) => {
                           if (parseInt(form().satuan_unit_id) === 2) {
-                              handleItemChange(i(), "yard", e.target.value);
+                            handleItemChange(i(), "yard", e.target.value);
                           }
                         }}
                       />
                     </td>
                   </Show>
-                  <td class="border p-2">
+                  <td class="border p-2" hidden>
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200 text-right"
@@ -738,7 +754,7 @@ export default function KJPurchaseOrderForm() {
                       disabled={true}
                     />
                   </td>
-                  <td class="border p-2">
+                  <td class="border p-2" hidden>
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200 text-right"
@@ -746,7 +762,7 @@ export default function KJPurchaseOrderForm() {
                       disabled={true}
                     />
                   </td>
-                  <td class="border p-2">
+                  <td class="border p-2" hidden>
                     <input
                       type="text"
                       class="border p-1 rounded w-full"

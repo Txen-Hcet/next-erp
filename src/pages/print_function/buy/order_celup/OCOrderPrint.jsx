@@ -215,7 +215,7 @@ export default function OCOrderPrint(props) {
           src={logoNavel}
           alt=""
         />
-        <h1 className="text-xl uppercase font-bold">Order Celup</h1>
+        <h1 classsName="text-xl uppercase font-bold">Order Celup</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}
@@ -336,10 +336,10 @@ export default function OCOrderPrint(props) {
               >
                 Quantity
               </th>
-              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
+              <th className="border border-black p-1 w-[18%]" hidden rowSpan={2}>
                 Harga
               </th>
-              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
+              <th className="border border-black p-1 w-[18%]" hidden rowSpan={2}>
                 Jumlah
               </th>
             </tr>
@@ -385,10 +385,10 @@ export default function OCOrderPrint(props) {
                     ? formatAngka(item.meterValue)
                     : formatAngka(item.yardValue)}
                 </td>
-                <td className="p-1 text-right break-words">
+                <td className="p-1 text-right break-words" hidden>
                   {formatRupiah(item.hargaValue)}
                 </td>
-                <td className="p-1 text-right break-words">
+                <td className="p-1 text-right break-words" hidden>
                   {(() => {
                     // Tentukan kuantitas yang benar berdasarkan satuan unit
                     const qtyValue = data.satuan_unit_id == 1 ? item.meterValue : item.yardValue;
@@ -410,8 +410,8 @@ export default function OCOrderPrint(props) {
                 <td className="p-1 text-center"></td>
                 <td className="p-1"></td>
                 <td className="p-1 text-center"></td>
-                <td className="p-1 text-center"></td>
-                <td className="p-1 text-right"></td>
+                {/* <td className="p-1 text-center"></td>
+                <td className="p-1 text-right"></td> */}
               </tr>
             ))}
           </tbody>
@@ -430,43 +430,43 @@ export default function OCOrderPrint(props) {
               >
                 {formatAngka(totalYard())}
               </td>
-              <td className="border border-black px-2 py-1 text-right font-bold">
+              <td className="border border-black px-2 py-1 text-right font-bold" hidden>
                 Sub Total
               </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td className="border border-black px-2 py-1 text-right" hidden>
                 {formatRupiah(subTotal())}
               </td>
             </tr>
-            <tr>
-              <td colSpan={8} className="px-2 py-1" />
+            <tr hidden>
+              <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.dpp)}
               </td>
             </tr>
-            <tr>
-              <td colSpan={8} className="px-2 py-1" />
+            <tr hidden>
+              <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.nilai_lain)}
               </td>
             </tr>
-            <tr>
-              <td colSpan={8} className="px-2 py-1" />
+            <tr hidden>
+              <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.ppn)}
               </td>
             </tr>
-            <tr>
-              <td colSpan={8} className="px-2 py-1" />
+            <tr hidden>
+              <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.total)}
               </td>
             </tr>
             <tr>
-              <td colSpan={10} className="border border-black p-2 align-top">
+              <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -474,7 +474,7 @@ export default function OCOrderPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={10} className="border border-black">
+              <td colSpan={8} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Supplier
