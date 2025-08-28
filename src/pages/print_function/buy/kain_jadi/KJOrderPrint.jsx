@@ -210,7 +210,7 @@ export default function KJOrderPrint(props) {
         }}
       >
         <img className="w-24" hidden={!isPPN()} src={logoNavel} alt="" />
-        <h1 className="text-xl uppercase font-bold">Kain Jadi Order</h1>
+        <h1 className="text-xl uppercase font-bold">Order Kain Jadi</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}
