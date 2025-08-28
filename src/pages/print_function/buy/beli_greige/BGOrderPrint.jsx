@@ -354,7 +354,7 @@ export default function BGOrderPrint(props) {
                 </tr>
             ))}
             {/* ... Row kosong ... */}
-            {Array.from({ length: 14 - (data.items || []).length }).map(
+            {Array.from({ length: 10 - (data.items || []).length }).map(
               (_, i) => (
                 <tr key={`empty-${i}`}>
                 <td className="p-1 text-center h-5"></td>

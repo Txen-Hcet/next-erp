@@ -145,6 +145,13 @@ export default function KJOrderPrint(props) {
 
   const isPPN = createMemo(() => parseFloat(data.ppn) > 0);
 
+<<<<<<< HEAD
+=======
+  // Misalnya kamu sudah punya:
+
+  const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
+
+>>>>>>> 109de2f (FEAT : fixing print out spaces on all print outs)
   const subTotal = createMemo(() => {
     return (data.items || []).reduce(
       (sum, item) => sum + (item.subtotal || 0),
@@ -379,7 +386,7 @@ export default function KJOrderPrint(props) {
             ))}
 
             {/* Tambahin row kosong */}
-            {Array.from({ length: 14 - data.items.length }).map((_, i) => (
+            {Array.from({ length: 10 - data.items.length }).map((_, i) => (
               <tr key={`empty-${i}`}>
                 <td className="p-1 text-center h-5"></td>
                 <td className="p-1 text-center"></td>

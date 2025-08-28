@@ -240,7 +240,7 @@ export default function PackingOrderPrint(props) {
             ))}
 
             {/* Tambahin row kosong */}
-            {Array.from({ length: 14 - data.items.length }).map((_, i) => (
+            {Array.from({ length: 10 - data.items.length }).map((_, i) => (
               <tr key={`empty-${i}`}>
                 <td className="border border-black p-1 text-center h-5">
                   {data.items.length + i + 1}
