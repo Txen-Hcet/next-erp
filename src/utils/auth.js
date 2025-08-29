@@ -3792,7 +3792,7 @@ export async function createJBDeliveryNote(token, payload) {
   try {
     const response = await fetch(
         //`https://nexttechenterprise.site/api/create-purchase-finish-surat-jalan`,
-        `${import.meta.env.VITE_API_URL}/create-purchase-finish-surat-jalan`,
+        `${import.meta.env.VITE_API_URL}/create-jual-beli-surat-jalan`,
       {
         method: "POST",
         headers: {
@@ -3807,7 +3807,7 @@ export async function createJBDeliveryNote(token, payload) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Gagal membuat surat jalan kain finish");
+      throw new Error(data.message || "Gagal membuat surat jalan jual beli");
     }
 
     return data;
@@ -3821,7 +3821,7 @@ export async function getAllJBDeliveryNotes(token) {
   try {
     const response = await fetch(
         //`https://nexttechenterprise.site/api/purchase-finish-surat-jalan`,
-        `${import.meta.env.VITE_API_URL}/purchase-finish-surat-jalan`,
+        `${import.meta.env.VITE_API_URL}/jual-beli-surat-jalan`,
       {
         method: "GET",
         headers: {
@@ -3836,7 +3836,7 @@ export async function getAllJBDeliveryNotes(token) {
 
     if (!response.ok) {
       throw new Error(
-        data.message || "Gagal mengambil data surat jalan kain finish"
+        data.message || "Gagal mengambil data surat jalan jual beli"
       );
     }
 
@@ -3850,7 +3850,7 @@ export async function getJBDeliveryNotes(id, token) {
   try {
     const response = await fetch(
         //`https://nexttechenterprise.site/api/purchase-finish-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/purchase-finish-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/jual-beli-surat-jalan/${id}`,
       {
         method: "GET",
         headers: {
@@ -3866,7 +3866,7 @@ export async function getJBDeliveryNotes(id, token) {
     if (!response.ok) {
       throw new Error(
         data.message ||
-          `Gagal mengambil jenis surat jalan kain finish dengan id: ${id}`
+          `Gagal mengambil jenis surat jalan jual beli dengan id: ${id}`
       );
     }
 
@@ -3880,7 +3880,7 @@ export async function updateDataJBDeliveryNote(token, id, payload) {
   try {
     const response = await fetch(
         //`https://nexttechenterprise.site/api/update-purchase-finish-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/update-purchase-finish-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/update-jual-beli-surat-jalan/${id}`,
       {
         method: "PUT",
         headers: {
@@ -3896,7 +3896,7 @@ export async function updateDataJBDeliveryNote(token, id, payload) {
 
     if (!response.ok) {
       throw new Error(
-        data.message || "Gagal mengubah data surat jalan kain finish"
+        data.message || "Gagal mengubah data surat jalan jual beli"
       );
     }
 
@@ -3910,7 +3910,7 @@ export async function softDeleteJBDeliveryNote(id, token) {
   try {
     const response = await fetch(
         //`https://nexttechenterprise.site/api/delete-purchase-finish-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/delete-purchase-finish-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/delete-jual-beli-surat-jalan/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -3926,7 +3926,7 @@ export async function softDeleteJBDeliveryNote(id, token) {
     if (!response.ok) {
       throw new Error(
         data.message ||
-          `Gagal menghapus data surat jalan kain finish dengan id: ${id}`
+          `Gagal menghapus data surat jalan jual beli dengan id: ${id}`
       );
     }
 
