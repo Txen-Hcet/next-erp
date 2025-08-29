@@ -1,18 +1,95 @@
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../assets/img/navelLogo.png";
+import {
+  getFabric,
+  getSatuanUnits,
+  getSupplier,
+  getUser,
+  getCustomer,
+} from "../../../utils/auth";
 
 export default function PackingOrderPrint(props) {
   const data = props.data;
+  const [currency, setCurrency] = createSignal(null);
+  const [customer, setCustomer] = createSignal(null);
+  const [kainList, setKainList] = createSignal({});
+  const [gradeList, setGradeList] = createSignal({});
+  const allItems = data.itemGroups?.flatMap(group => group.items) || [];
 
-  function formatRupiahNumber(value) {
+  const tokUser = getUser(); // kalau token dibutuhkan
+
+  function formatAngka(value, decimals = 2) {
     if (typeof value !== "number") {
-      value = parseFloat(value);
+      value = parseFloat(value) || 0;
     }
-    if (isNaN(value)) return "-";
+    if (value === 0) {
+      return "0,00";
+    }
     return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(value);
+  }
+
+  async function handleGetCustomer() {
+    try {
+      const res = await getCustomer(data.customer_id, tokUser?.token);
+      if (res.status === 200) {
+        setCustomer(res.customers || null);
+      }
+    } catch (err) {
+      console.error("Error getCustomers:", err);
+    }
+  }
+
+  async function handleGetKain(kainId) {
+    try {
+      const res = await getFabric(kainId, tokUser?.token);
+      // if (res.status === 200) {
+      setKainList((prev) => ({
+        ...prev,
+        [kainId]: res,
+      }));
+      // }
+    } catch (err) {
+      console.error("Error getFabric:", err);
+    }
+  }
+
+  async function handleGetGrade(gradeId) {
+    try {
+      const res = await getGrades(gradeId, tokUser?.token);
+      if (res.status === 200) {
+        setGradeList((prev) => ({
+          ...prev,
+          [gradeId]: res.data,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getGrade:", err);
+    }
+  }
+
+  onMount(() => {
+    console.log(data);
+    if (tokUser?.token) {
+      //handleGetCurrency();
+      handleGetCustomer();
+      (data.items || []).forEach((item) => {
+        if (item.fabric_id) {
+          handleGetKain(item.fabric_id);
+        }
+        if (item.grade_id) {
+          handleGetGrade(item.grade_id);
+        }
+      });
+    }
+  });
+
+  function formatTanggal(tgl) {
+    if (!tgl) return "-";
+    const [year, month, day] = tgl.split("-");
+    return `${day}-${month}-${year}`;
   }
 
   const itemsPerPage = 14;
@@ -26,29 +103,22 @@ export default function PackingOrderPrint(props) {
     return pages;
   }
 
-  const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter_total || 0),
-    0
+  const totalMeter = createMemo(() => 
+      parseFloat(data.summary?.total_meter || 0)
   );
-  const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard_total || 0),
-    0
+
+  const totalYard = createMemo(() =>
+      parseFloat(data.summary?.total_yard || 0)
   );
-  // const subTotal = data.items?.reduce(
-  //   (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
-  //   0
-  // );
 
   // Misalnya kamu sudah punya:
+  const isPPN = createMemo(() => parseFloat(data.ppn) > 0);
+
   const subTotal = createMemo(() => {
-    return data.items?.reduce(
-      (sum, i) => sum + (i.harga ?? 0) * (i.meter_total ?? 0),
+    return (data.items || []).reduce(
+      (sum, item) => sum + (item.subtotal || 0),
       0
     );
-  });
-
-  const [form, setForm] = createSignal({
-    nilai_lain: 0,
   });
 
   // DPP = subTotal
@@ -109,7 +179,7 @@ export default function PackingOrderPrint(props) {
       >
         <img
           className="w-24"
-          hidden={!data.ppn || parseInt(data.ppn) === 0}
+          hidden={!isPPN()}
           src={logoNavel}
           alt=""
         />
@@ -132,50 +202,21 @@ export default function PackingOrderPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.customer}
+                  {data.customer_name}
                 </td>
-              </tr>
-              <tr>
-                <td
-                  className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
-                  colSpan={2}
-                >
-                  {data.alamat}
-                </td>
-              </tr>
-              <tr>
-                <td className="px-2 py-1 whitespace-nowrap">Telp:</td>
-                <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
           </table>
 
-          {/* MIDDLE TABLE */}
-          <div className="flex flex-col gap-2 w-[20%]">
-            <table className="h-full border-2 border-black table-fixed w-full">
-              <tbody>
-                <tr>
-                  <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
-                    No Sales Order
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-2 pb-1 text-center break-words max-w-[180px]">
-                    {data.no_so}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
           {/* RIGHT TABLE */}
-          <table className="w-[35%] border-2 border-black table-fixed text-sm">
+          <table className="w-[45%] border-2 border-black table-fixed text-sm">
             <tbody>
               {[
-                { label: "No. SJ", value: data.no_sc },
-                { label: "Tanggal", value: data.tanggal },
-                { label: "Sopir", value: data.sopir },
+                { label: "No. SJ", value: data.no_sj },
+                { label: "Tanggal", value: formatTanggal(data.tanggal_surat_jalan) },
+                { label: "No. SO", value: data.no_so },
                 { label: "No. Mobil", value: data.no_mobil },
+                { label: "Sopir", value: data.sopir },
               ].map((row, idx) => (
                 <tr key={idx} className="border-b border-black">
                   <td className="font-bold px-2 w-[30%] whitespace-nowrap">
@@ -193,70 +234,72 @@ export default function PackingOrderPrint(props) {
         <table className="w-full table-fixed border border-black text-[12px] border-collapse mt-3">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-black p-1 w-[30px]" rowSpan={2}>
-                No
+              <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
+              <th className="border border-black p-1 w-[8%]" rowSpan={2}>Kode</th>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>Warna</th>
+              <th className="border border-black p-1 w-[6%]" rowSpan={2}>Grade</th>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>Lot</th>
+              <th className="border border-black p-1 w-[20%] text-center" colSpan={2}>
+                  Quantity
               </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
-                Jenis Kain
-              </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
-                Lot
-              </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
-                Warna/Desain Kain
-              </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Grade
-              </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Lebar
-              </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Quantity (Rol/Yard)
+            </tr>
+            <tr>
+              <th colspan={2} className="border border-black p-1 w-[24%]">
+                {`(Roll / ${data.satuan_unit || 'Meter'})`}
               </th>
             </tr>
           </thead>
           <tbody>
-            {(data.items || []).map((item, i) => (
+            {/* The map for existing items is already correct */}
+            {(data.packing_lists || []).flatMap(pl => pl.items).map((item, i) => (
               <tr key={i}>
-                <td className="border border-black p-1 text-center">{i + 1}</td>
-                <td className="border border-black p-1">{item.jenis_kain}</td>
-                <td className="border border-black p-1 text-center">
-                  #{item.lot}
-                </td>
-                <td className="border border-black p-1 text-right">
-                  {item.warna_kain}
-                </td>
-                <td className="border border-black p-1 text-right">
-                  {item.grade}
-                </td>
-                <td className="border border-black p-1 text-right">
-                  {item.lebar}"
-                </td>
-                <td className="border border-black p-1 text-right">
-                  {item.roll}/{item.yard_total}
+                <td className="p-1 text-center">{i + 1}</td>
+                <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
+                <td className="p-1">{item.konstruksi_kain || "-"}</td>
+                <td className="p-1 text-center break-words">{item.deskripsi_warna || "-"}</td>
+                <td className="p-1 text-center break-words">{item.grade_name || "-"}</td>
+                <td className="p-1 text-center break-words">{item.lot || "-"}</td>
+
+                {/* Kolom Quantity Dinamis */}
+                <td colspan={2} className="p-1 text-center break-words">
+                  {data.satuan_unit === 'Meter' 
+                    ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
+                    : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                  }
                 </td>
               </tr>
             ))}
 
-            {/* Tambahin row kosong */}
-            {Array.from({ length: 10 - data.items.length }).map((_, i) => (
+            {/* MODIFICATION: Safely calculate the number of empty rows */}
+            {Array.from({ length: 10 - allItems.length }).map((_, i) => (
               <tr key={`empty-${i}`}>
-                <td className="border border-black p-1 text-center h-5">
-                  {data.items.length + i + 1}
-                </td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-center"></td>
-                <td className="border border-black p-1 text-center"></td>
+                <td className="p-1 text-center h-5"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-center"></td>
+                <td className="p-1 text-right"></td>
+                <td className="p-1 text-right"></td>
               </tr>
             ))}
+
           </tbody>
           <tfoot>
             <tr>
-              <td className="border border-black p-2 align-top" colSpan={7}>
+              <td colSpan={6} className="border border-black text-right font-bold px-2 py-1">
+                TOTAL
+              </td>
+              
+              <td colspan={2} className="border border-black px-2 py-1 text-center font-bold">
+                  {data.satuan_unit === 'Meter' 
+                    ? formatAngka(totalMeter())
+                    : formatAngka(totalYard())
+                  }
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -264,7 +307,7 @@ export default function PackingOrderPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={7} className="border border-black">
+              <td colSpan={8} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3">
                     Yang Menerima
