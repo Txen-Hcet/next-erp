@@ -857,7 +857,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Surat Jalan
+                            Surat Penerimaan Greige
                           </A>
                         </li>
                       </ul>
@@ -900,7 +900,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Surat Jalan
+                            Surat Penerimaan Order Celup
                           </A>
                         </li>
                       </ul>
@@ -942,7 +942,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Surat Jalan KJ
+                            Surat Penerimaan Kain Finish
                           </A>
                         </li>
                       </ul>
@@ -956,6 +956,7 @@ export default function MainLayout(props) {
                         onClick={() =>
                           setWarehouseJualBeliIsOpen(!isWarehouseJualBeliOpen())
                         }
+                        hidden
                       >
                         Jual Beli Kain
                         <span class="text-xs">
@@ -984,7 +985,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Surat Jalan KJ
+                            Surat Penerimaan Jual Beli
                           </A>
                         </li>
                       </ul>
