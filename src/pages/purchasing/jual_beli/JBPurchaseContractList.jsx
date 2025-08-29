@@ -199,6 +199,7 @@ export default function JBPurchaseContractList() {
                     onClick={() =>
                       navigate(`/jualbeli-purchasecontract/form?id=${jb.id}`)
                     }
+                    hidden
                   >
                     <Edit size={25} />
                   </button>

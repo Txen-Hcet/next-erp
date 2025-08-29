@@ -1,20 +1,166 @@
-import { createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
+import {
+  getFabric,
+  getSupplier,
+  getUser,
+  getSatuanUnits,
+  getColor,
+  getCustomer,
+} from "../../../../utils/auth";
 
 export default function JBContractPrint(props) {
+  console.log("📄 [Print Page] Data mentah yang diterima via props:", JSON.stringify(props.data, null, 2))
   const data = props.data;
+  const [supplier, setSupplier] = createSignal(null);
+  const [kainList, setKainList] = createSignal({});
+  const [warnaList, setWarnaList] = createSignal({});
+  const [satuanUnitList, setSatuanUnitList] = createSignal({});
+  const [customer, setCustomer] = createSignal(null);
 
-  function formatRupiahNumber(value) {
-    if (typeof value !== "number") {
-      value = parseFloat(value);
+  const tokUser = getUser();
+
+  const jenisJualBeliText = createMemo(() => {
+    const id = parseInt(data.jenis_jb_id, 10);
+    switch (id) {
+      case 1:
+        return "Greige";
+      case 2:
+        return "Celup";
+      case 3:
+        return "Finish";
+      default:
+        return "-";
     }
-    if (isNaN(value)) return "-";
+  });
+
+  function formatAngka(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
     return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(value);
   }
 
+  function formatRupiah(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+     if (value === 0) {
+        return "Rp 0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatTanggal(tgl) {
+    if (!tgl) return "-";
+    const [year, month, day] = tgl.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  async function handleGetSupplier() {
+    try {
+      const res = await getSupplier(data.supplier_id, tokUser?.token);
+
+      if (res.status === 200) {
+        setSupplier(res.suppliers || null);
+      }
+    } catch (err) {
+      console.error("Error getSupplier:", err);
+    }
+  }
+
+  async function handleGetCustomer() {
+    if (!data?.customer_id) return;
+    try {
+      const res = await getCustomer(data.customer_id, tokUser?.token);
+      if (res && res.customer) {
+        setCustomer(res.customer);
+      } else {
+        setCustomer(null);
+      }
+    } catch (err) {
+      console.error("Error getCustomer:", err);
+      setCustomer(null);
+    }
+  }
+
+  async function handleGetKain(kainId) {
+    try {
+      const res = await getFabric(kainId, tokUser?.token);
+      console.log(`📦 [Print Page] Respons API getFabric untuk ID ${kainId}:`, res);
+      // if (res.status === 200) {
+      setKainList((prev) => ({
+        ...prev,
+        [kainId]: res.kain,
+      }));
+      // }
+    } catch (err) {
+      console.error("Error getFabric:", err);
+    }
+  }
+
+  async function handleGetSatuanUnit(satuanUnitId) {
+    try {
+      const res = await getSatuanUnits(satuanUnitId, tokUser?.token);
+      if (res.status === 200) {
+        setSatuanUnitList((prev) => ({
+          ...prev,
+          [satuanUnitId]: res.data,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getGrade:", err);
+    }
+  }
+
+  async function handleGetWarna(warnaId) {
+    try {
+      const res = await getColor(warnaId, tokUser?.token);
+      console.log(`🎨 [Print Page] Respons API getColor untuk ID ${warnaId}:`, res);
+      if (res.status === 200) {
+        setWarnaList((prev) => ({
+          ...prev,
+          [warnaId]: res.warna,
+        }));
+      }
+    } catch (err) {
+      console.error("Error getWarna:", err);
+    }
+  }
+
+  onMount(() => {
+    if (tokUser?.token) {
+      console.log(`🕵️‍♂️ [Print Page] Memulai onMount...`);
+      console.log(`   -> Akan mengambil supplier dengan ID: ${data.supplier_id}`);
+      console.log(`   -> Akan mengambil customer dengan ID: ${data.customer_id}`);
+      handleGetSupplier();
+      handleGetCustomer();
+      (data.items || []).forEach((item, index) => {
+        console.log(`   -> Item #${index + 1}: Akan mengambil kain ID ${item.fabric_id} & warna ID ${item.warna_id}`);
+        if (item.fabric_id) {
+          handleGetKain(item.fabric_id);
+        }
+        if (item.warna_id) {
+          handleGetWarna(item.warna_id);
+        }
+      });
+      if (data.satuan_unit_id) {
+        handleGetSatuanUnit(data.satuan_unit_id);
+      }
+    }
+  });
+  
   const itemsPerPage = 14;
   const itemPages = paginateItems(data.items ?? [], itemsPerPage);
 
@@ -26,20 +172,14 @@ export default function JBContractPrint(props) {
     return pages;
   }
 
-  const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter_total || 0),
-    0
-  );
-  const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard_total || 0),
-    0
+  const totalMeter = createMemo(() => 
+    data.items?.reduce((sum, i) => sum + (i.meterValue || 0), 0)
   );
 
-  function formatRibuan(value) {
-    return Number(value).toLocaleString("id-ID");
-  }
+  const totalYard = createMemo(() =>
+    data.items?.reduce((sum, i) => sum + (i.yardValue || 0), 0)
+  );
 
-  // Misalnya kamu sudah punya:
   const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
 
   const subTotal = createMemo(() => {
@@ -48,8 +188,6 @@ export default function JBContractPrint(props) {
       0
     );
   });
-
-  // DPP = subTotal
 
   const dpp = createMemo(() => {
     return subTotal() / 1.11;
@@ -71,7 +209,7 @@ export default function JBContractPrint(props) {
     ppn: ppn(),
     total: jumlahTotal(),
   };
-  
+
   return (
     <>
       <style>{`
@@ -132,7 +270,7 @@ export default function JBContractPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.customer}
+                  {supplier()?.nama}
                 </td>
               </tr>
               <tr>
@@ -140,68 +278,56 @@ export default function JBContractPrint(props) {
                   className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.alamat}
+                  {supplier()?.alamat}
                 </td>
               </tr>
-              {/* <tr>
-                <td
-                  className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
-                  colSpan={2}
-                >
-                  KERTOHARJO PEKALONGAN SEL
-                </td>
-              </tr> */}
               <tr>
-                <td className="px-2 py-1 whitespace-nowrap">Telp:</td>
+                <td className="px-2 py-1 whitespace-nowrap">
+                  Telp: {supplier()?.no_telp}
+                </td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
           </table>
 
-          {/* MIDDLE TABLE */}
-          <div className="flex flex-col gap-2 w-[20%]">
-            <table className="border-2 border-black table-fixed w-full h-full">
-              <tbody>
-                <tr className="border-b border-black">
-                  <td className="px-2 py-1 w-[30%] whitespace-nowrap">Jenis</td>
-                  <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 py-1 w-[65%]">{data.currency_id}</td>
-                </tr>
-                <tr>
-                  <td className="px-2 py-1 whitespace-nowrap">Kurs</td>
-                  <td className="text-center">:</td>
-                  <td className="px-2 py-1">{formatRupiahNumber(data.kurs)}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* <table className="h-full border-2 border-black table-fixed w-full">
-              <tbody>
-                <tr>
-                  <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
-                    PO Customer
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-2 pb-1 text-center break-words max-w-[180px]">
-                    {data.po_cust}
-                  </td>
-                </tr>
-              </tbody>
-            </table> */}
-          </div>
+            {/* CUSTOMER TABLE - BARU DITAMBAHKAN */}
+          <table className="w-[55%] border-2 border-black text-[13px] table-fixed">
+            <tbody>
+              <tr>
+                <td className="px-2 pt-1 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
+                  Customer
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
+                  {customer()?.kode}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap" colSpan={2}>
+                  {customer()?.nama}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 py-1 whitespace-nowrap">
+                  Alamat: {customer()?.alamat}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           {/* RIGHT TABLE */}
-          <table className="w-[35%] border-2 border-black table-fixed text-sm">
+          <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
               {[
-                { label: "No. PC", value: data.no_sc },
-                { label: "Tanggal", value: data.tanggal },
-                { label: "Tgl Kirim", value: data.kirim },
-                { label: "Payment", value: data.termin + " Hari" },
+                { label: "No. Kontrak", value: data.sequence_number },
+                { label: "Tanggal", value: formatTanggal(data.tanggal) },
+                { label: "Jenis Jual Beli", value: jenisJualBeliText() },
+                { label: "Validity", value: formatTanggal(data.validity_contract),},
+                { label: "Payment", value: data.termin == 0 ? "Cash" : data.termin + " Hari" }
               ].map((row, idx) => (
                 <tr key={idx} className="border-b border-black">
-                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">
+                  <td className="font-bold px-2 w-[55%] whitespace-nowrap">
                     {row.label}
                   </td>
                   <td className="w-[5%] text-center">:</td>
@@ -216,55 +342,82 @@ export default function JBContractPrint(props) {
         <table className="w-full table-fixed border border-black text-[12px] border-collapse mt-3">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-black p-1 w-[30px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[4%]" rowSpan={2}>
                 No
               </th>
-              <th className="border border-black p-1 w-[70px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[8%]" rowSpan={2}>
                 Kode
               </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>
                 Jenis Kain
               </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Lebar
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
+                Warna
               </th>
-              <th className="border border-black p-1 w-[100px]" rowSpan={2}>
-                Quantity
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
+                Lebar Kain
               </th>
               <th
-                className="border border-black p-1 w-[70px] text-center"
-                rowSpan={2}
+                className="border border-black p-1 w-[18%] text-center"
+                colSpan={2}
               >
-                Satuan Unit
+                Quantity
               </th>
-              <th className="border border-black p-1 w-[100px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
                 Harga
               </th>
-              <th className="border border-black p-1 w-[130px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
                 Jumlah
+              </th>
+            </tr>
+            <tr>
+              <th
+                colSpan={2} className="border border-black p-1 w-full"
+                hidden={data.satuan_unit_id == 2 ? true : false}
+              >
+                (Meter)
+              </th>
+              <th
+                colSpan={2} className="border border-black p-1 w-[14%]"
+                hidden={data.satuan_unit_id == 1 ? true : false}
+              >
+                (Yard)
               </th>
             </tr>
           </thead>
           <tbody>
             {(data.items || []).map((item, i) => (
               <tr key={i}>
-                <td className="p-1 text-center break-words">{i + 1}</td>
+                <td className="p-1 text-center">{i + 1}</td>
+                <td className="p-1 text-center">
+                  {kainList()[item.fabric_id]?.corak || "-"}
+                </td>
+                <td className="p-1">
+                  {kainList()[item.fabric_id]?.konstruksi || "-"}
+                </td>
+                <td className="p-1 break-words">
+                  {warnaList()[item.warna_id]?.deskripsi || "-"}
+                </td>
                 <td className="p-1 text-center break-words">
-                  {item.kode_kain}
+                  {item.lebar_kain}
                 </td>
-                <td className="p-1 break-words">{item.jenis_kain}</td>
-                <td className="p-1 text-center break-words">{item.lebar}"</td>
-                <td className="p-1 text-right break-words">
-                  {formatRibuan(item.meter_total)}
+                <td
+                  className="p-1 text-right break-words"
+                  colSpan={2}
+                >
+                  {data.satuan_unit_id == 1
+                    ? formatAngka(item.meterValue)
+                    : formatAngka(item.yardValue)}
                 </td>
-                <td className="p-1 text-center break-words">{item.satuan}</td>
                 <td className="p-1 text-right break-words">
-                  {formatRupiahNumber(item.harga)}
+                  {formatRupiah(item.hargaValue)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {item.harga && item.meter_total
-                    ? formatRupiahNumber(item.harga * item.meter_total)
-                    : "-"}
+                  {(() => {
+                    const qtyValue = data.satuan_unit_id == 1 ? item.meterValue : item.yardValue;
+                    const lineSubtotal = item.hargaValue * qtyValue;
+                    return item.hargaValue && qtyValue ? formatRupiah(lineSubtotal) : "-";
+                  })()}
                 </td>
               </tr>
             ))}
@@ -285,53 +438,56 @@ export default function JBContractPrint(props) {
           </tbody>
           <tfoot>
             <tr>
+              <td colSpan={5} className="border border-black font-bold px-2 py-1" >Total</td>
               <td
-                colSpan={4}
-                className="border border-black font-bold px-2 py-1"
+                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
+                hidden={data.satuan_unit_id == 2 ? true : false}
               >
-                Total
+                {formatAngka(totalMeter())}
               </td>
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRupiahNumber(totalMeter)}
+              <td
+                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
+                hidden={data.satuan_unit_id == 1 ? true : false}
+              >
+                {formatAngka(totalYard())}
               </td>
-              <td className="border border-black px-2 py-1 text-right font-bold"></td>
               <td className="border border-black px-2 py-1 text-right font-bold">
                 Sub Total
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(subTotal())}
+                {formatRupiah(subTotal())}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.dpp)}
+                {formatRupiah(dataAkhir.dpp)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.nilai_lain)}
+                {formatRupiah(dataAkhir.nilai_lain)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.ppn)}
+                {formatRupiah(dataAkhir.ppn)}
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="px-2 py-1" />
+              <td colSpan={7} className="px-2 py-1" />
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
-                {formatRupiahNumber(dataAkhir.total)}
+                {formatRupiah(dataAkhir.total)}
               </td>
             </tr>
             <tr>
-              <td colSpan={8} className="border border-black p-2 align-top">
+              <td colSpan={9} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -339,7 +495,7 @@ export default function JBContractPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={8} className="border border-black">
+              <td colSpan={9} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Supplier

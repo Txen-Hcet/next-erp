@@ -24,6 +24,7 @@ export default function JBPurchaseContractForm() {
   const navigate = useNavigate();
   const user = getUser();
 
+  const [manualGenerateDone, setManualGenerateDone] = createSignal(false);
   const [supplierOptions, setSupplierOptions] = createSignal([]);
   const [customerOptions, setCustomerOptions] = createSignal([]);
   const [satuanUnitOptions, setSatuanUnitOptions] = createSignal([
@@ -33,6 +34,7 @@ export default function JBPurchaseContractForm() {
   ]);
   const [fabricOptions, setFabricOptions] = createSignal([]);
   const [colorOptions, setColorOptions] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const isView = params.view === 'true';
@@ -82,18 +84,27 @@ export default function JBPurchaseContractForm() {
     return parseFloat(cleaned) || 0;
   };
 
-  // createEffect(async () => {
-  //   lastSeq = await getLastSequence(
-  //     user?.token,
-  //     oc",
-  //     "domestik",
-  //     form().ppn
-  //   );
+  const formatIDR = (val) => {
+    if (val === null || val === "") return "";
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(val);
+  };
 
-  //   console.log(lastSeq);
-  // });
+  createEffect(() => {
+    const ppn = form().ppn_percent; 
+
+    if (isEdit || isView || !manualGenerateDone()) {
+        return;
+    }
+    generateNomorKontrak();
+  });
 
   onMount(async () => {
+    setLoading(true);
     const [suppliers, satuanUnits, fabrics, customers, colors] =
       await Promise.all([
         getAllSuppliers(user?.token),
@@ -129,7 +140,8 @@ export default function JBPurchaseContractForm() {
         );
 
         return{
-          fabrid_id: item.kain_id,
+          fabric_id: item.kain_id,
+          warna_id: item.warna_id,
           lebar_kain: formatNumber(lebarKainValue, { decimals: 0 }),
           lebar_kainValue: lebarKainValue,
           meter: formatNumber(meterValue, { decimals: 2, showZero: true }),
@@ -152,17 +164,15 @@ export default function JBPurchaseContractForm() {
         sequence_number: data.no_jb ?? "",
         jenis_jb_id: data.jenis_jb_id ?? "",
         supplier_id: data.supplier_id ?? "",
-        warna_id: data.warna_id ?? "",
         customer_id: data.customer_id ?? "",
         satuan_unit_id: data.satuan_unit_id ?? "",
-        tanggal: new Date(data.created_at).toISOString().split("T")[0] ?? "",
         termin: data.termin ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
-    }
+    } 
       setLoading(false);
   });
 
@@ -178,7 +188,7 @@ export default function JBPurchaseContractForm() {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
-    const ppnValue = parseFloat(form().ppn) || 0;
+    const ppnValue = parseFloat(form().ppn_percent) || 0;
     const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
     const nomor = `PC/JB/${type}/${mmyy}/${nextNum}`;
@@ -187,6 +197,7 @@ export default function JBPurchaseContractForm() {
       sequence_number: nomor,
       no_seq: lastSeq?.last_sequence + 1,
     }));
+    setManualGenerateDone(true);
   };
 
   const addItem = () => {
@@ -221,7 +232,7 @@ export default function JBPurchaseContractForm() {
       const item = { ...items[index] };
       const satuanId = parseInt(prev.satuan_unit_id);
 
-      if (field === 'fabric_id') {
+      if (field === 'fabric_id' || field === 'warna_id') {
         item[field] = value;
       }
       else {
@@ -230,7 +241,7 @@ export default function JBPurchaseContractForm() {
 
         let decimals = 2;
         if (['meter', 'yard'].includes(field)) decimals = 2;
-        if (field === 'lebar_greige') decimals = 0;
+        if (field === 'lebar_kain') decimals = 0;
 
         if (field === 'harga') {
           item.harga = formatIDR(numValue);
@@ -267,6 +278,7 @@ export default function JBPurchaseContractForm() {
     try {
       const payloadItems = form().items.map((i) =>({
         kain_id: Number(i.fabric_id),
+        warna_id: Number(i.warna_id),
         lebar_kain: i.lebar_kainValue || 0,
         meter_total: i.meterValue || 0,
         yard_total: i.yardValue || 0,
@@ -285,6 +297,7 @@ export default function JBPurchaseContractForm() {
           keterangan: form().keterangan,
           items: payloadItems
         };
+        console.log("💾 Payload data yang dikirim (UPDATE):", payload);
         await updateDataJualBeli(user?.token, params.id, payload);
       } else {
         const payload = {
@@ -298,6 +311,7 @@ export default function JBPurchaseContractForm() {
           keterangan: form().keterangan,
           items: payloadItems,
         };
+        console.log("💾 Payload data yang dikirim (CREATE):", JSON.stringify(payload, null, 2));
         await createJualBeli(user?.token, payload);
       }
 
@@ -324,13 +338,20 @@ export default function JBPurchaseContractForm() {
   };
 
   function handlePrint() {
+    console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(form(), null, 2));
     const encodedData = encodeURIComponent(JSON.stringify(form()));
-    window.open(`/print/ordercelup/contract?data=${encodedData}`, "_blank");
+    window.open(`/print/jualbeli/contract?data=${encodedData}`, "_blank");
   }
 
   return (
     <MainLayout>
-      <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Jual Beli</h1>
+      {loading() && (
+        <div class="fixed inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-md bg-opacity-40 z-50 gap-10">
+          <div class="w-52 h-52 border-[20px] border-white border-t-transparent rounded-full animate-spin"></div>
+          <span class="animate-pulse text-[40px] text-white">Loading...</span>
+        </div>
+      )}
+      <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Proses</h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -398,6 +419,7 @@ export default function JBPurchaseContractForm() {
               }
               required
               disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             >
               <option value="">Pilih Jenis Jual Beli</option>
               <option value="1">Greige</option>
@@ -406,16 +428,7 @@ export default function JBPurchaseContractForm() {
             </select>
           </div>
         </div>
-        {/* 
-          <div class="">
-            <label class="block mb-1 font-medium">No Sales Contract</label>
-            <SearchableSalesContractSelect
-              salesContracts={salesContracts}
-              form={form}
-              setForm={setForm}
-              onChange={(id) => setForm({ ...form(), sales_contract_id: id })}
-            />
-          </div> */}
+        
         <div class="grid grid-cols-4 gap-4">
           <div>
             <label class="block mb-1 font-medium">Customer</label>
@@ -556,7 +569,7 @@ export default function JBPurchaseContractForm() {
                       classList={{ "bg-gray-200": isView }}
                     />
                   </td>
-                  <td class="border p-2">
+                  <td class="border p-2 w-48">
                     <ColorDropdownSearch
                       colors={colorOptions}
                       item={item}
