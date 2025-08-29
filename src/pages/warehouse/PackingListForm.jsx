@@ -21,6 +21,7 @@ import { Printer, Trash2, XCircle } from "lucide-solid";
 export default function PackingListForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
+  const isView = params.view === 'true';
   const navigate = useNavigate();
   const user = getUser();
 
@@ -38,12 +39,14 @@ export default function PackingListForm() {
     keterangan: "",
     itemGroups: [],
     sales_order_items: [],
+    satuan_unit: "",
   });
 
   // (3) onMount untuk edit atau new
   onMount(async () => {
     setLoading(true);
     const salesOrders = await getAllSalesOrders(user?.token);
+    //console.log("Response dari API getAllSalesOrders:", JSON.stringify(salesOrders, null, 2));
     setSalesOrderList(salesOrders?.orders || []);
 
     if (isEdit) {
@@ -60,6 +63,7 @@ export default function PackingListForm() {
         sales_order_id: packingList.so_id,
         no_pl: packingList.no_pl,
         sequence_number: packingList.sequence_number,
+        //satuan_unit: selectedOrder?.satuan_unit || "",
         type:
           packingList.type === "domestik"
             ? 1
@@ -126,9 +130,11 @@ export default function PackingListForm() {
       setForm({
         ...form(),
         sales_order_items: selectedOrder,
+        satuan_unit: selectedOrder?.satuan_unit || "",
       });
     } else {
       const res = await getSalesOrders(selectedSO.id, user?.token);
+      //console.log("Data SO: ", JSON.stringify(res, null, 2));
       const selectedOrder = res?.order;
 
       const soTypeLetter = selectedSO.no_so.split("/")[1];
@@ -148,6 +154,8 @@ export default function PackingListForm() {
         type: typeValue,
         no_pl: generatedNoPL,
         sales_order_items: selectedOrder,
+        satuan_unit: selectedOrder?.satuan_unit || "",
+        //satuan_unit: selectedOrder?.satuan_unit_name || ""
       });
     }
   };
@@ -308,10 +316,15 @@ export default function PackingListForm() {
       const newRolls = [...targetGroup.rolls];
       const updatedRoll = { ...newRolls[rollIndex] };
 
-      if (field === "meter") {
-        const meterValue = parseNumber(value);
-        updatedRoll.meter = meterValue;
-        updatedRoll.yard = meterValue * 1.093613; 
+      if (field === "meter" || field === "yard") {
+        const numericValue = parseNumber(value);
+        if (form().satuan_unit === "Yard") {
+            updatedRoll.yard = numericValue;
+            updatedRoll.meter = numericValue * 0.9144; // Convert yard to meter
+        } else { 
+            updatedRoll.meter = numericValue;
+            updatedRoll.yard = numericValue * 1.093613; // Convert meter to yard
+        }
       } else {
         updatedRoll[field] = value;
       }
@@ -488,6 +501,7 @@ export default function PackingListForm() {
     localStorage.setItem("printData", JSON.stringify(form()));
     window.open("/print/packinglist", "_blank");
   }
+  
   return (
     <MainLayout>
       {loading() && (
@@ -536,6 +550,7 @@ export default function PackingListForm() {
               form={form}
               setForm={setForm}
               onChange={handleSalesOrderChange}
+              disabled={isView}
             />
           </div>
           <div hidden>
@@ -576,6 +591,8 @@ export default function PackingListForm() {
               onInput={(e) =>
                 setForm({ ...form(), keterangan: e.target.value })
               }
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             ></textarea>
           </div>
         </div>
@@ -587,6 +604,7 @@ export default function PackingListForm() {
             type="button"
             onClick={() => addItemGroup()}
             class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
+            hidden={isView}
           >
             + Tambah Item Group
           </button>
@@ -612,6 +630,7 @@ export default function PackingListForm() {
                         removeItemGroup(i());
                       }}
                       class="text-red-600 hover:text-red-800 text-sm"
+                      hidden={isView}
                     >
                       <XCircle class="w-10 h-10" />
                     </button>
@@ -661,8 +680,18 @@ export default function PackingListForm() {
                           )}
                         </For>
                         <th class="border px-2 py-1 w-14">TTL/PCS</th>
-                        <th class="border px-2 py-1 w-24">TTL/MTR</th>
-                        <th class="border px-2 py-1 w-24">TTL/YARD</th>
+                        <th
+                          class="border px-2 py-1 w-24"
+                          classList={{ "bg-gray-200": form().satuan_unit === "Yard" }}
+                        >
+                          TTL/MTR
+                        </th>
+                        <th
+                          class="border px-2 py-1 w-24"
+                          classList={{ "bg-gray-200": form().satuan_unit === "Meter" }}
+                        >
+                          TTL/YARD
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -686,6 +715,8 @@ export default function PackingListForm() {
                                         e.target.value
                                       )
                                     }
+                                    disabled={isView}
+                                    classList={{ "bg-gray-200": isView }}
                                   />
                                 ) : (
                                   ""
@@ -704,6 +735,8 @@ export default function PackingListForm() {
                                         e.target.value
                                       )
                                     }
+                                    disabled={isView}
+                                    classList={{ "bg-gray-200": isView }}
                                   >
                                     <option value="">Pilih Item</option>
                                     <For
@@ -729,21 +762,32 @@ export default function PackingListForm() {
                                   <For each={rollChunk}>
                                     {(r) => (
                                       <div class="flex flex-row">
+                                        {/* MODIFICATION (3/4): Input logic is now dynamic based on satuan_unit */}
                                         <input
                                           type="text"
                                           inputmode="decimal"
                                           class="border p-1 text-right text-xs pr-2 w-full"
-                                          value={formatNumber(r.roll.meter || "")}
-                                          onBlur={(e) =>
-                                            handleRollChange(i(), r.index, "meter", e.target.value)
+                                          value={
+                                            form().satuan_unit === "Yard"
+                                              ? formatNumber(r.roll.yard || "")
+                                              : formatNumber(r.roll.meter || "")
                                           }
+                                          onBlur={(e) =>
+                                            handleRollChange(
+                                              i(),
+                                              r.index,
+                                              form().satuan_unit === "Yard" ? "yard" : "meter",
+                                              e.target.value
+                                            )
+                                          }
+                                          disabled={isView}
+                                          classList={{ "bg-gray-200": isView }}
                                         />
                                         <button
                                           type="button"
                                           class="top-0 right-0 text-white bg-red-500 border-t border-r border-b border-black rounded-r-sm text-xs px-1"
-                                          onClick={() =>
-                                            removeRoll(i(), r.index)
-                                          }
+                                          onClick={() => removeRoll(i(), r.index)}
+                                          hidden={isView}
                                         >
                                           <Trash2 size={15} />
                                         </button>
@@ -756,11 +800,17 @@ export default function PackingListForm() {
                               <td class="border text-center align-top">
                                 {rollChunk.length}
                               </td>
-                              <td class="border text-right px-2 align-top">
-                                  {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0))}
+                              <td
+                                class="border text-right px-2 align-top"
+                                classList={{ "bg-gray-200": form().satuan_unit === "Yard" }}
+                              >
+                                {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0))}
                               </td>
-                              <td class="border text-right px-2 align-top">
-                                  {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0) * 1.093613)}
+                              <td
+                                class="border text-right px-2 align-top"
+                                classList={{ "bg-gray-200": form().satuan_unit === "Meter" }}
+                              >
+                                {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0),0) * 1.093613)}
                               </td>
                             </tr>
                           )
@@ -777,10 +827,16 @@ export default function PackingListForm() {
                         <td class="border px-2 py-1 text-right">
                           {group.rolls.length}
                         </td>
-                        <td class="border px-2 py-1 text-right">
+                        <td
+                          class="border px-2 py-1 text-right"
+                          classList={{ "bg-gray-200": form().satuan_unit === "Yard" }}
+                        >
                           {formatNumber(group.rolls.reduce((sum, r) => sum + Number(r.meter || 0), 0))} m
                         </td>
-                        <td class="border px-2 py-1 text-right">
+                        <td
+                          class="border px-2 py-1 text-right"
+                          classList={{ "bg-gray-200": form().satuan_unit === "Meter" }}
+                        >
                           {formatNumber(group.rolls.reduce((sum, r) => sum + Number(r.meter || 0), 0) * 1.093613)} yd
                         </td>
                       </tr>
@@ -812,6 +868,7 @@ export default function PackingListForm() {
                         });
                       }}
                       disabled={group.rolls.length >= 50}
+                      hidden={isView}
                     />
 
                     <button
@@ -826,6 +883,7 @@ export default function PackingListForm() {
                       }}
                       class="bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700"
                       disabled={group.rolls.length >= 50}
+                      hidden={isView}
                     >
                       + Tambah
                     </button>

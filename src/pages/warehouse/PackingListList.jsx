@@ -7,7 +7,7 @@ import {
   softDeletePackingList,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash } from "lucide-solid";
+import { Edit, Trash, Eye } from "lucide-solid";
 
 export default function PackingListList() {
   const [packingLists, setPackingLists] = createSignal([]);
@@ -59,7 +59,7 @@ export default function PackingListList() {
             `Gagal menghapus data packing list dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -68,13 +68,18 @@ export default function PackingListList() {
   };
 
   const handleGetAllPackingLists = async (tok) => {
-    const getDatapackingLists = await getAllPackingLists(tok);
+    try {
+      const response = await getAllPackingLists(tok);
 
-    if (getDatapackingLists.status === 200) {
-      const sortedData = getDatapackingLists.packing_lists.sort(
-        (a, b) => a.id - b.id
-      );
-      setPackingLists(sortedData);
+      if (response && Array.isArray(response.packing_lists)) {
+        const sortedData = response.packing_lists.sort((a, b) => b.id - a.id);
+        setPackingLists(sortedData);
+      } else {
+        setPackingLists([]);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data Packling List:", error);
+      setPackingLists([]);
     }
   };
 
@@ -109,6 +114,12 @@ export default function PackingListList() {
     return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
   };
 
+  createEffect(() => {
+    if (tokUser?.token) {
+      handleGetAllPackingLists(tokUser?.token);
+    }
+  });
+
   function formatTanggalIndo(tanggalString) {
     const tanggal = new Date(tanggalString);
     const bulanIndo = [
@@ -132,12 +143,6 @@ export default function PackingListList() {
 
     return `${tanggalNum} ${bulan} ${tahun}`;
   }
-
-  createEffect(() => {
-    if (tokUser?.token) {
-      handleGetAllPackingLists(tokUser?.token);
-    }
-  });
 
   return (
     <MainLayout>
@@ -178,7 +183,7 @@ export default function PackingListList() {
                 <td class="py-2 px-4">{pl.no_so}</td>
                 <td
                   className={`py-2 px-4 text-center ${
-                    qtyCounterbySystem(pl, pl.satuan_unit_name) === "SELESAI"
+                    qtyCounterbySystem(pl, pl.satuan_unit) === "SELESAI"
                       ? "text-green-500"
                       : "text-red-500"
                   }`}
@@ -188,8 +193,15 @@ export default function PackingListList() {
                 <td class="py-2 px-4">{pl.satuan_unit}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
+                    class="text-yellow-600 hover:underline"
+                    onClick={() => navigate(`/packinglist/form?id=${pl.id}&view=true`)}
+                  >
+                    <Eye size={25} />
+                  </button>
+                  <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/packinglist/form?id=${pl.id}`)}
+                    hidden
                   >
                     <Edit size={25} />
                   </button>
