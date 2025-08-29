@@ -66,7 +66,7 @@
 //   return <SuratJalanPrint data={dummyDataSuratJalan} />;
 // }
 
-import { onMount } from "solid-js";
+import { onMount, onCleanup } from "solid-js";
 import SuratJalanPrint from "../../pages/print_function/sell/SuratJalanPrint";
 import { useSearchParams } from "@solidjs/router";
 
@@ -82,15 +82,16 @@ export default function SuratJalanDummyPrint() {
 
     window.addEventListener("afterprint", closeAfterPrint);
 
-    // Fallback: Kalau `afterprint` nggak terpanggil (di browser tertentu)
+    // Tunggu 300ms supaya render komponen print kelar
+    setTimeout(() => {
+      window.print();
+    }, 2500);
+
+    // Fallback close jika afterprint gak jalan
     setTimeout(() => {
       window.close();
-    }, 1000); // kasih jeda 1 detik setelah print
+    }, 4000);
 
-    // Trigger print
-    window.print();
-
-    // Clean up event
     onCleanup(() => {
       window.removeEventListener("afterprint", closeAfterPrint);
     });
