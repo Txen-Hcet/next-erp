@@ -209,23 +209,33 @@ export default function PackingOrderPrint(props) {
           </table>
 
           {/* RIGHT TABLE */}
-          <table className="w-[45%] border-2 border-black table-fixed text-sm">
+          <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
-              {[
-                { label: "No. SJ", value: data.no_sj },
-                { label: "Tanggal", value: formatTanggal(data.tanggal_surat_jalan) },
-                { label: "No. SO", value: data.no_so },
-                { label: "No. Mobil", value: data.no_mobil },
-                { label: "Sopir", value: data.sopir },
-              ].map((row, idx) => (
-                <tr key={idx} className="border-b border-black">
-                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">
-                    {row.label}
-                  </td>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SJ</td>
                   <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 break-words w-[65%]">{row.value}</td>
-                </tr>
-              ))}
+                  <td className="px-2 break-words w-[65%]">{data.no_sj}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{formatTanggal(data.tanggal_surat_jalan)}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SO</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.no_so}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. Mobil</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.no_mobil}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Sopir</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.sopir}</td>
+              </tr>
             </tbody>
           </table>
         </div>
