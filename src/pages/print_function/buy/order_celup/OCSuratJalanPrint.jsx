@@ -4,15 +4,57 @@ import logoNavel from "../../../../assets/img/navelLogo.png";
 export default function OCSuratJalanPrint(props) {
   const data = props.data;
 
-  function formatRupiahNumber(value) {
+  function formatAngka(value, decimals = 2) {
     if (typeof value !== "number") {
-      value = parseFloat(value);
+      value = parseFloat(value) || 0;
     }
-    if (isNaN(value)) return "-";
+    if (value === 0) {
+        return "0,00";
+    }
     return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(value);
+  }
+
+  function formatAngkaNonDecimal(value, decimals = 0) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatRupiah(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+     if (value === 0) {
+        return "Rp 0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatTanggal(dateString) {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+
+    // contoh format dd-mm-yyyy
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}-${month}-${year}`;
   }
 
   const itemsPerPage = 14;
@@ -26,30 +68,22 @@ export default function OCSuratJalanPrint(props) {
     return pages;
   }
 
-  const totalMeter = data.items?.reduce(
-    (sum, i) => sum + Number(i.meter_total || 0),
-    0
-  );
-  const totalYard = data.items?.reduce(
-    (sum, i) => sum + Number(i.yard_total || 0),
-    0
+  const totalMeter = createMemo(() => 
+      parseFloat(data.summary?.total_meter || 0)
   );
 
-  function formatRibuan(value) {
-    return Number(value).toLocaleString("id-ID");
-  }
+  const totalYard = createMemo(() =>
+      parseFloat(data.summary?.total_yard || 0)
+  );
 
-  // Misalnya kamu sudah punya:
   const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
 
   const subTotal = createMemo(() => {
-    return (data.items || []).reduce(
+    return (data.itemGroups || []).reduce(
       (sum, item) => sum + (item.subtotal || 0),
       0
     );
   });
-
-  // DPP = subTotal
 
   const dpp = createMemo(() => {
     return subTotal() / 1.11;
@@ -105,12 +139,7 @@ export default function OCSuratJalanPrint(props) {
           padding: "5mm",
         }}
       >
-        <img
-          className="w-24"
-          hidden={!isPPN()}
-          src={logoNavel}
-          alt=""
-        />
+        <img className="w-24" hidden={!isPPN()} src={logoNavel} alt=""/>
         <h1 className="text-xl uppercase font-bold">
           Order Celup Surat Jalan
         </h1>
@@ -132,7 +161,7 @@ export default function OCSuratJalanPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {data.customer}
+                  {data.supplier_name}
                 </td>
               </tr>
               <tr>
@@ -143,56 +172,36 @@ export default function OCSuratJalanPrint(props) {
                   {data.alamat}
                 </td>
               </tr>
-              {/* <tr>
-                <td
-                  className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
-                  colSpan={2}
-                >
-                  KERTOHARJO PEKALONGAN SEL
-                </td>
-              </tr> */}
               <tr>
-                <td className="px-2 py-1 whitespace-nowrap">Telp:</td>
+                <td className="px-2 py-1 whitespace-nowrap">Telp: {data.telepon || "-"}</td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
           </table>
 
-          {/* MIDDLE TABLE */}
-          <div className="flex flex-col gap-2 w-[20%]">
-            <table className="h-full border-2 border-black table-fixed w-full">
-              <tbody>
-                <tr>
-                  <td className="px-2 pt-1 text-center align-top break-words max-w-[180px]">
-                    No. PC
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-2 pb-1 text-center break-words max-w-[180px]">
-                    {data.po_cust}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
           {/* RIGHT TABLE */}
-          <table className="w-[35%] border-2 border-black table-fixed text-sm">
+          <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
-              {[
-                { label: "No. PO", value: data.no_so },
-                { label: "Tanggal", value: data.tanggal },
-                { label: "Tgl Kirim", value: data.kirim },
-                { label: "Payment", value: data.termin + " Hari" },
-              ].map((row, idx) => (
-                <tr key={idx} className="border-b border-black">
-                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">
-                    {row.label}
-                  </td>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SJ</td>
                   <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 break-words w-[65%]">{row.value}</td>
-                </tr>
-              ))}
+                  <td className="px-2 break-words w-[65%]">{data.no_sj}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{formatTanggal(data.created_at )}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SJ Supplier</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.no_sj_supplier}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. PO</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.no_po}</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -201,42 +210,41 @@ export default function OCSuratJalanPrint(props) {
         <table className="w-full table-fixed border border-black text-[12px] border-collapse mt-3">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-black p-1 w-[30px]" rowSpan={2}>
-                No
-              </th>
-              <th className="border border-black p-1 w-[70px]" rowSpan={2}>
-                Kode
-              </th>
-              <th className="border border-black p-1 w-[150px]" rowSpan={2}>
-                Jenis Kain
-              </th>
-              <th className="border border-black p-1 w-[60px]" rowSpan={2}>
-                Lebar
-              </th>
-              <th className="border border-black p-1 w-[100px]" rowSpan={2}>
+              <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Kode</th>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th>
+              <th className="border border-black p-1 w-[14%]" rowSpan={2}>Warna</th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Greige</th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Finish</th>
+              <th className="border border-black p-1 w-[20%] text-center" colSpan={2}>
                 Quantity
               </th>
-              <th
-                className="border border-black p-1 w-[70px] text-center"
-                rowSpan={2}
-              >
-                Satuan Unit
+            </tr>
+            <tr>
+              <th colspan={2} className="border border-black p-1 w-[24%]">
+                {`(Roll / ${data.satuan_unit_name || 'Meter'})`}
               </th>
             </tr>
           </thead>
           <tbody>
-            {(data.items || []).map((item, i) => (
-              <tr key={i}>
-                <td className="p-1 text-center">{i + 1}</td>
-                <td className="p-1 text-center">{item.kode_kain}</td>
-                <td className="p-1">{item.jenis_kain}</td>
-                <td className="p-1 text-center">{item.lebar}"</td>
-                <td className="p-1 text-right">
-                  {formatRibuan(item.meter_total)}
-                </td>
-                <td className="p-1 text-center">{item.satuan_unit}</td>
-              </tr>
-            ))}
+            {(data?.items || []).map((item, i) => {
+              return (
+                <tr key={i}>
+                  <td className="p-1 text-center break-words">{i + 1}</td>
+                  <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
+                  <td className="p-1 break-words">{item.konstruksi_kain}</td>
+                  <td className="p-1 text-center break-words">{item.deskripsi_warna || "-"}</td>
+                  <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_greige)}"</td>
+                  <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_finish)}"</td>
+                  <td colspan={2} className="p-1 text-center break-words">
+                    {data.satuan_unit_name === 'Meter' 
+                      ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
+                      : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                    }
+                  </td>
+                </tr>
+              );
+            })}
 
             {/* Tambahin row kosong */}
             {Array.from({ length: 10 - data.items.length }).map((_, i) => (
@@ -252,21 +260,16 @@ export default function OCSuratJalanPrint(props) {
           </tbody>
           <tfoot>
             <tr>
-              <td
-                colSpan={4}
-                className="border border-black font-bold px-2 py-1"
-              >
-                Total:
-              </td>
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRibuan(totalMeter)}
-              </td>
-              <td className="border border-black px-2 py-1 text-right font-bold">
-                {data.satuan}
+              <td colSpan={6} className="border border-black font-bold text-right px-2 py-1">Total:</td>
+              <td colspan={2} className="border border-black px-2 py-1 text-center font-bold">
+                  {data.satuan_unit_name === 'Meter' 
+                    ? formatAngka(totalMeter())
+                    : formatAngka(totalYard())
+                  }
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black p-2 align-top">
+              <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -274,7 +277,7 @@ export default function OCSuratJalanPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={6} className="border border-black">
+              <td colSpan={8} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Yang Menerima
