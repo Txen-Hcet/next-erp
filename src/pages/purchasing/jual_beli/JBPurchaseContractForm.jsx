@@ -42,6 +42,7 @@ export default function JBPurchaseContractForm() {
     satuanUnitOptions().filter(
       (u) => u.satuan.toLowerCase() !== "kilogram"
     );
+  const [jualBeliData, setJualBeliData] = createSignal(null);  
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -126,6 +127,12 @@ export default function JBPurchaseContractForm() {
       const dataItems = data.items;
 
       if (!data) return;
+
+      const fullPrintData = {
+        ...data,
+        //purchase_order_detail: poData
+      };
+      setJualBeliData(fullPrintData); 
 
       // Normalisasi item
       const normalizedItems = (dataItems || []).map((item) =>{
@@ -297,7 +304,7 @@ export default function JBPurchaseContractForm() {
           keterangan: form().keterangan,
           items: payloadItems
         };
-        console.log("💾 Payload data yang dikirim (UPDATE):", payload);
+        //console.log("💾 Payload data yang dikirim (UPDATE):", payload);
         await updateDataJualBeli(user?.token, params.id, payload);
       } else {
         const payload = {
@@ -311,7 +318,7 @@ export default function JBPurchaseContractForm() {
           keterangan: form().keterangan,
           items: payloadItems,
         };
-        console.log("💾 Payload data yang dikirim (CREATE):", JSON.stringify(payload, null, 2));
+        //console.log("💾 Payload data yang dikirim (CREATE):", JSON.stringify(payload, null, 2));
         await createJualBeli(user?.token, payload);
       }
 
@@ -338,8 +345,18 @@ export default function JBPurchaseContractForm() {
   };
 
   function handlePrint() {
-    console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(form(), null, 2));
-    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    if (!jualBeliData()) {
+      Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+      return;
+    }
+
+    const dataToPrint = {
+      ...jualBeliData(),
+      //...form(),
+    };  
+
+    console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/jualbeli/contract?data=${encodedData}`, "_blank");
   }
 

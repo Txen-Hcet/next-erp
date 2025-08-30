@@ -1,24 +1,8 @@
 import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
-import {
-  getFabric,
-  getSupplier,
-  getUser,
-  getSatuanUnits,
-  getColor,
-  getCustomer,
-} from "../../../../utils/auth";
 
 export default function JBContractPrint(props) {
-  console.log("📄 [Print Page] Data mentah yang diterima via props:", JSON.stringify(props.data, null, 2))
   const data = props.data;
-  const [supplier, setSupplier] = createSignal(null);
-  const [kainList, setKainList] = createSignal({});
-  const [warnaList, setWarnaList] = createSignal({});
-  const [satuanUnitList, setSatuanUnitList] = createSignal({});
-  const [customer, setCustomer] = createSignal(null);
-
-  const tokUser = getUser();
 
   const jenisJualBeliText = createMemo(() => {
     const id = parseInt(data.jenis_jb_id, 10);
@@ -47,6 +31,19 @@ export default function JBContractPrint(props) {
     }).format(value);
   }
 
+  function formatAngkaNonDecimal(value, decimals = 0) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
   function formatRupiah(value, decimals = 2) {
     if (typeof value !== "number") {
       value = parseFloat(value) || 0;
@@ -62,105 +59,18 @@ export default function JBContractPrint(props) {
     }).format(value);
   }
 
-  function formatTanggal(tgl) {
-    if (!tgl) return "-";
-    const [year, month, day] = tgl.split("-");
+  function formatTanggal(dateString) {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+
+    // contoh format dd-mm-yyyy
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
     return `${day}-${month}-${year}`;
   }
 
-  async function handleGetSupplier() {
-    try {
-      const res = await getSupplier(data.supplier_id, tokUser?.token);
-
-      if (res.status === 200) {
-        setSupplier(res.suppliers || null);
-      }
-    } catch (err) {
-      console.error("Error getSupplier:", err);
-    }
-  }
-
-  async function handleGetCustomer() {
-    if (!data?.customer_id) return;
-    try {
-      const res = await getCustomer(data.customer_id, tokUser?.token);
-      if (res && res.customer) {
-        setCustomer(res.customer);
-      } else {
-        setCustomer(null);
-      }
-    } catch (err) {
-      console.error("Error getCustomer:", err);
-      setCustomer(null);
-    }
-  }
-
-  async function handleGetKain(kainId) {
-    try {
-      const res = await getFabric(kainId, tokUser?.token);
-      console.log(`📦 [Print Page] Respons API getFabric untuk ID ${kainId}:`, res);
-      // if (res.status === 200) {
-      setKainList((prev) => ({
-        ...prev,
-        [kainId]: res.kain,
-      }));
-      // }
-    } catch (err) {
-      console.error("Error getFabric:", err);
-    }
-  }
-
-  async function handleGetSatuanUnit(satuanUnitId) {
-    try {
-      const res = await getSatuanUnits(satuanUnitId, tokUser?.token);
-      if (res.status === 200) {
-        setSatuanUnitList((prev) => ({
-          ...prev,
-          [satuanUnitId]: res.data,
-        }));
-      }
-    } catch (err) {
-      console.error("Error getGrade:", err);
-    }
-  }
-
-  async function handleGetWarna(warnaId) {
-    try {
-      const res = await getColor(warnaId, tokUser?.token);
-      console.log(`🎨 [Print Page] Respons API getColor untuk ID ${warnaId}:`, res);
-      if (res.status === 200) {
-        setWarnaList((prev) => ({
-          ...prev,
-          [warnaId]: res.warna,
-        }));
-      }
-    } catch (err) {
-      console.error("Error getWarna:", err);
-    }
-  }
-
-  onMount(() => {
-    if (tokUser?.token) {
-      console.log(`🕵️‍♂️ [Print Page] Memulai onMount...`);
-      console.log(`   -> Akan mengambil supplier dengan ID: ${data.supplier_id}`);
-      console.log(`   -> Akan mengambil customer dengan ID: ${data.customer_id}`);
-      handleGetSupplier();
-      handleGetCustomer();
-      (data.items || []).forEach((item, index) => {
-        console.log(`   -> Item #${index + 1}: Akan mengambil kain ID ${item.fabric_id} & warna ID ${item.warna_id}`);
-        if (item.fabric_id) {
-          handleGetKain(item.fabric_id);
-        }
-        if (item.warna_id) {
-          handleGetWarna(item.warna_id);
-        }
-      });
-      if (data.satuan_unit_id) {
-        handleGetSatuanUnit(data.satuan_unit_id);
-      }
-    }
-  });
-  
   const itemsPerPage = 14;
   const itemPages = paginateItems(data.items ?? [], itemsPerPage);
 
@@ -173,37 +83,28 @@ export default function JBContractPrint(props) {
   }
 
   const totalMeter = createMemo(() => 
-    data.items?.reduce((sum, i) => sum + (i.meterValue || 0), 0)
+      parseFloat(data.summary?.total_meter || 0)
   );
 
   const totalYard = createMemo(() =>
-    data.items?.reduce((sum, i) => sum + (i.yardValue || 0), 0)
+      parseFloat(data.summary?.total_yard || 0)
   );
 
   const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
 
-  const subTotal = createMemo(() => {
-    return (data.items || []).reduce(
-      (sum, item) => sum + (item.subtotal || 0),
-      0
-    );
-  });
+  const subTotal = createMemo(() => Number(data?.summary?.subtotal) || 0);
 
-  const dpp = createMemo(() => {
-    return subTotal() / 1.11;
-  });
+  const dpp = createMemo(() => subTotal() / 1.11);
 
-  const nilaiLain = createMemo(() => {
-    return dpp() * (11 / 12);
-  });
+  const nilaiLain = createMemo(() => dpp() * (11 / 12));
 
-  const ppn = createMemo(() => {
-    return isPPN() ? nilaiLain() * 0.12 : 0;
-  });
+  const ppn = createMemo(() => (isPPN() ? nilaiLain() * 0.12 : 0));
 
   const jumlahTotal = createMemo(() => dpp() + ppn());
 
+  // kumpulkan ke dalam object akhir
   const dataAkhir = {
+    subtotal: subTotal(),
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
@@ -243,12 +144,7 @@ export default function JBContractPrint(props) {
           padding: "5mm",
         }}
       >
-        <img
-          className="w-24"
-          hidden={!isPPN()}
-          src={logoNavel}
-          alt=""
-        />
+        <img className="w-24" hidden={!isPPN()} src={logoNavel} alt=""/>
         <h1 className="text-xl uppercase font-bold">
           Jual Beli Contract
         </h1>
@@ -270,7 +166,7 @@ export default function JBContractPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {supplier()?.nama}
+                  {data.supplier_name}
                 </td>
               </tr>
               <tr>
@@ -278,13 +174,11 @@ export default function JBContractPrint(props) {
                   className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {supplier()?.alamat}
+                  {data.alamat}
                 </td>
               </tr>
               <tr>
-                <td className="px-2 py-1 whitespace-nowrap">
-                  Telp: {supplier()?.no_telp}
-                </td>
+                <td className="px-2 py-1 whitespace-nowrap">Telp: {data.telepon || "-"}</td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
@@ -300,17 +194,17 @@ export default function JBContractPrint(props) {
               </tr>
               <tr>
                 <td className="px-2 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
-                  {customer()?.kode}
+                  {data.customer_name}
                 </td>
               </tr>
               <tr>
                 <td className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap" colSpan={2}>
-                  {customer()?.nama}
+                  {data.kode}
                 </td>
               </tr>
               <tr>
                 <td className="px-2 py-1 whitespace-nowrap">
-                  Alamat: {customer()?.alamat}
+                  {data.alamat}
                 </td>
               </tr>
             </tbody>
@@ -319,21 +213,26 @@ export default function JBContractPrint(props) {
           {/* RIGHT TABLE */}
           <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
-              {[
-                { label: "No. Kontrak", value: data.sequence_number },
-                { label: "Tanggal", value: formatTanggal(data.tanggal) },
-                { label: "Jenis Jual Beli", value: jenisJualBeliText() },
-                { label: "Validity", value: formatTanggal(data.validity_contract),},
-                { label: "Payment", value: data.termin == 0 ? "Cash" : data.termin + " Hari" }
-              ].map((row, idx) => (
-                <tr key={idx} className="border-b border-black">
-                  <td className="font-bold px-2 w-[55%] whitespace-nowrap">
-                    {row.label}
-                  </td>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. Kontrak</td>
                   <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 break-words w-[65%]">{row.value}</td>
-                </tr>
-              ))}
+                  <td className="px-2 break-words w-[65%]">{data.no_jb}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{formatTanggal(data.created_at )}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Jenis JB</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{jenisJualBeliText()}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Payment</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.termin == 0 ? "Cash" : data.termin + " Hari"}</td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -342,85 +241,43 @@ export default function JBContractPrint(props) {
         <table className="w-full table-fixed border border-black text-[12px] border-collapse mt-3">
           <thead className="bg-gray-200">
             <tr>
-              <th className="border border-black p-1 w-[4%]" rowSpan={2}>
-                No
-              </th>
-              <th className="border border-black p-1 w-[8%]" rowSpan={2}>
-                Kode
-              </th>
-              <th className="border border-black p-1 w-[15%]" rowSpan={2}>
-                Jenis Kain
-              </th>
-              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
-                Warna
-              </th>
-              <th className="border border-black p-1 w-[10%]" rowSpan={2}>
-                Lebar Kain
-              </th>
-              <th
-                className="border border-black p-1 w-[18%] text-center"
-                colSpan={2}
-              >
+              <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Kode</th>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th>
+              <th className="border border-black p-1 w-[14%]" rowSpan={2}>Warna</th>
+              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Kain</th>
+              <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>
                 Quantity
               </th>
-              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
-                Harga
-              </th>
-              <th className="border border-black p-1 w-[18%]" rowSpan={2}>
-                Jumlah
-              </th>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
+              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
-              <th
-                colSpan={2} className="border border-black p-1 w-full"
-                hidden={data.satuan_unit_id == 2 ? true : false}
-              >
-                (Meter)
-              </th>
-              <th
-                colSpan={2} className="border border-black p-1 w-[14%]"
-                hidden={data.satuan_unit_id == 1 ? true : false}
-              >
-                (Yard)
+              <th colspan={2} className="border border-black p-1 w-[24%]">
+                {data.satuan_unit_name || "Meter"}
               </th>
             </tr>
           </thead>
           <tbody>
-            {(data.items || []).map((item, i) => (
-              <tr key={i}>
-                <td className="p-1 text-center">{i + 1}</td>
-                <td className="p-1 text-center">
-                  {kainList()[item.fabric_id]?.corak || "-"}
-                </td>
-                <td className="p-1">
-                  {kainList()[item.fabric_id]?.konstruksi || "-"}
-                </td>
-                <td className="p-1 break-words">
-                  {warnaList()[item.warna_id]?.deskripsi || "-"}
-                </td>
-                <td className="p-1 text-center break-words">
-                  {item.lebar_kain}
-                </td>
-                <td
-                  className="p-1 text-right break-words"
-                  colSpan={2}
-                >
-                  {data.satuan_unit_id == 1
-                    ? formatAngka(item.meterValue)
-                    : formatAngka(item.yardValue)}
-                </td>
-                <td className="p-1 text-right break-words">
-                  {formatRupiah(item.hargaValue)}
-                </td>
-                <td className="p-1 text-right break-words">
-                  {(() => {
-                    const qtyValue = data.satuan_unit_id == 1 ? item.meterValue : item.yardValue;
-                    const lineSubtotal = item.hargaValue * qtyValue;
-                    return item.hargaValue && qtyValue ? formatRupiah(lineSubtotal) : "-";
-                  })()}
-                </td>
-              </tr>
-            ))}
+            {(data?.items || []).map((item, i) => {
+              return (
+                <tr key={i}>
+                  <td className="p-1 text-center break-words">{i + 1}</td>
+                  <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
+                  <td className="p-1 break-words">{item.konstruksi_kain}</td>
+                  <td className="p-1 text-center break-words">{item.deskripsi_warna || "-"}</td>
+                  <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_kain)}"</td>
+                  <td colspan={2} className="p-1 text-center break-words">
+                    {data.satuan_unit_name === 'Meter' 
+                      ? formatAngkaNonDecimal(item.meter_total)
+                      : formatAngkaNonDecimal(item.yard_total)
+                    }
+                  </td>
+                  <td className="p-1 text-center break-words">{formatRupiah(item.harga || "-")}</td>
+                  <td className="p-1 text-center break-words">{formatRupiah(item.total || "-")}</td>
+                </tr>
+              );
+            })}
 
             {/* Tambahin row kosong */}
             {Array.from({ length: 10 - data.items.length }).map((_, i) => (
@@ -438,18 +295,12 @@ export default function JBContractPrint(props) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={5} className="border border-black font-bold px-2 py-1" >Total</td>
-              <td
-                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
-                hidden={data.satuan_unit_id == 2 ? true : false}
-              >
-                {formatAngka(totalMeter())}
-              </td>
-              <td
-                colSpan={2} className="border border-black px-2 py-1 text-right font-bold"
-                hidden={data.satuan_unit_id == 1 ? true : false}
-              >
-                {formatAngka(totalYard())}
+              <td colSpan={5} className="border border-black font-bold px-2 py-1">Total:</td>
+              <td colspan={2} className="border border-black px-2 py-1 text-center font-bold">
+                  {data.satuan_unit_name === 'Meter' 
+                    ? formatAngka(totalMeter())
+                    : formatAngka(totalYard())
+                  }
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold">
                 Sub Total
