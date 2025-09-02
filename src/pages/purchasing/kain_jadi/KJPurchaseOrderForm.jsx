@@ -300,11 +300,13 @@ export default function KJPurchaseOrderForm() {
     const ppnValue = parseFloat(form().ppn) || 0;
     const type = ppnValue > 0 ? "P" : "N";
     const mmyy = `${month}${year}`;
-    const nomor = `PO/OC/${type}/${mmyy}/${nextNum}`;
+
+    const nomor = `PO/OC/${type}/${mmyy}-${nextNum}`;
+
     setForm((prev) => ({
       ...prev,
       sequence_number: nomor,
-      no_seq: lastSeq?.last_sequence + 1,
+      no_seq: (lastSeq?.last_sequence || 0) + 1,
     }));
   };
 
