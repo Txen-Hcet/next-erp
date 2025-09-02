@@ -4,7 +4,7 @@ import MainLayout from "../../../layouts/MainLayout";
 import {
   getAllKainJadiOrders,
   getUser,
-  softDeletePackingList,
+  softDeleteKainJadiOrder,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -39,7 +39,7 @@ export default function KJPurchaseOrderList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeletePackingList(id, tokUser?.token);
+        const deleteCustomer = await softDeleteKainJadiOrder(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
