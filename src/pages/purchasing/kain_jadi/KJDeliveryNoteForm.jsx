@@ -35,6 +35,8 @@ export default function KJDeliveryNoteForm() {
     purchase_order_id: null,
     purchase_order_items: null,
     no_sj_supplier: "",
+    tanggal_kirim: "",
+    alamat_pengiriman: "",
     unit: "Meter", 
     itemGroups: [],
   });
@@ -74,23 +76,37 @@ export default function KJDeliveryNoteForm() {
         ...form(),
         po_id: suratJalanData.no_sj,
         no_sj_supplier: suratJalanData.no_sj_supplier,
+        alamat_pengiriman: suratJalanData.supplier_alamat || "",
+        tanggal_kirim: suratJalanData.tanggal_kirim ? new Date(suratJalanData.tanggal_kirim).toISOString().split("T")[0] : "",
         purchase_order_id: suratJalanData.po_id,
         purchase_order_items: poData, // Data PO untuk dropdown item
         sequence_number: suratJalanData.sequence_number,
         keterangan: suratJalanData.keterangan || "",
         unit: poData?.satuan_unit_name || "Meter",
-        itemGroups: (suratJalanData.items || []).map((group) => ({
-          purchase_order_item_id: group.po_item_id,
-          meter_total: group.meter_total || 0,
-          yard_total: group.yard_total || 0,
-          rolls: (group.rolls || []).map((r, idx) => ({
-            id: r.id,
-            row_num: r.row_num || Math.floor(idx / MAX_COL_PER_ROW) + 1,
-            col_num: r.col_num || (idx % MAX_COL_PER_ROW) + 1,
-            meter: r.meter || "",
-            yard: r.yard || ((r.meter || 0) * 1.093613).toFixed(2),
-          })),
-        })),
+        itemGroups: (suratJalanData.items || []).map((group) => {
+          const poItem = poData?.items.find(item => item.id === group.po_item_id);
+
+          return {
+            purchase_order_item_id: group.po_item_id,
+            item_details: {
+              corak_kain: poItem?.corak_kain || "N/A",
+              konstruksi_kain: poItem?.konstruksi_kain || "",
+              deskripsi_warna: poItem?.deskripsi_warna || "",
+              lebar_greige: poItem?.lebar_greige || "N/A",
+              lebar_finish: poItem?.lebar_finish || "N/A",
+              harga: poItem?.harga || 0,
+            },
+            meter_total: group.meter_total || 0,
+            yard_total: group.yard_total || 0,
+            rolls: (group.rolls || []).map((r, idx) => ({
+              id: r.id,
+              row_num: r.row_num || Math.floor(idx / MAX_COL_PER_ROW) + 1,
+              col_num: r.col_num || (idx % MAX_COL_PER_ROW) + 1,
+              meter: r.meter || "",
+              yard: r.yard || ((r.meter || 0) * 1.093613).toFixed(2),
+            })),
+          };
+        }),
       });
     }
     setLoading(false);
@@ -116,6 +132,15 @@ export default function KJDeliveryNoteForm() {
     const cleaned = str.replace(/[^\d,]/g, "").replace(",", ".");
     return parseFloat(cleaned) || 0;
   };
+
+  const formatHarga = (val) => {
+    if (val === null || val === "") return "";
+    return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 2,
+    }).format(val);
+  };
   
   const handleSuratJalanChange = async (selectedPO) => {
     if (!selectedPO) return;
@@ -134,13 +159,38 @@ export default function KJDeliveryNoteForm() {
       ppnValue
     );
 
+    const newItemGroups = (selectedKJData.items || []).map(item => ({
+        purchase_order_item_id: item.id,
+        // Simpan detail item untuk ditampilkan di UI
+        item_details: {
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+          deskripsi_warna: item.deskripsi_warna,
+          lebar_greige: item.lebar_greige,
+          lebar_finish: item.lebar_finish,
+          harga: item.harga,
+        },
+        meter_total: 0,
+        yard_total: 0,
+        rolls: [
+          {
+            row_num: 1,
+            col_num: 1,
+            meter: "",
+            yard: "",
+          },
+        ],
+      })); 
+
     setForm({
       ...form(),
       purchase_order_id: selectedPO.id,
       purchase_order_items: selectedKJData,
       po_id: newSJNumber,
       sequence_number: newSequenceNumber,
-      unit: selectedKJData.satuan_unit_name, 
+      alamat_pengiriman: selectedKJData.supplier_alamat,
+      unit: selectedKJData.satuan_unit_name,
+      itemGroups: newItemGroups,  
     });
   };
 
@@ -362,6 +412,8 @@ export default function KJDeliveryNoteForm() {
         const payload = {
           no_sj: form().no_sj,
           keterangan: form().keterangan,
+          tanggal_kirim: form().tanggal_kirim,
+          alamat_pengiriman: form().alamat_pengiriman,
           items: form().itemGroups.map((g) => {
             const rollsWithIndex = g.rolls.map((r, idx) => {
               const row_num = Math.floor(idx / MAX_COL_PER_ROW) + 1;
@@ -400,6 +452,8 @@ export default function KJDeliveryNoteForm() {
           sequence_number: form().sequence_number,
           po_id: form().purchase_order_id,
           keterangan: form().keterangan,
+          tanggal_kirim: form().tanggal_kirim,
+          alamat_pengiriman: form().alamat_pengiriman,
           no_sj_supplier: form().no_sj_supplier.trim(),
           items: form().itemGroups.map((g) => {
             const rollsWithIndex = g.rolls.map((r, idx) => ({
@@ -517,6 +571,30 @@ export default function KJDeliveryNoteForm() {
             />
           </div>
           <div>
+            <label class="block text-sm mb-1">Alamat Pengiriman</label>
+            <div class="flex gap-2">
+              <input
+                class="w-full border bg-gray-200 p-2 rounded"
+                value={form().alamat_pengiriman}
+                readOnly
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Tanggal Pengiriman</label>
+            <div class="flex gap-2">
+              <input
+                type="date"
+                class="w-full border p-2 rounded"                
+                value={form().tanggal_kirim}
+                onInput={(e) => 
+                  setForm({ ...form(), tanggal_kirim: e.target.value })}
+                disabled={isView}
+                classList={{ "bg-gray-200": isView }} 
+              />
+            </div>
+          </div> 
+          <div>
             <label class="block text-sm mb-1">Purchase Order</label>
               <KainJadiSearch
                 items={kainJadiLists()}
@@ -544,6 +622,37 @@ export default function KJDeliveryNoteForm() {
           </div>
         </div>
 
+        <Show when={form().purchase_order_items && form().itemGroups.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain PO:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().purchase_order_items.items}>
+                {(item) => {
+                  const sisa = form().unit === 'Meter'
+                    ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                    : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">{item.corak_kain} | {item.konstruksi_kain}</span> - 
+                      Quantity: 
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumber(sisa)} {form().unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">
+                          HABIS
+                        </span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
+
         <div>
           <h2 class="text-lg font-bold mt-6 mb-2">Item Groups</h2>
 
@@ -551,7 +660,7 @@ export default function KJDeliveryNoteForm() {
             type="button"
             onClick={() => addItemGroup()}
             class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
-            hidden={isView}
+            hidden
           >
             + Tambah Item Group
           </button>
@@ -593,6 +702,8 @@ export default function KJDeliveryNoteForm() {
                         <th class="border px-2 py-1 w-10">No</th>
                         <th class="border px-2 py-1 w-32">Item</th>
                         <th class="border px-2 py-1 w-32">Warna</th>
+                        <th class="border px-2 py-1 w-24">Lebar Greige</th>
+                        <th class="border px-2 py-1 w-24">Lebar Finish</th>
                         <For each={[1, 2, 3, 4, 5]}>
                           {(n) => (
                             <th class="border px-2 py-1 w-16 text-center">
@@ -601,12 +712,13 @@ export default function KJDeliveryNoteForm() {
                           )}
                         </For>
                         <th class="border px-2 py-1 w-14">TTL/PCS</th>
-                        <th class="border px-2 py-1 w-24" classList={{ 'bg-gray-200': form().unit === 'Yard' }}>
-                          TTL/MTR
-                        </th>
-                        <th class="border px-2 py-1 w-24" classList={{ 'bg-gray-200': form().unit !== 'Yard' }}>
-                          TTL/YARD
-                        </th>
+                        <Show when={form().unit === 'Meter'}>
+                          <th class="border px-2 py-1 w-24 bg-gray-200">TTL/MTR</th>
+                        </Show>
+                        <Show when={form().unit === 'Yard'}>
+                          <th class="border px-2 py-1 w-24 bg-gray-200">TTL/YARD</th>
+                        </Show>
+                        <th class="border px-2 py-1 w-24">Harga</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -622,56 +734,21 @@ export default function KJDeliveryNoteForm() {
                           {/* Kolom Item (hanya tampil di baris pertama per group) */}
                           <td class="border p-1 align-top">
                             {chunkIndex() === 0 ? (
-                              <select
-                                class="w-full border rounded p-1"
-                                value={group.purchase_order_item_id || ""}
-                                onInput={(e) => {
-                                  // Logika untuk mengubah item ID group
-                                  const newGroups = [...form().itemGroups];
-                                  newGroups[i()].purchase_order_item_id = e.target.value;
-                                  setForm({ ...form(), itemGroups: newGroups });
-                                }}
-                                disabled={isView}
-                                classList={{ "bg-gray-200": isView }}
-                              >
-                                <option value="">Pilih Item</option>
-                                  <For each={form().purchase_order_items?.items || []}>
-                                    {(item) => (
-                                      <option value={item.id}>
-                                        {/* FIX: Akses properti langsung dari 'item' */}
-                                        {item.corak_kain} | {item.konstruksi_kain}
-                                      </option>
-                                    )}
-                                  </For>
-                              </select>
+                              <div class="font-semibold">
+                                {group.item_details?.corak_kain} | {group.item_details?.konstruksi_kain}
+                              </div>
                             ) : null}
                           </td>
 
-                          <td class="border p-1 align-top">
-                            {chunkIndex() === 0 ? (
-                              <select
-                                class="w-full border rounded p-1"
-                                value={group.purchase_order_item_id || ""}
-                                onInput={(e) => {
-                                  // Logika untuk mengubah item ID group
-                                  const newGroups = [...form().itemGroups];
-                                  newGroups[i()].purchase_order_item_id = e.target.value;
-                                  setForm({ ...form(), itemGroups: newGroups });
-                                }}
-                                disabled={isView}
-                                classList={{ "bg-gray-200": isView }}
-                              >
-                                <option value="">Pilih Warna</option>
-                                  <For each={form().purchase_order_items?.items || []}>
-                                    {(item) => (
-                                      <option value={item.id}>
-                                        {/* FIX: Akses properti langsung dari 'item' */}
-                                        {item.kode_warna} | {item.deskripsi_warna}
-                                      </option>
-                                    )}
-                                  </For>
-                              </select>
-                            ) : null}
+                          <td class="border p-1 align-top text-center">
+                            {chunkIndex() === 0 ? group.item_details?.deskripsi_warna : null}
+                          </td>
+
+                          <td class="border p-1 align-top text-center">
+                            {chunkIndex() === 0 ? group.item_details?.lebar_greige : null}"
+                          </td>
+                          <td class="border p-1 align-top text-center">
+                            {chunkIndex() === 0 ? group.item_details?.lebar_finish : null}"
                           </td>
 
                           {/* Kolom untuk 5 roll */}
@@ -709,30 +786,50 @@ export default function KJDeliveryNoteForm() {
                           </For>
 
                           {/* Kolom Total per Baris */}
-                          <td class="border text-center align-top p-1">{rollChunk.length}</td>
-                            <td class="border text-right px-2 align-top p-1" classList={{ 'bg-gray-200 ': form().unit === 'Yard' }}>
+                          <td class="border text-center align-top p-1">
+                            {rollChunk.length}
+                          </td>
+                          <Show when={form().unit === 'Meter'}>
+                            <td class="border text-right px-2 align-top p-1 bg-gray-200">
                                 {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0), 0))}
                             </td>
-                            <td class="border text-right px-2 align-top p-1" classList={{ 'bg-gray-200 ': form().unit !== 'Yard' }}>
+                          </Show>
+                          <Show when={form().unit === 'Yard'}>
+                            <td class="border text-right px-2 align-top p-1 bg-gray-200">
                                 {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.yard || 0), 0))}
                             </td>
+                          </Show>
+                          
+                          <td class="border px-2 py-1 text-right align-top font-semibold">
+                            {formatHarga(group.item_details?.harga)}
+                          </td>
                         </tr>
                       )}
                     </For>
 
                     {/* Baris Sub Total */}
                     <tr>
-                      <td colSpan={8} class="border px-2 py-1 font-semibold text-left">
+                      <td colSpan={10} class="border px-2 py-1 font-semibold text-left">
                         Sub Total
                       </td>
                       <td class="border px-2 py-1 text-center font-semibold">
                         {group.rolls.length}
                       </td>
-                      <td class="border px-2 py-1 text-right font-semibold" classList={{ 'bg-gray-200 ': form().unit === 'Yard' }}>
-                        {formatNumber(group.meter_total)} m
-                      </td>
-                      <td class="border px-2 py-1 text-right font-semibold" classList={{ 'bg-gray-200 ': form().unit !== 'Yard' }}>
-                        {formatNumber(group.yard_total)} yd
+                      <Show when={form().unit === 'Meter'}>
+                        <td class="border px-2 py-1 text-right font-semibold bg-gray-200">
+                          {formatNumber(group.meter_total)} m
+                        </td>
+                      </Show>
+                      <Show when={form().unit === 'Yard'}>
+                        <td class="border px-2 py-1 text-right font-semibold bg-gray-200">
+                          {formatNumber(group.yard_total)} yd
+                        </td>
+                      </Show>
+                      <td class="border px-2 py-1 text-right font-semibold">
+                        {formatHarga(
+                          (form().unit === 'Meter' ? group.meter_total : group.yard_total) *
+                          (group.item_details?.harga || 0)
+                        )}
                       </td>
                     </tr>
                   </tbody>
@@ -788,7 +885,7 @@ export default function KJDeliveryNoteForm() {
                   <th
                     class="border px-2 py-1 text-left"
                     colspan="8"
-                    style="width: 70%"
+                    style="width: 69%"
                   >
                     Total
                   </th>
@@ -798,11 +895,25 @@ export default function KJDeliveryNoteForm() {
                       0
                     )}
                   </th>
-                  <th class="border px-2 py-1 text-right w-24">
-                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0))} m
-                  </th>
-                  <th class="border px-2 py-1 text-right w-24">
-                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0) * 1.093613)} yd
+                  <Show when={form().unit === 'Meter'}>
+                    <th class="border px-2 py-1 text-right font-bold w-20">
+                      {formatNumber(form().itemGroups.reduce((sum, g) => sum + Number(g.meter_total || 0), 0))} m
+                    </th>
+                  </Show>
+                  <Show when={form().unit === 'Yard'}>
+                    <th class="border px-2 py-1 text-right font-bold w-20">
+                      {formatNumber(form().itemGroups.reduce((sum, g) => sum + Number(g.yard_total || 0), 0))} yd
+                    </th>
+                  </Show>
+
+                  <th class="border px-2 py-1 text-right font-bold w-24">
+                    {formatHarga(
+                      form().itemGroups.reduce((total, group) => {
+                        const quantity = form().unit === 'Meter' ? group.meter_total : group.yard_total;
+                        const price = group.item_details?.harga || 0;
+                        return total + (quantity * price);
+                      }, 0)
+                    )}
                   </th>
                 </tr>
               </thead>

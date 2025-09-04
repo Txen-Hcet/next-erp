@@ -36,20 +36,22 @@ export default function BGDeliveryNoteForm() {
     purchase_order_id: null,
     purchase_order_items: null,
     no_sj_supplier: "",
+    tanggal_kirim: "",
+    alamat_pengiriman: "",
     unit: "Meter", 
     itemGroups: [],
   });
 
   onMount(async () => {
     setLoading(true);
-    // 1. Ambil SEMUA purchase order untuk dropdown pencarian
     const poListResponse = await getAllBeliGreigeOrders(user?.token);
+    //console.log("Data all PO BG: ", JSON.stringify(poListResponse, null, 2));
     setBeliGreigeList(poListResponse.orders || []);
 
     if (isEdit) {
-      // 2. Jika mode edit, ambil data DETAIL surat jalan
       const sjResponse = await getBGDeliveryNotes(params.id, user?.token);
-      const suratJalanData = sjResponse?.suratJalan; // Gunakan key 'suratJalan'
+      //console.log("Data SJ BG per id: ", JSON.stringify(sjResponse, null, 2));
+      const suratJalanData = sjResponse?.suratJalan;
 
       if (!suratJalanData) {
         setLoading(false);
@@ -57,12 +59,11 @@ export default function BGDeliveryNoteForm() {
         return;
       }
 
-      // 3. Ambil juga data DETAIL purchase order yang terkait
       const poDetailResponse = await getBeliGreigeOrders(suratJalanData.po_id, user?.token);
       const poData = poDetailResponse?.order;
 
       const fullPrintData = {
-        ...suratJalanData,           // Data detail dari Surat Jalan
+        ...suratJalanData,
         //purchase_order_detail: poData
       };
       // Simpan ke dalam signal
@@ -70,28 +71,39 @@ export default function BGDeliveryNoteForm() {
 
       const MAX_COL_PER_ROW = 5;
 
-      // 4. Isi state form dengan SEMUA data yang sudah terkumpul
       setForm({
         ...form(),
         po_id: suratJalanData.no_sj,
         no_sj_supplier: suratJalanData.no_sj_supplier,
+        alamat_pengiriman: suratJalanData.supplier_alamat || "",
+        tanggal_kirim: suratJalanData.tanggal_kirim ? new Date(suratJalanData.tanggal_kirim).toISOString().split("T")[0] : "",
         purchase_order_id: suratJalanData.po_id,
-        purchase_order_items: poData, // Data PO untuk dropdown item
+        purchase_order_items: poData,
         sequence_number: suratJalanData.sequence_number,
         keterangan: suratJalanData.keterangan || "",
         unit: poData?.satuan_unit_name || "Meter",
-        itemGroups: (suratJalanData.items || []).map((group) => ({
-          purchase_order_item_id: group.po_item_id,
-          meter_total: group.meter_total || 0,
-          yard_total: group.yard_total || 0,
-          rolls: (group.rolls || []).map((r, idx) => ({
-            id: r.id,
-            row_num: r.row_num || Math.floor(idx / MAX_COL_PER_ROW) + 1,
-            col_num: r.col_num || (idx % MAX_COL_PER_ROW) + 1,
-            meter: r.meter || "",
-            yard: r.yard || ((r.meter || 0) * 1.093613).toFixed(2),
-          })),
-        })),
+        itemGroups: (suratJalanData.items || []).map((group) => {
+          const poItem = poData?.items.find(item => item.id === group.po_item_id);
+
+          return {
+            purchase_order_item_id: group.po_item_id,
+            item_details: {
+              corak_kain: poItem?.corak_kain || "N/A",
+              konstruksi_kain: poItem?.konstruksi_kain || "",
+              lebar_greige: poItem?.lebar_greige || "N/A",
+              harga: poItem?.harga || 0,
+            },
+            meter_total: group.meter_total || 0,
+            yard_total: group.yard_total || 0,
+            rolls: (group.rolls || []).map((r, idx) => ({
+              id: r.id,
+              row_num: r.row_num || Math.floor(idx / MAX_COL_PER_ROW) + 1,
+              col_num: r.col_num || (idx % MAX_COL_PER_ROW) + 1,
+              meter: r.meter || "",
+              yard: r.yard || ((r.meter || 0) * 1.093613).toFixed(2),
+            })),
+          };
+        }),
       });
     }
     setLoading(false);
@@ -112,18 +124,27 @@ export default function BGDeliveryNoteForm() {
     }).format(numValue);
   };
 
-  // Fungsi untuk mengubah string format kembali menjadi angka
   const parseNumber = (str) => {
     if (typeof str !== 'string' || !str) return 0;
     const cleaned = str.replace(/[^\d,]/g, "").replace(",", ".");
     return parseFloat(cleaned) || 0;
   };
+
+  const formatHarga = (val) => {
+    if (val === null || val === "") return "";
+    return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 2,
+    }).format(val);
+  };  
   
   const handleSuratJalanChange = async (selectedPO) => {
     if (!selectedPO) return;
 
     // Hanya jalankan logika untuk mode "Tambah Baru"
     const res = await getBeliGreigeOrders(selectedPO.id, user?.token);
+    //console.log("Data get BG ORDER ", JSON.stringify(res, null, 2));    
     const selectedGreigeData = res?.order; 
 
     const poTypeLetter = selectedPO.no_po.split("/")[1];
@@ -135,13 +156,36 @@ export default function BGDeliveryNoteForm() {
       ppnValue
     );
 
+    const newItemGroups = (selectedGreigeData.items || []).map(item => ({
+      purchase_order_item_id: item.id,
+      // Simpan detail item untuk ditampilkan di UI
+      item_details: {
+        corak_kain: item.corak_kain,
+        konstruksi_kain: item.konstruksi_kain,
+        lebar_greige: item.lebar_greige,
+        harga: item.harga,
+      },
+      meter_total: 0,
+      yard_total: 0,
+      rolls: [
+        {
+          row_num: 1,
+          col_num: 1,
+          meter: "",
+          yard: "",
+        },
+      ],
+    }));
+
     setForm({
       ...form(),
       purchase_order_id: selectedPO.id,
       purchase_order_items: selectedGreigeData,
       po_id: newSJNumber,
       sequence_number: newSequenceNumber,
-      unit: selectedGreigeData.satuan_unit_name, 
+      alamat_pengiriman: selectedGreigeData.supplier_alamat,
+      unit: selectedGreigeData.satuan_unit_name,
+      itemGroups: newItemGroups, 
     });
   };
 
@@ -356,6 +400,8 @@ export default function BGDeliveryNoteForm() {
           no_sj: form().no_sj,
           //po_id: Number(form().sales_order_id),
           keterangan: form().keterangan,
+          tanggal_kirim: form().tanggal_kirim,
+          alamat_pengiriman: form().alamat_pengiriman,
           items: form().itemGroups.map((g) => {
             const rollsWithIndex = g.rolls.map((r, idx) => {
               const row_num = Math.floor(idx / MAX_COL_PER_ROW) + 1;
@@ -397,6 +443,8 @@ export default function BGDeliveryNoteForm() {
           sequence_number: form().sequence_number,
           po_id: form().purchase_order_id,
           keterangan: form().keterangan,
+          tanggal_kirim: form().tanggal_kirim,
+          alamat_pengiriman: form().alamat_pengiriman,
           no_sj_supplier: form().no_sj_supplier.trim(),
           items: form().itemGroups.map((g) => {
             const rollsWithIndex = g.rolls.map((r, idx) => ({
@@ -459,8 +507,8 @@ export default function BGDeliveryNoteForm() {
     }
 
     const dataToPrint = {
-      ...deliveryNoteData(), // Data dasar yang lengkap dari API
-      //...form(),             // Timpa dengan nilai terbaru dari form (misal: keterangan, no_sj_supplier, dan itemGroups yang sudah diedit)
+      ...deliveryNoteData(),
+      //...form(),
     };
 
     //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
@@ -490,7 +538,7 @@ export default function BGDeliveryNoteForm() {
       </button>
 
       <form class="space-y-4" onSubmit={handleSubmit}>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="block text-sm mb-1">No Surat Jalan</label>
             <div class="flex gap-2">
@@ -512,6 +560,30 @@ export default function BGDeliveryNoteForm() {
               classList={{ "bg-gray-200": isView }}
             />
           </div>
+          <div>
+            <label class="block text-sm mb-1">Alamat Pengiriman</label>
+            <div class="flex gap-2">
+              <input
+                class="w-full border bg-gray-200 p-2 rounded"
+                value={form().alamat_pengiriman}
+                readOnly
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Tanggal Pengiriman</label>
+            <div class="flex gap-2">
+              <input
+                type="date"
+                class="w-full border p-2 rounded"                
+                value={form().tanggal_kirim}
+                onInput={(e) => 
+                  setForm({ ...form(), tanggal_kirim: e.target.value })}
+                disabled={isView}
+                classList={{ "bg-gray-200": isView }} 
+              />
+            </div>
+          </div>          
           <div>
             <label class="block text-sm mb-1">Purchase Order</label>
               <PurchaseOrderGreigeSearch
@@ -540,6 +612,37 @@ export default function BGDeliveryNoteForm() {
           </div>
         </div>
 
+        <Show when={form().purchase_order_items && form().itemGroups.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain PO:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().purchase_order_items.items}>
+                {(item) => {
+                  const sisa = form().unit === 'Meter'
+                    ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                    : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">{item.corak_kain} | {item.konstruksi_kain}</span> - 
+                      Quantity: 
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumber(sisa)} {form().unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">
+                          HABIS
+                        </span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
+
         <div>
           <h2 class="text-lg font-bold mt-6 mb-2">Item Groups</h2>
 
@@ -547,7 +650,7 @@ export default function BGDeliveryNoteForm() {
             type="button"
             onClick={() => addItemGroup()}
             class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
-            hidden={isView}
+            hidden
           >
             + Tambah Item Group
           </button>
@@ -587,7 +690,8 @@ export default function BGDeliveryNoteForm() {
                     <thead class="bg-gray-100">
                       <tr>
                         <th class="border px-2 py-1 w-10">No</th>
-                        <th class="border px-2 py-1 w-32">Item</th>
+                        <th class="border px-2 py-1 w-42">Item</th>
+                        <th class="border px-2 py-1 w-24">Lebar Greige</th>
                         <For each={[1, 2, 3, 4, 5]}>
                           {(n) => (
                             <th class="border px-2 py-1 w-16 text-center">
@@ -596,12 +700,13 @@ export default function BGDeliveryNoteForm() {
                           )}
                         </For>
                         <th class="border px-2 py-1 w-14">TTL/PCS</th>
-                        <th class="border px-2 py-1 w-24" classList={{ 'bg-gray-200': form().unit === 'Yard' }}>
-                          TTL/MTR
-                        </th>
-                        <th class="border px-2 py-1 w-24" classList={{ 'bg-gray-200': form().unit !== 'Yard' }}>
-                          TTL/YARD
-                        </th>
+                        <Show when={form().unit === 'Meter'}>
+                          <th class="border px-2 py-1 w-24 bg-gray-200">TTL/MTR</th>
+                        </Show>
+                        <Show when={form().unit === 'Yard'}>
+                          <th class="border px-2 py-1 w-24 bg-gray-200">TTL/YARD</th>
+                        </Show>
+                        <th class="border px-2 py-1 w-24">Harga</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -617,29 +722,14 @@ export default function BGDeliveryNoteForm() {
                           {/* Kolom Item (hanya tampil di baris pertama per group) */}
                           <td class="border p-1 align-top">
                             {chunkIndex() === 0 ? (
-                              <select
-                                class="w-full border rounded p-1"
-                                value={group.purchase_order_item_id || ""}
-                                onInput={(e) => {
-                                  // Logika untuk mengubah item ID group
-                                  const newGroups = [...form().itemGroups];
-                                  newGroups[i()].purchase_order_item_id = e.target.value;
-                                  setForm({ ...form(), itemGroups: newGroups });
-                                }}
-                                disabled={isView}
-                                classList={{ "bg-gray-200": isView }}
-                              >
-                                <option value="">Pilih Item</option>
-                                  <For each={form().purchase_order_items?.items || []}>
-                                    {(item) => (
-                                      <option value={item.id}>
-                                        {/* FIX: Akses properti langsung dari 'item' */}
-                                        {item.corak_kain} | {item.konstruksi_kain}
-                                      </option>
-                                    )}
-                                  </For>
-                              </select>
+                              <div class="font-semibold">
+                                {group.item_details?.corak_kain} | {group.item_details?.konstruksi_kain}
+                              </div>
                             ) : null}
+                          </td>
+
+                          <td class="border p-1 align-top text-center">
+                            {chunkIndex() === 0 ? group.item_details?.lebar_greige : null}"
                           </td>
 
                           {/* Kolom untuk 5 roll */}
@@ -680,11 +770,19 @@ export default function BGDeliveryNoteForm() {
                           <td class="border text-center align-top p-1">
                             {rollChunk.length}
                           </td>
-                          <td class="border text-right px-2 align-top p-1" classList={{ 'bg-gray-200 ': form().unit === 'Yard' }}>
-                              {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0), 0))}
-                          </td>
-                          <td class="border text-right px-2 align-top p-1" classList={{ 'bg-gray-200 ': form().unit !== 'Yard' }}>
-                              {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.yard || 0), 0))}
+                          <Show when={form().unit === 'Meter'}>
+                            <td class="border text-right px-2 align-top p-1 bg-gray-200">
+                                {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.meter || 0), 0))}
+                            </td>
+                          </Show>
+                          <Show when={form().unit === 'Yard'}>
+                            <td class="border text-right px-2 align-top p-1 bg-gray-200">
+                                {formatNumber(rollChunk.reduce((sum, r) => sum + Number(r.roll.yard || 0), 0))}
+                            </td>
+                          </Show>
+                          
+                          <td class="border px-2 py-1 text-right align-top font-semibold">
+                            {formatHarga(group.item_details?.harga)}
                           </td>
                         </tr>
                       )}
@@ -692,17 +790,27 @@ export default function BGDeliveryNoteForm() {
 
                     {/* Baris Sub Total */}
                     <tr>
-                      <td colSpan={7} class="border px-2 py-1 font-semibold text-left">
+                      <td colSpan={8} class="border px-2 py-1 font-semibold text-left">
                         Sub Total
                       </td>
                       <td class="border px-2 py-1 text-center font-semibold">
                         {group.rolls.length}
                       </td>
-                      <td class="border px-2 py-1 text-right font-semibold" classList={{ 'bg-gray-200 ': form().unit === 'Yard' }}>
-                        {formatNumber(group.meter_total)} m
-                      </td>
-                      <td class="border px-2 py-1 text-right font-semibold" classList={{ 'bg-gray-200 ': form().unit !== 'Yard' }}>
-                        {formatNumber(group.yard_total)} yd
+                      <Show when={form().unit === 'Meter'}>
+                        <td class="border px-2 py-1 text-right font-semibold bg-gray-200">
+                          {formatNumber(group.meter_total)} m
+                        </td>
+                      </Show>
+                      <Show when={form().unit === 'Yard'}>
+                        <td class="border px-2 py-1 text-right font-semibold bg-gray-200">
+                          {formatNumber(group.yard_total)} yd
+                        </td>
+                      </Show>
+                      <td class="border px-2 py-1 text-right font-semibold">
+                        {formatHarga(
+                          (form().unit === 'Meter' ? group.meter_total : group.yard_total) *
+                          (group.item_details?.harga || 0)
+                        )}
                       </td>
                     </tr>
                   </tbody>
@@ -758,21 +866,35 @@ export default function BGDeliveryNoteForm() {
                   <th
                     class="border px-2 py-1 text-left"
                     colspan="8"
-                    style="width: 68%"
+                    style="width: 69%"
                   >
                     Total
                   </th>
-                  <th class="border px-2 py-1 text-right w-16">
+                  <th class="border px-2 py-1 text-right w-15">
                     {form().itemGroups.reduce(
                       (acc, g) => acc + g.rolls.length,
                       0
                     )}
                   </th>
-                  <th class="border px-2 py-1 text-right w-24">
-                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0))} m
-                  </th>
-                  <th class="border px-2 py-1 text-right w-24">
-                      {formatNumber(form().itemGroups.flatMap(g => g.rolls).reduce((sum, r) => sum + Number(r.meter || 0), 0) * 1.093613)} yd
+                  <Show when={form().unit === 'Meter'}>
+                    <th class="border px-2 py-1 text-right font-bold w-20">
+                      {formatNumber(form().itemGroups.reduce((sum, g) => sum + Number(g.meter_total || 0), 0))} m
+                    </th>
+                  </Show>
+                  <Show when={form().unit === 'Yard'}>
+                    <th class="border px-2 py-1 text-right font-bold w-20">
+                      {formatNumber(form().itemGroups.reduce((sum, g) => sum + Number(g.yard_total || 0), 0))} yd
+                    </th>
+                  </Show>
+
+                  <th class="border px-2 py-1 text-right font-bold w-24">
+                    {formatHarga(
+                      form().itemGroups.reduce((total, group) => {
+                        const quantity = form().unit === 'Meter' ? group.meter_total : group.yard_total;
+                        const price = group.item_details?.harga || 0;
+                        return total + (quantity * price);
+                      }, 0)
+                    )}
                   </th>
                 </tr>
               </thead>
