@@ -177,7 +177,7 @@ export default function KJPurchaseContractForm() {
       form().ppn_percent
     );
 
-    console.log(lastSeq);
+    //console.log(lastSeq);
 
     const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
     const now = new Date();

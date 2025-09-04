@@ -475,10 +475,7 @@ export default function KJPurchaseOrderForm() {
   };
 
   function handlePrint() {
-    console.log(
-      "📄 Data yang dikirim ke halaman Print:",
-      JSON.stringify(form())
-    );
+    //console.log("📄 Data yang dikirim ke halaman Print:",JSON.stringify(form(), null, 2));
     const encodedData = encodeURIComponent(JSON.stringify(form()));
     window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
   }
