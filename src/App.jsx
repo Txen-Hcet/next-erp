@@ -15,6 +15,7 @@ import BeliGreigePurchaseOrderList from "./pages/purchasing/beli_greige/BGPurcha
 import BeliGreigePurchaseOrderForm from "./pages/purchasing/beli_greige/BGPurchaseOrderForm";
 import BeliGreigeDeliveryNoteList from "./pages/purchasing/beli_greige/BGDeliveryNoteList";
 import BeliGreigeDeliveryNoteForm from "./pages/purchasing/beli_greige/BGDeliveryNoteForm";
+import BeliGreigeDeliveryNoteFormV2 from "./pages/purchasing/beli_greige/BGDeliveryNoteFormV2";
 // // ORDER CELUP
 import OrderCelupPurchaseContractList from "./pages/purchasing/order_celup/OCPurchaseContractList";
 import OrderCelupPurchaseContractForm from "./pages/purchasing/order_celup/OCPurchaseContractForm";
@@ -150,7 +151,7 @@ function App() {
       />
       <Route
         path="/beligreige-deliverynote/form"
-        component={BeliGreigeDeliveryNoteForm}
+        component={BeliGreigeDeliveryNoteFormV2}
       />
       {/* BELI GREIGE */}
 
