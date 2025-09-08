@@ -76,36 +76,26 @@ export default function JBSuratJalanPrint(props) {
       parseFloat(data.summary?.total_yard || 0)
   );
 
-  const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
+const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
 
-  const subTotal = createMemo(() => {
-    return (data.itemGroups || []).reduce(
-      (sum, item) => sum + (item.subtotal || 0),
-      0
-    );
-  });
+  const subTotal = createMemo(() => Number(data?.summary?.subtotal) || 0);
 
-  const dpp = createMemo(() => {
-    return subTotal() / 1.11;
-  });
+  const dpp = createMemo(() => subTotal() / 1.11);
 
-  const nilaiLain = createMemo(() => {
-    return dpp() * (11 / 12);
-  });
+  const nilaiLain = createMemo(() => dpp() * (11 / 12));
 
-  const ppn = createMemo(() => {
-    return isPPN() ? nilaiLain() * 0.12 : 0;
-  });
+  const ppn = createMemo(() => (isPPN() ? nilaiLain() * 0.12 : 0));
 
   const jumlahTotal = createMemo(() => dpp() + ppn());
 
+  // kumpulkan ke dalam object akhir
   const dataAkhir = {
+    subtotal: subTotal(),
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
     total: jumlahTotal(),
   };
-
 
   return (
     <>
@@ -189,7 +179,7 @@ export default function JBSuratJalanPrint(props) {
                   <td className="px-2 break-words w-[65%]">{data.no_sj}</td>
               </tr>
               <tr>
-                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal</td>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal SJ</td>
                   <td className="w-[5%] text-center">:</td>
                   <td className="px-2 break-words w-[65%]">{formatTanggal(data.created_at )}</td>
               </tr>
@@ -199,9 +189,20 @@ export default function JBSuratJalanPrint(props) {
                   <td className="px-2 break-words w-[65%]">{data.no_sj_supplier}</td>
               </tr>
               <tr>
-                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. PO</td>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Alamat Kirim</td>
                   <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 break-words w-[65%]">{data.no_po}</td>
+                  <td className="px-2 break-words w-[65%]">{data.supplier_alamat}</td>
+                  {/* <td className="px-2 break-words w-[65%]">{data.supplier_kirim_alamat}</td> */}
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal Kirim</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{formatTanggal(data.tanggal_kirim || "-")}</td>
+              </tr>
+              <tr>
+                  <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. JB</td>
+                  <td className="w-[5%] text-center">:</td>
+                  <td className="px-2 break-words w-[65%]">{data.no_jb}</td>
               </tr>
             </tbody>
           </table>
@@ -219,10 +220,13 @@ export default function JBSuratJalanPrint(props) {
               <th className="border border-black p-1 w-[20%] text-center" colSpan={2}>
                 Quantity
               </th>
+              <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
+              <th hidden className="border border-black p-1 w-[20%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
               <th colspan={2} className="border border-black p-1 w-[24%]">
-                {`(Roll / ${data.satuan_unit_name || 'Meter'})`}
+                {/* {`(Roll / ${data.satuan_unit_name || 'Meter'})`} */}
+                {data.satuan_unit_name || 'Meter'}
               </th>
             </tr>
           </thead>
@@ -237,9 +241,22 @@ export default function JBSuratJalanPrint(props) {
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_kain)}"</td>
                   <td colspan={2} className="p-1 text-center break-words">
                     {data.satuan_unit_name === 'Meter' 
-                      ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
-                      : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                      // ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
+                      // : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                      ? formatAngka(item.meter_total)
+                      : formatAngka(item.yard_total)
                     }
+                  </td>
+                  <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
+                  <td hidden className="p-1 text-right break-words">
+                    {(() => {
+                        const qty =
+                        data.satuan_unit_name === "Meter"
+                            ? parseFloat(item.meter_total || 0)
+                            : parseFloat(item.yard_total || 0);
+                        const harga = parseFloat(item.harga || 0);
+                        return harga && qty ? formatRupiah(harga * qty) : "-";
+                    })()}
                   </td>
                 </tr>
               );
@@ -266,7 +283,79 @@ export default function JBSuratJalanPrint(props) {
                     : formatAngka(totalYard())
                   }
               </td>
+              <td hidden className="border border-black px-2 py-1 text-right font-bold">
+                Sub Total
+              </td>
+              <td hidden className="border border-black px-2 py-1 text-right">
+                {formatRupiah(subTotal())}
+              </td>
+              {/* <td className="border border-black px-2 py-1 text-right font-bold">
+                {isPPN() ? 'Sub Total' : 'Jumlah Total'}
+              </td>
+              <td className="border border-black px-2 py-1 text-right">
+                {formatRupiah(subTotal())}
+              </td> */}
             </tr>
+            <tr hidden >
+              <td colSpan={7} className="px-2 py-1"/>
+              <td className="px-2 py-1 text-right font-bold">DPP</td>
+              <td className="px-2 py-1 text-right">
+                {formatRupiah(dataAkhir.dpp)}
+              </td>
+            </tr>
+            <tr hidden >
+              <td colSpan={7} className="px-2 py-1"/>
+              <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
+              <td className="px-2 py-1 text-right">
+                {formatRupiah(dataAkhir.nilai_lain)}
+              </td>
+            </tr>
+            <tr hidden >
+              <td colSpan={7} className="px-2 py-1"/>
+              <td className="px-2 py-1 text-right font-bold">PPN</td>
+              <td className="px-2 py-1 text-right">
+                {formatRupiah(dataAkhir.ppn)}
+              </td>
+            </tr>
+            <tr hidden >
+              <td colSpan={7} className="px-2 py-1"/>
+              <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
+              <td className="px-2 py-1 text-right">
+                {formatRupiah(dataAkhir.total)}
+              </td>
+            </tr>
+            {/* <Show when={isPPN()}>
+              <>
+                <tr>
+                  <td colSpan={8} className="px-2 py-1"/>
+                  <td className="px-2 py-1 text-right font-bold">DPP</td>
+                  <td className="px-2 py-1 text-right">
+                    {formatRupiah(dataAkhir.dpp)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={8} className="px-2 py-1"/>
+                  <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
+                  <td className="px-2 py-1 text-right">
+                    {formatRupiah(dataAkhir.nilai_lain)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={8} className="px-2 py-1"/>
+                  <td className="px-2 py-1 text-right font-bold">PPN</td>
+                  <td className="px-2 py-1 text-right">
+                    {formatRupiah(dataAkhir.ppn)}
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={8} className="px-2 py-1"/>
+                  <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
+                  <td className="px-2 py-1 text-right">
+                    {formatRupiah(dataAkhir.total)}
+                  </td>
+                </tr>
+              </>
+            </Show> */}
             <tr>
               <td colSpan={7} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>

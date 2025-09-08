@@ -225,7 +225,8 @@ export default function JBInvoicePrint(props) {
             </tr>
             <tr>
               <th colspan={2} className="border border-black p-1 w-[24%]">
-                {`(Roll / ${data.satuan_unit || 'Meter'})`}
+                {/* {`(Roll / ${data.satuan_unit_name || 'Meter'})`} */}
+                {data.satuan_unit_name || 'Meter'}
               </th>
             </tr>
           </thead>
@@ -240,15 +241,18 @@ export default function JBInvoicePrint(props) {
                 {formatAngkaNonDecimal(item.lebar_kain)}"
                 </td>
                 <td colSpan={2} className="p-1 text-center break-words">
-                {data.satuan_unit === "Meter"
-                    ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
-                    : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`}
+                  {data.satuan_unit_name === "Meter"
+                    // ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
+                      // : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                      ? formatAngka(item.meter_total)
+                      : formatAngka(item.yard_total)
+                  }
                 </td>
                 <td className="p-1 text-right break-words">{formatRupiah(item.harga)}</td>
                 <td className="p-1 text-right break-words">
                     {(() => {
                         const qty =
-                        data.satuan_unit === "Meter"
+                        data.satuan_unit_name === "Meter"
                             ? parseFloat(item.meter_total || 0)
                             : parseFloat(item.yard_total || 0);
                         const harga = parseFloat(item.harga || 0);
@@ -276,7 +280,7 @@ export default function JBInvoicePrint(props) {
             <tr>
               <td colSpan={5} className="border border-black font-bold px-2 py-1">Total:</td>
               <td colspan={2} className="border border-black px-2 py-1 text-center font-bold">
-                  {data.satuan_unit === 'Meter' 
+                  {data.satuan_unit_name === 'Meter' 
                     ? formatAngka(totalMeter())
                     : formatAngka(totalYard())
                   }
