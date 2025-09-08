@@ -7,6 +7,7 @@ import {
   getUser,
   softDeleteBeliGreige,
   softDeletePackingList,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -68,16 +69,42 @@ export default function BGPurchaseContractList() {
     }
   };
 
-  const handleGetAllBeliGreiges = async (tok) => {
-    const getDataBeliGreiges = await getAllBeliGreiges(tok);
+  // const handleGetAllBeliGreiges = async (tok) => {
+  //   const getDataBeliGreiges = await getAllBeliGreiges(tok);
 
-    if (getDataBeliGreiges.status === 200) {
-      const sortedData = getDataBeliGreiges.contracts.sort(
-        (a, b) => a.id - b.id
-      );
+  //   if (getDataBeliGreiges.status === 200) {
+  //     const sortedData = getDataBeliGreiges.contracts.sort(
+  //       (a, b) => a.id - b.id
+  //     );
+  //     setBeliGreiges(sortedData);
+  //   }
+  // };
+
+  const handleGetAllBeliGreiges = async (tok) => {
+    const result = await getAllBeliGreiges(tok);
+
+    if (result.status === 200) {
+      const sortedData = result.contracts.sort((a, b) => a.id - b.id);
       setBeliGreiges(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat Purchase Contract Greige",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil data Purchase Contract Greige",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
-  };
+  };  
 
   const qtyCounterReal = (bg, satuanUnit) => {
     let total = 0;
@@ -245,21 +272,24 @@ export default function BGPurchaseContractList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/beligreige-purchasecontract/form?id=${bg.id}`)
-                    }
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(bg.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_purchase_greige_contract") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/beligreige-purchasecontract/form?id=${bg.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_purchase_greige_contract") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(bg.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

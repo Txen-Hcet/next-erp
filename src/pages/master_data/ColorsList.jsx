@@ -1,7 +1,12 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { getAllColors, getUser, softDeleteColor } from "../../utils/auth";
+import { 
+  getAllColors, 
+  getUser, 
+  softDeleteColor,
+  hasAllPermission,
+} from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
@@ -94,7 +99,9 @@ export default function ColorsList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Kode</th>
               <th class="py-2 px-2">Deskripsi</th>
-              <th class="py-2 px-2">Aksi</th>
+              {hasAllPermission(["edit_warna", "delete_warna"]) && (
+                <th class="py-2 px-2">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -105,20 +112,22 @@ export default function ColorsList() {
                 </td>
                 <td class="py-2 px-4">{color.kode}</td>
                 <td class="py-2 px-4">{color.deskripsi}</td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/colors/form?id=${color.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(color.id)}
-                  >
-                   <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_warna", "delete_warna"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/colors/form?id=${color.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(color.id)}
+                    >
+                    <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

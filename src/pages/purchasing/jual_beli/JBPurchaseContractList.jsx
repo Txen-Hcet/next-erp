@@ -5,6 +5,7 @@ import {
   getAllJualBelis,
   getUser,
   softDeleteJualBeli,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -66,12 +67,38 @@ export default function JBPurchaseContractList() {
     }
   };
 
-  const handleGetAllBeliGreiges = async (tok) => {
-    const getDataJualBelis = await getAllJualBelis(tok);
+  // const handleGetAllBeliGreiges = async (tok) => {
+  //   const getDataJualBelis = await getAllJualBelis(tok);
 
-    if (getDataJualBelis.status === 200) {
-      const sortedData = getDataJualBelis.mainRows.sort((a, b) => a.id - b.id);
+  //   if (getDataJualBelis.status === 200) {
+  //     const sortedData = getDataJualBelis.mainRows.sort((a, b) => a.id - b.id);
+  //     setBeliGreiges(sortedData);
+  //   }
+  // };
+
+  const handleGetAllBeliGreiges = async (tok) => {
+    const result = await getAllJualBelis(tok);
+
+    if (result.status === 200) {
+      const sortedData = result.mainRows.sort((a, b) => a.id - b.id);
       setBeliGreiges(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat jual beli order",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil data jual beli order",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -194,21 +221,24 @@ export default function JBPurchaseContractList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/jualbeli-purchasecontract/form?id=${jb.id}`)
-                    }
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(jb.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_jual_beli") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/jualbeli-purchasecontract/form?id=${jb.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_jual_beli") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(jb.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

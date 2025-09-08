@@ -5,6 +5,7 @@ import {
   getAllKainJadiOrders,
   getUser,
   softDeleteKainJadiOrder,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -59,7 +60,7 @@ export default function KJPurchaseOrderList() {
             `Gagal menghapus data packing order dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -68,13 +69,26 @@ export default function KJPurchaseOrderList() {
   };
 
   const handleGetAllPurchaseOrders = async (tok) => {
-    const getDataPurchaseOrders = await getAllKainJadiOrders(tok);
+    const result = await getAllKainJadiOrders(tok);
 
-    if (getDataPurchaseOrders.status === 200) {
-      const sortedData = getDataPurchaseOrders.orders.sort(
-        (a, b) => a.id - b.id
-      );
+    if (result.status === 200) {
+      const sortedData = result.orders.sort((a, b) => a.id - b.id);
       setPackingOrders(sortedData);
+    } else if (result.status === 403) {
+      Swal.fire({
+        title: "Akses Ditolak",
+        text: "Anda tidak memiliki izin untuk melihat order kain jadi",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Terjadi kesalahan saat mengambil data",
+        icon: "error",
+        confirmButtonColor: "#d33",
+      });
     }
   };
 
@@ -198,21 +212,24 @@ export default function KJPurchaseOrderList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)
-                    }
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(po.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_purchase_finish_order") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_purchase_finish_order") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(po.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

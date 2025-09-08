@@ -5,6 +5,7 @@ import {
   getAllKainJadis,
   getUser,
   softDeleteKainJadi,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -59,7 +60,7 @@ export default function KJPurchaseContractList() {
             `Gagal menghapus data kain jadi dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -68,13 +69,28 @@ export default function KJPurchaseContractList() {
   };
 
   const handleGetAllBeliGreiges = async (tok) => {
-    const getDataBeliGreiges = await getAllKainJadis(tok);
+    const result = await getAllKainJadis(tok);
 
-    if (getDataBeliGreiges.status === 200) {
-      const sortedData = getDataBeliGreiges.contracts.sort(
-        (a, b) => a.id - b.id
-      );
+    if (result.status === 200) {
+      const sortedData = result.contracts.sort((a, b) => a.id - b.id);
       setBeliGreiges(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat kontrak kain jadi",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil data kontrak kain jadi",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -244,21 +260,24 @@ export default function KJPurchaseContractList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/kainjadi-purchasecontract/form?id=${kj.id}`)
-                    }
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(kj.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_purchase_finish_contract") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/kainjadi-purchasecontract/form?id=${kj.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_purchase_finish_contract") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(kj.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

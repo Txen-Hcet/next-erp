@@ -8,6 +8,7 @@ import {
   getDeliveryNotes,
   setInvoiceSales,
   unsetInvoiceSales,
+  hasPermission
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye, Printer, CheckCircle, XCircle, X } from "lucide-solid";
@@ -98,19 +99,58 @@ export default function SalesInvoiceList() {
     }
   };
 
-  const handleGetAllDeliveryNotes = async (tok) => {
-    const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
-    //console.log("Respons dari getAllDeliveryNotes:", JSON.stringify(getDataDeliveryNotes, null, 2));
+  // const handleGetAllDeliveryNotes = async (tok) => {
+  //   const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
+  //   //console.log("Respons dari getAllDeliveryNotes:", JSON.stringify(getDataDeliveryNotes, null, 2));
 
-    if (getDataDeliveryNotes.status === 200) {
-        const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
+  //   if (getDataDeliveryNotes.status === 200) {
+  //       const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
       
-      const sortedData = suratJalanList.sort(
-        (a, b) => a.id - b.id
-      );
-      setSuratJalan(sortedData);
+  //     const sortedData = suratJalanList.sort(
+  //       (a, b) => a.id - b.id
+  //     );
+  //     setSuratJalan(sortedData);
+  //   }
+  // };
+
+  const handleGetAllDeliveryNotes = async (tok) => {
+    try {
+      const result = await getAllDeliveryNotes(tok);
+
+      if (result.status === 200) {
+        const suratJalanList = result.surat_jalan_list || [];
+        const sortedData = suratJalanList.sort((a, b) => a.id - b.id);
+        setSuratJalan(sortedData);
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Invoice Penjualan",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
+      } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Invoice Penjualan",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data Delivery Notes:", error);
+      Swal.fire({
+        title: "Gagal",
+        text: error.message || "Terjadi kesalahan saat mengambil data",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
-  };
+  };  
 
   async function handlePrint(sc) {
     try {
@@ -265,11 +305,10 @@ async function handleUnsetInvoice(sc) {
                   >
                     <Printer size={25} />
                   </button>
-                  {sc.delivered_status === 1 && (
+                  {hasPermission("unprint_invoice") && sc.delivered_status === 1 && (
                     <button
                       class="text-red-600 hover:underline"
                       onClick={() => handleUnsetInvoice(sc)}
-                      hidden
                     >
                       <X size={25} />
                     </button>

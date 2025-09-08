@@ -5,6 +5,7 @@ import {
   getAllOCDeliveryNotes,
   getUser,
   softDeleteOCDeliveryNote,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
@@ -67,14 +68,46 @@ export default function OCDeliveryNoteList() {
     }
   };
 
+  // const handleGetAllDeliveryNotes = async (tok) => {
+  //   try {
+  //     const response = await getAllOCDeliveryNotes(tok);
+
+  //     if (response && Array.isArray(response.suratJalans)) {
+  //       const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
+  //       setPackingOrders(sortedData);
+  //     } else {
+  //       setPackingOrders([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Gagal mengambil data Surat Penerimaan Order Celup:", error);
+  //     setPackingOrders([]);
+  //   }
+  // };
+
   const handleGetAllDeliveryNotes = async (tok) => {
     try {
-      const response = await getAllOCDeliveryNotes(tok);
+      const result = await getAllOCDeliveryNotes(tok);
 
-      if (response && Array.isArray(response.suratJalans)) {
-        const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
+      if (result && Array.isArray(result.suratJalans)) {
+        const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
         setPackingOrders(sortedData);
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Surat Penerimaan Order Celup",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
       } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Surat Penerimaan Order Celup",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
         setPackingOrders([]);
       }
     } catch (error) {
@@ -172,19 +205,22 @@ export default function OCDeliveryNoteList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/ordercelup-deliverynote/form?id=${sj.id}`)}
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(sj.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_purchase_celup_surat_jalan") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/ordercelup-deliverynote/form?id=${sj.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_purchase_celup_surat_jalan") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(sj.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

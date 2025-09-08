@@ -1,7 +1,12 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { getAllFabrics, getUser, softDeleteFabric } from "../../utils/auth";
+import { 
+  getAllFabrics, 
+  getUser, 
+  softDeleteFabric,
+  hasAllPermission,
+} from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
@@ -52,7 +57,7 @@ export default function FabricsList() {
           text: error.message || `Gagal menghapus data kain dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -93,7 +98,9 @@ export default function FabricsList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Corak Kain</th>
               <th class="py-2 px-2">Konstruksi</th>
-              <th class="py-2 px-2">Aksi</th>
+              {hasAllPermission(["edit_kain", "delete_kain"]) && (
+                <th class="py-2 px-2">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -104,20 +111,22 @@ export default function FabricsList() {
                 </td>
                 <td class="py-2 px-4">{fabric.corak}</td>
                 <td class="py-2 px-4">{fabric.konstruksi}</td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/fabrics/form?id=${fabric.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(fabric.id)}
-                  >
-                   <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_kain", "delete_kain"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/fabrics/form?id=${fabric.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(fabric.id)}
+                    >
+                    <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

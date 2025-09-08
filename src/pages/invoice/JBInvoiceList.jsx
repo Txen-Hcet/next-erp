@@ -8,6 +8,7 @@ import {
   getJBDeliveryNotes,
   setInvoiceJB,
   unsetInvoiceJB,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye, Printer, CheckCircle, XCircle, X } from "lucide-solid";
@@ -81,19 +82,51 @@ const formatNumber = (num, decimals = 2) => {
     }
   };
 
+  // const handleGetAllDeliveryNotes = async (tok) => {
+  //   try {
+  //     const response = await getAllJBDeliveryNotes(tok);
+  //     //console.log("Get all data sj-jb: ", JSON.stringify(response, null, 2));
+
+  //     if (response && Array.isArray(response.suratJalans)) {
+  //       const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
+  //       setPackingOrders(sortedData);
+  //     } else {
+  //       setPackingOrders([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Gagal mengambil data Surat Penerimaan Jual Beli:", error);
+  //     setPackingOrders([]);
+  //   }
+  // };
+
   const handleGetAllDeliveryNotes = async (tok) => {
     try {
-      const response = await getAllJBDeliveryNotes(tok);
-      //console.log("Get all data sj-jb: ", JSON.stringify(response, null, 2));
+      const result = await getAllJBDeliveryNotes(tok);
 
-      if (response && Array.isArray(response.suratJalans)) {
-        const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
+      if (result && Array.isArray(result.suratJalans)) {
+        const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
         setPackingOrders(sortedData);
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Invoice Jual Beli",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
       } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Invoice Jual Beli",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
         setPackingOrders([]);
       }
     } catch (error) {
-      console.error("Gagal mengambil data Surat Penerimaan Jual Beli:", error);
+      console.error("Gagal mengambil data Invoice Jual Beli:", error);
       setPackingOrders([]);
     }
   };
@@ -121,7 +154,7 @@ const formatNumber = (num, decimals = 2) => {
       }
 
       // Kirim data ke print
-      console.log("Data print: ", JSON.stringify(detail, null, 2));
+      //console.log("Data print: ", JSON.stringify(detail, null, 2));
       const encodedData = encodeURIComponent(JSON.stringify(detail));
       window.open(`/print/jualbeli-invoice?data=${encodedData}`, "_blank");
 
@@ -283,11 +316,10 @@ const formatNumber = (num, decimals = 2) => {
                   >
                     <Printer size={25} />
                   </button>
-                  {sj.delivered_status === 1 && (
+                  {hasPermission("unprint_invoice_jual_beli") && sj.delivered_status === 1 && (
                     <button
                       class="text-red-600 hover:underline"
                       onClick={() => handleUnsetInvoice(sj)}
-                      hidden
                     >
                       <X size={25} />
                     </button>

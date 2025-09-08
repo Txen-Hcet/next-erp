@@ -6,6 +6,7 @@ import {
   getUser,
   softDeleteColor,
   softDeleteGrade,
+  hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
@@ -58,7 +59,7 @@ export default function GradeList() {
           text: error.message || `Gagal menghapus data warna dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -66,14 +67,40 @@ export default function GradeList() {
     }
   };
 
-  const handleGetAllgrade = async (tok) => {
-    const getDataGrades = await getAllGrades(tok);
+  // const handleGetAllgrade = async (tok) => {
+  //   const getDataGrades = await getAllGrades(tok);
 
-    if (getDataGrades.status === 200) {
-      const sortedData = getDataGrades.data.sort((a, b) => a.id - b.id);
+  //   if (getDataGrades.status === 200) {
+  //     const sortedData = getDataGrades.data.sort((a, b) => a.id - b.id);
+  //     setGrade(sortedData);
+  //   }
+  // };
+
+  const handleGetAllgrade = async () => {
+    const result = await getAllGrades(tokUser?.token);
+
+    if (result.status === 200) {
+      const sortedData = result.data.sort((a, b) => a.id - b.id);
       setGrade(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat data Grades",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil seluruh data Grades",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
-  };
+  };  
 
   createEffect(() => {
     if (tokUser?.token) {
@@ -98,7 +125,9 @@ export default function GradeList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Grade</th>
-              <th class="py-2 px-2">Aksi</th>
+              {hasAllPermission(["edit_grades", "delete_grades"]) && (
+                <th class="py-2 px-2">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -108,20 +137,22 @@ export default function GradeList() {
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
                 <td class="py-2 px-4">{grade.grade}</td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/grade/form?id=${grade.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(grade.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_grades", "delete_grades"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/grade/form?id=${grade.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(grade.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

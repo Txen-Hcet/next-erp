@@ -1,7 +1,12 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { getAllCustomers, getUser, softDeleteCustomer } from "../../utils/auth";
+import { 
+  getAllCustomers, 
+  getUser, 
+  softDeleteCustomer, 
+  hasAllPermission,
+} from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
@@ -109,7 +114,9 @@ export default function CustomerList() {
               <th class="py-2 px-4">Alamat</th>
               <th class="py-2 px-4">Termin</th>
               <th class="py-2 px-4">Limit Kredit</th>
-              <th class="py-2 px-4">Aksi</th>
+              {hasAllPermission(["edit_customers", "delete_customers"]) && (
+                <th class="py-2 px-4">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -132,20 +139,22 @@ export default function CustomerList() {
                     minimumFractionDigits: 0,
                   }).format(cust.limit_kredit || 0)}
                 </td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/customers/form?id=${cust.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(cust.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_customers", "delete_customers"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/customers/form?id=${cust.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(cust.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

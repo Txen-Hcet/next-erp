@@ -5,6 +5,7 @@ import {
   getAllDeliveryNotes,
   getUser,
   softDeleteDeliveryNote,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
@@ -94,17 +95,56 @@ export default function SuratJalanList() {
     }
   };
 
-  const handleGetAllDeliveryNotes = async (tok) => {
-    const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
-    //console.log("Respons dari getAllDeliveryNotes:", JSON.stringify(getDataDeliveryNotes, null, 2));
+  // const handleGetAllDeliveryNotes = async (tok) => {
+  //   const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
+  //   //console.log("Respons dari getAllDeliveryNotes:", JSON.stringify(getDataDeliveryNotes, null, 2));
 
-    if (getDataDeliveryNotes.status === 200) {
-        const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
+  //   if (getDataDeliveryNotes.status === 200) {
+  //       const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
       
-      const sortedData = suratJalanList.sort(
-        (a, b) => a.id - b.id
-      );
-      setSuratJalan(sortedData);
+  //     const sortedData = suratJalanList.sort(
+  //       (a, b) => a.id - b.id
+  //     );
+  //     setSuratJalan(sortedData);
+  //   }
+  // };
+
+  const handleGetAllDeliveryNotes = async (tok) => {
+    try {
+      const result = await getAllDeliveryNotes(tok);
+
+      if (result.status === 200) {
+        const suratJalanList = result.surat_jalan_list || [];
+        const sortedData = suratJalanList.sort((a, b) => a.id - b.id);
+        setSuratJalan(sortedData);
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Surat Jalan",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
+      } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Surat Jalan",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data Delivery Notes:", error);
+      Swal.fire({
+        title: "Gagal",
+        text: error.message || "Terjadi kesalahan saat mengambil data",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -195,19 +235,22 @@ export default function SuratJalanList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/deliverynote/form?id=${sc.id}`)}
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(sc.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_surat_jalan") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/deliverynote/form?id=${sc.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_surat_jalan") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(sc.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

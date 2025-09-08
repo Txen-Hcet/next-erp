@@ -5,6 +5,7 @@ import {
   getAllCurrenciess,
   getUser,
   softDeleteCurrencies,
+  hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
@@ -57,7 +58,7 @@ export default function CurrenciesList() {
             error.message || `Gagal menghapus data currency dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -65,13 +66,39 @@ export default function CurrenciesList() {
     }
   };
 
-  const handleGetAllCurrencies = async (tok) => {
-    const getDataCurrencies = await getAllCurrenciess(tok);
+  // const handleGetAllCurrencies = async (tok) => {
+  //   const getDataCurrencies = await getAllCurrenciess(tok);
 
-    if (getDataCurrencies.status === 200) {
-      const sortedData = getDataCurrencies.data.sort((a, b) => a.id - b.id);
+  //   if (getDataCurrencies.status === 200) {
+  //     const sortedData = getDataCurrencies.data.sort((a, b) => a.id - b.id);
 
+  //     setCurrencies(sortedData);
+  //   }
+  // };
+
+  const handleGetAllCurrencies = async () => {
+    const result = await getAllCurrenciess(tokUser?.token);
+
+    if (result.status === 200) {
+      const sortedData = result.data.sort((a, b) => a.id - b.id);
       setCurrencies(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat Currencies",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil seluruh data Currencies",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -98,7 +125,9 @@ export default function CurrenciesList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Nama</th>
-              <th class="py-2 px-2">Aksi</th>
+              {hasAllPermission(["edit_mata_uang", "delete_mata_uang"]) && (
+                <th class="py-2 px-2">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -108,20 +137,22 @@ export default function CurrenciesList() {
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
                 <td class="py-2 px-4">{curr.name}</td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/currencies/form?id=${curr.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(curr.id)}
-                  >
-                   <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_mata_uang", "delete_mata_uang"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/currencies/form?id=${curr.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(curr.id)}
+                    >
+                    <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

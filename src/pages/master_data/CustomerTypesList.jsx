@@ -5,6 +5,8 @@ import {
   getAllCustomerTypes,
   getUser,
   softDeleteCustomerType,
+  hasPermission,
+  hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
@@ -58,7 +60,7 @@ export default function CustomerTypesList() {
             `Gagal menghapus data jenis customer dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -66,13 +68,39 @@ export default function CustomerTypesList() {
     }
   };
 
-  const handleGetAllCustomerTypes = async (tok) => {
-    const getDataCustomerTypes = await getAllCustomerTypes(tok);
+  // const handleGetAllCustomerTypes = async (tok) => {
+  //   const getDataCustomerTypes = await getAllCustomerTypes(tok);
 
-    if (getDataCustomerTypes.status === 200) {
-      const sortedData = getDataCustomerTypes.data.sort((a, b) => a.id - b.id);
+  //   if (getDataCustomerTypes.status === 200) {
+  //     const sortedData = getDataCustomerTypes.data.sort((a, b) => a.id - b.id);
 
+  //     setCustomerTypes(sortedData);
+  //   }
+  // };
+
+  const handleGetAllCustomerTypes = async () => {
+    const result = await getAllCustomerTypes(tokUser?.token);
+
+    if (result.status === 200) {
+      const sortedData = result.data.sort((a, b) => a.id - b.id);
       setCustomerTypes(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat Tipe Customer",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil seluruh data Tipe Customer",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -99,7 +127,9 @@ export default function CustomerTypesList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Jenis</th>
-              <th class="py-2 px-2">Aksi</th>
+              {hasAllPermission(["edit_customer_types", "delete_customer_types"]) && (
+                <th class="py-2 px-2">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -109,22 +139,24 @@ export default function CustomerTypesList() {
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
                 <td class="py-2 px-4">{custType.jenis}</td>
-                <td class="py-2 px-4 space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/customer-type/form?id=${custType.id}`)
-                    }
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(custType.id)}
-                  >
-                   <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_customer_types", "delete_customer_types"]) && (
+                  <td class="py-2 px-4 space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/customer-type/form?id=${custType.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(custType.id)}
+                    >
+                    <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

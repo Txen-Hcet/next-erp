@@ -7,6 +7,7 @@ import {
   getUser,
   softDeleteCustomer,
   softDeleteSalesContract,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -254,19 +255,22 @@ export default function SalesContractList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(sc.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_sales_contracts") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_sales_contracts") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(sc.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

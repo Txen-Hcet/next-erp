@@ -1,7 +1,12 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { getAllSuppliers, getUser, softDeleteSupplier } from "../../utils/auth";
+import { 
+  getAllSuppliers, 
+  getUser, 
+  softDeleteSupplier, 
+  hasAllPermission
+} from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
@@ -63,7 +68,7 @@ export default function SuppliersList() {
             error.message || `Gagal menghapus data supplier dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -118,7 +123,9 @@ export default function SuppliersList() {
               <th class="py-2 px-4">No Telp</th>
               <th class="py-2 px-4">No HP</th>
               <th class="py-2 px-4">Alamat</th>
-              <th class="py-2 px-4">Aksi</th>
+              {hasAllPermission(["edit_suppliers", "delete_suppliers"]) && (
+                <th class="py-2 px-4">Aksi</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -169,20 +176,22 @@ export default function SuppliersList() {
                       : supp.alamat}
                   </span>
                 </td>
-                <td class="py-2 px-4 align-top space-x-2">
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/suppliers/form?id=${supp.id}`)}
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(supp.id)}
-                  >
-                   <Trash size={25} />
-                  </button>
-                </td>
+                {hasAllPermission(["edit_suppliers", "delete_suppliers"]) && (
+                  <td class="py-2 px-4 align-top space-x-2">
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/suppliers/form?id=${supp.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(supp.id)}
+                    >
+                    <Trash size={25} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

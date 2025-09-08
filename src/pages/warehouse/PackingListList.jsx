@@ -5,6 +5,7 @@ import {
   getAllPackingLists,
   getUser,
   softDeletePackingList,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
@@ -67,18 +68,50 @@ export default function PackingListList() {
     }
   };
 
+  // const handleGetAllPackingLists = async (tok) => {
+  //   try {
+  //     const response = await getAllPackingLists(tok);
+
+  //     if (response && Array.isArray(response.packing_lists)) {
+  //       const sortedData = response.packing_lists.sort((a, b) => b.id - a.id);
+  //       setPackingLists(sortedData);
+  //     } else {
+  //       setPackingLists([]);
+  //     }
+  //   } catch (error) {
+  //     console.error("Gagal mengambil data Packling List:", error);
+  //     setPackingLists([]);
+  //   }
+  // };
+
   const handleGetAllPackingLists = async (tok) => {
     try {
-      const response = await getAllPackingLists(tok);
+      const result = await getAllPackingLists(tok);
 
-      if (response && Array.isArray(response.packing_lists)) {
-        const sortedData = response.packing_lists.sort((a, b) => b.id - a.id);
+      if (result && Array.isArray(result.packing_lists)) {
+        const sortedData = result.packing_lists.sort((a, b) => b.id - a.id);
         setPackingLists(sortedData);
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Packing List",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
       } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Packing List",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
         setPackingLists([]);
       }
     } catch (error) {
-      console.error("Gagal mengambil data Packling List:", error);
+      console.error("Gagal mengambil data Packing List:", error);
       setPackingLists([]);
     }
   };
@@ -198,19 +231,22 @@ export default function PackingListList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/packinglist/form?id=${pl.id}`)}
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(pl.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_packing_lists") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/packinglist/form?id=${pl.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_packing_lists") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(pl.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

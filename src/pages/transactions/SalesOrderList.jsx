@@ -5,6 +5,7 @@ import {
   getAllSalesOrders,
   getUser,
   softDeleteSalesOrder,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -58,7 +59,7 @@ export default function SalesOrderList() {
             error.message || `Gagal menghapus data sales order dengan ID ${id}`,
           icon: "error",
           
- showConfirmButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
         });
@@ -66,12 +67,38 @@ export default function SalesOrderList() {
     }
   };
 
-  const handleGetAllSalesOrders = async (tok) => {
-    const getDataSalesOrder = await getAllSalesOrders(tok);
+  // const handleGetAllSalesOrders = async (tok) => {
+  //   const getDataSalesOrder = await getAllSalesOrders(tok);
 
-    if (getDataSalesOrder.status === 200) {
-      const sortedData = getDataSalesOrder.orders.sort((a, b) => a.id - b.id);
+  //   if (getDataSalesOrder.status === 200) {
+  //     const sortedData = getDataSalesOrder.orders.sort((a, b) => a.id - b.id);
+  //     setSalesOrders(sortedData);
+  //   }
+  // };
+
+  const handleGetAllSalesOrders = async (tok) => {
+    const result = await getAllSalesOrders(tok);
+
+    if (result.status === 200) {
+      const sortedData = result.orders.sort((a, b) => a.id - b.id);
       setSalesOrders(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat sales order",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil data sales order",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -244,19 +271,22 @@ export default function SalesOrderList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() => navigate(`/salesorder/form?id=${so.id}`)}
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(so.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_sales_orders") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() => navigate(`/salesorder/form?id=${so.id}`)}
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_sales_orders") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(so.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

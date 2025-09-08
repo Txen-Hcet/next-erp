@@ -5,6 +5,7 @@ import {
   getAllOrderCelupOrders,
   getUser,
   softDeleteOrderCelupOrder,
+  hasPermission,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -71,13 +72,28 @@ export default function OCPurchaseOrderList() {
   };
 
   const handleGetAllPurchaseOrders = async (tok) => {
-    const getDataPurchaseOrders = await getAllOrderCelupOrders(tok);
+    const result = await getAllOrderCelupOrders(tok);
 
-    if (getDataPurchaseOrders.status === 200) {
-      const sortedData = getDataPurchaseOrders.orders.sort(
-        (a, b) => a.id - b.id
-      );
+    if (result.status === 200) {
+      const sortedData = result.orders.sort((a, b) => a.id - b.id);
       setOrderCelups(sortedData);
+    } else if (result.status === 403) {
+      await Swal.fire({
+        title: "Tidak Ada Akses",
+        text: "Anda tidak memiliki izin untuk melihat order celup",
+        icon: "warning",
+        confirmButtonColor: "#6496df",
+      });
+      navigate("/dashboard");
+    } else {
+      Swal.fire({
+        title: "Gagal",
+        text: result.message || "Gagal mengambil data order celup",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
   };
 
@@ -201,21 +217,24 @@ export default function OCPurchaseOrderList() {
                   >
                     <Eye size={25} />
                   </button>
-                  <button
-                    class="text-blue-600 hover:underline"
-                    onClick={() =>
-                      navigate(`/ordercelup-purchaseorder/form?id=${po.id}`)
-                    }
-                    hidden
-                  >
-                    <Edit size={25} />
-                  </button>
-                  <button
-                    class="text-red-600 hover:underline"
-                    onClick={() => handleDelete(po.id)}
-                  >
-                    <Trash size={25} />
-                  </button>
+                  {hasPermission("edit_purchase_celup_order") && (
+                    <button
+                      class="text-blue-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/ordercelup-purchaseorder/form?id=${po.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {hasPermission("delete_purchase_celup_order") && (
+                    <button
+                      class="text-red-600 hover:underline"
+                      onClick={() => handleDelete(po.id)}
+                    >
+                      <Trash size={25} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
