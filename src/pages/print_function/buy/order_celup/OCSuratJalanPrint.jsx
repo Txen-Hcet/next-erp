@@ -196,6 +196,7 @@ export default function OCSuratJalanPrint(props) {
                   <td className="font-bold px-2 w-[30%] whitespace-nowrap">Alamat Kirim</td>
                   <td className="w-[5%] text-center">:</td>
                   <td className="px-2 break-words w-[65%]">{data.supplier_alamat}</td>
+                  {/* <td className="px-2 break-words w-[65%]">{data.supplier_kirim_alamat}</td> */}
               </tr>
               <tr>
                   <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal Kirim</td>
@@ -224,12 +225,13 @@ export default function OCSuratJalanPrint(props) {
               <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>
                 Quantity
               </th>
-              <th className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
-              <th className="border border-black p-1 w-[20%]" rowSpan={2}>Jumlah</th>
+              <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
+              <th hidden className="border border-black p-1 w-[20%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
               <th colspan={2} className="border border-black p-1 w-[24%]">
-                {`(Roll / ${data.satuan_unit_name || 'Meter'})`}
+                {/* {`(Roll / ${data.satuan_unit_name || 'Meter'})`} */}
+                {data.satuan_unit_name || 'Meter'}
               </th>
             </tr>
           </thead>
@@ -245,12 +247,14 @@ export default function OCSuratJalanPrint(props) {
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_finish)}"</td>
                   <td colspan={2} className="p-1 text-center break-words">
                     {data.satuan_unit_name === 'Meter' 
-                      ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
-                      : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                      // ? `${(item.rolls || []).length} / ${formatAngka(item.meter_total)}`
+                      // : `${(item.rolls || []).length} / ${formatAngka(item.yard_total)}`
+                      ? formatAngka(item.meter_total)
+                      : formatAngka(item.yard_total)
                     }
                   </td>
-                  <td className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
-                  <td className="p-1 text-right break-words">
+                  <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
+                  <td hidden className="p-1 text-right break-words">
                     {(() => {
                         const qty =
                         data.satuan_unit_name === "Meter"
@@ -285,10 +289,10 @@ export default function OCSuratJalanPrint(props) {
                     : formatAngka(totalYard())
                   }
               </td>
-              <td className="border border-black px-2 py-1 text-right font-bold">
+              <td hidden className="border border-black px-2 py-1 text-right font-bold">
                 Sub Total
               </td>
-              <td className="border border-black px-2 py-1 text-right">
+              <td hidden className="border border-black px-2 py-1 text-right">
                 {formatRupiah(subTotal())}
               </td>
               {/* <td className="border border-black px-2 py-1 text-right font-bold">
@@ -298,28 +302,28 @@ export default function OCSuratJalanPrint(props) {
                 {formatRupiah(subTotal())}
               </td> */}
             </tr>
-            <tr>
+            <tr hidden >
               <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">DPP</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.dpp)}
               </td>
             </tr>
-            <tr>
+            <tr hidden >
               <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.nilai_lain)}
               </td>
             </tr>
-            <tr>
+            <tr hidden >
               <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">PPN</td>
               <td className="px-2 py-1 text-right">
                 {formatRupiah(dataAkhir.ppn)}
               </td>
             </tr>
-            <tr>
+            <tr hidden >
               <td colSpan={8} className="px-2 py-1"/>
               <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
               <td className="px-2 py-1 text-right">
@@ -359,7 +363,7 @@ export default function OCSuratJalanPrint(props) {
               </>
             </Show> */}
             <tr>
-              <td colSpan={10} className="border border-black p-2 align-top">
+              <td colSpan={8} className="border border-black p-2 align-top">
                 <div className="font-bold mb-1">NOTE:</div>
                 <div className="whitespace-pre-wrap break-words italic">
                   {data.keterangan ?? "-"}
@@ -367,7 +371,7 @@ export default function OCSuratJalanPrint(props) {
               </td>
             </tr>
             <tr>
-              <td colSpan={10} className="border border-black">
+              <td colSpan={8} className="border border-black">
                 <div className="w-full flex justify-between text-[12px] py-5 px-2">
                   <div className="text-center w-1/3 pb-3">
                     Yang Menerima

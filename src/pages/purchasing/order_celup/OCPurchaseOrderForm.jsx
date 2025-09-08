@@ -263,6 +263,7 @@ export default function OCPurchaseOrderForm() {
           items: mappedItems,
           sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
       }));
+      setContractItems(selectedContract.items || []);
   };
 
   const generateNomorKontrak = async () => {
@@ -288,28 +289,93 @@ export default function OCPurchaseOrderForm() {
     }));
   };
 
-  // FIX: Fungsi untuk menambah seluruh item dari kontrak
-  const addItem = () => {
-    const existingItems = form().items;
+  const templateFromOCContractItem = (ci, satuan_unit_id) => {
+    const hargaNum = parseFloat(ci.harga ?? 0) || 0;
 
-    if (!existingItems || existingItems.length === 0) {
-      Swal.fire("Peringatan", "Tidak ada item untuk diduplikasi. Silakan pilih Purchase Contract terlebih dahulu.", "warning");
+    let meterNum = parseFloat(ci.meter_total ?? ci.meter ?? 0) || 0;
+    let yardNum  = parseFloat(ci.yard_total  ?? ci.yard  ?? 0) || 0;
+
+    if (!meterNum && yardNum) meterNum = yardNum * 0.9144;
+    if (!yardNum && meterNum) yardNum  = meterNum * 1.093613;
+
+    const qty = (parseInt(satuan_unit_id) === 2) ? yardNum : meterNum;
+    const subtotal = qty * hargaNum;
+
+    const fabricId = ci.kain_id || ci.fabric_id || ci.kain?.id || null;
+
+    return {
+      id: null,
+      pc_item_id: ci.id,
+      fabric_id: fabricId,
+      warna_id: ci.warna_id ?? null,        // biar bisa dipilih ulang
+      lebar_greige: ci.lebar_greige ?? "",
+      lebar_finish: ci.lebar_finish ?? "",
+
+      meter:      formatNumber(meterNum, { decimals: 2 }),
+      meterValue: meterNum,
+      yard:       formatNumber(yardNum,  { decimals: 2 }),
+      yardValue:  yardNum,
+
+      harga:           formatIDR(hargaNum),
+      hargaValue:      hargaNum,
+      hargaFormatted:  formatIDR(hargaNum),
+
+      subtotal,
+      subtotalFormatted: formatIDR(subtotal),
+
+      readOnly: false,
+    };
+  };
+
+  const addItem = async () => {
+    const pcId = form().pc_id;
+    if (!pcId) {
+      Swal.fire("Peringatan", "Silakan pilih Purchase Contract terlebih dahulu.", "warning");
       return;
     }
 
-    const newItemsToDuplicate = existingItems.map(item => ({
-      ...item,
-      id: null,
-    }));
+    let baseItems = contractItems();
 
-    setForm((prev) => ({
-      ...prev,
-      items: [
-        ...prev.items,
-        ...newItemsToDuplicate
-      ],
-    }));
+    let contractSatuan = form().satuan_unit_id;
+    if (!baseItems || baseItems.length === 0) {
+      const detail = await getOrderCelups(pcId, user?.token);
+      baseItems = detail?.contract?.items || [];
+      contractSatuan = detail?.contract?.satuan_unit_id || contractSatuan;
+    }
+
+    if (!baseItems.length) {
+      Swal.fire("Info", "Item pada Purchase Contract tidak ditemukan.", "info");
+      return;
+    }
+
+    const satuanId = contractSatuan || form().satuan_unit_id; // 1=Meter, 2=Yard
+    const paketBaru = baseItems.map(ci => templateFromOCContractItem(ci, satuanId));
+
+    setForm(prev => ({ ...prev, items: [...prev.items, ...paketBaru] }));
   };
+
+
+  // const addItem = () => {
+  //   const existingItems = form().items;
+
+  //   if (!existingItems || existingItems.length === 0) {
+  //     Swal.fire("Peringatan", "Tidak ada item untuk diduplikasi. Silakan pilih Purchase Contract terlebih dahulu.", "warning");
+  //     return;
+  //   }
+
+  //   const newItemsToDuplicate = existingItems.map(item => ({
+  //     ...item,
+  //     id: null,
+  //   }));
+
+  //   setForm((prev) => ({
+  //     ...prev,
+  //     items: [
+  //       ...prev.items,
+  //       ...newItemsToDuplicate
+  //     ],
+  //   }));
+  // };
 
   const removeItem = (index) => {
     setForm((prev) => {
