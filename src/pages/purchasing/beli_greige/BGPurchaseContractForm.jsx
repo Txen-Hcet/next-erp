@@ -41,6 +41,7 @@ export default function BGPurchaseContractForm() {
     satuanUnitOptions().filter(
       (u) => u.satuan.toLowerCase() !== "kilogram"
     );
+  const [purchaseContractData, setPurchaseContractData] = createSignal(null);
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -73,6 +74,21 @@ export default function BGPurchaseContractForm() {
     return new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: options.decimals ?? 0,
       maximumFractionDigits: options.decimals ?? 4,
+    }).format(numValue);
+  };
+
+  const formatNumberQty = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(numValue);
   };
 
@@ -114,6 +130,14 @@ export default function BGPurchaseContractForm() {
       const data = res.contract;
       const dataItems = data.items;
 
+      //console.log("Data Greige: ", JSON.stringify(data, null, 2));
+
+      const fullPrintData = {
+        ...data,
+      };
+      // Simpan ke dalam signal
+      setPurchaseContractData(fullPrintData);
+
       if (!data) return;
 
       // Normalisasi item
@@ -129,6 +153,14 @@ export default function BGPurchaseContractForm() {
         );
         
         return {
+          // Data asli disimpan untuk display Quantity
+          meter_total: item.meter_total,
+          yard_total: item.yard_total,
+          meter_dalam_proses: item.meter_dalam_proses,
+          yard_dalam_proses: item.yard_dalam_proses,
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+
           fabric_id: item.kain_id,
           lebar_greige: formatNumber(lebarGreigeValue, { decimals: 0 }),
           lebar_greigeValue: lebarGreigeValue,
@@ -329,8 +361,24 @@ export default function BGPurchaseContractForm() {
     }
   };
 
+  // function handlePrint() {
+  //   const encodedData = encodeURIComponent(JSON.stringify(form()));
+  //   window.open(`/print/beligreige/contract?data=${encodedData}`, "_blank");
+  // }
+
   function handlePrint() {
-    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    if (!purchaseContractData()) {
+      Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+      return;
+    }
+
+    const dataToPrint = {
+      ...purchaseContractData(),
+      //...form(),
+    };
+
+    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/beligreige/contract?data=${encodedData}`, "_blank");
   }
 
@@ -482,6 +530,39 @@ export default function BGPurchaseContractForm() {
             classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
+
+        <Show when={isView && form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  const unit = form().satuan_unit_id == 1 ? 'Meter' : 'Yard';
+                  const sisa =
+                    unit === 'Meter'
+                      ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                      : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {item.corak_kain} | {item.konstruksi_kain}
+                      </span>{' '}
+                      - Quantity:{' '}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumberQty(sisa)} {unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 
