@@ -99,6 +99,21 @@ export default function SalesContractForm() {
     }).format(numValue);
   };
 
+  const formatNumberQty = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  }; 
+
   const parseNumber = (str) => {
     if (typeof str !== 'string' || !str) return 0;
     // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
@@ -145,6 +160,9 @@ export default function SalesContractForm() {
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
       const data = res.contract;
+
+      console.log("Data sales contracts: ", JSON.stringify(data, null, 2));
+
       if (!data) return;
 
       const normalizedItems = (data.items || []).map((item) => {
@@ -162,6 +180,15 @@ export default function SalesContractForm() {
         );
 
         return {
+          meter_total: item.meter_total,
+          yard_total: item.yard_total,
+          kilogram_total: item.kilogram_total,
+          meter_dalam_proses: item.meter_dalam_proses,
+          yard_dalam_proses: item.yard_dalam_proses,
+          kilogram_dalam_proses: item.kilogram_dalam_proses,
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+
           id: item.id,
           fabric_id: item.kain_id ?? null,
           grade_id: item.grade_id ?? "",
@@ -422,7 +449,9 @@ export default function SalesContractForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">Buat Sales Contract Baru</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Contract
+      </h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -647,7 +676,7 @@ export default function SalesContractForm() {
         </div>
 
         <div>
-          <label class="block mb-1 font-medium">keterangan</label>
+          <label class="block mb-1 font-medium">Keterangan</label>
             <textarea
                 class="w-full border p-2 rounded"
                 value={form().keterangan}
@@ -657,8 +686,55 @@ export default function SalesContractForm() {
             ></textarea>
         </div>
 
-        <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
+        <Show when={isView && form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  // tentukan satuan
+                  const unit =
+                    parseInt(form().satuan_unit_id) === 1
+                      ? "Meter"
+                      : parseInt(form().satuan_unit_id) === 2
+                      ? "Yard"
+                      : "Kilogram";
 
+                  // hitung sisa sesuai unit
+                  const sisa =
+                    unit === "Meter"
+                      ? Number(item.meter_total || 0) - Number(item.meter_dalam_proses || 0)
+                      : unit === "Yard"
+                      ? Number(item.yard_total || 0) - Number(item.yard_dalam_proses || 0)
+                      : Number(item.kilogram_total || 0) - Number(item.kilogram_dalam_proses || 0);
+
+                  // nama kain langsung dari item (sesuai data backend)
+                  const corak = item.corak_kain || "Kain";
+                  const konstruksi = item.konstruksi_kain || "";
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {corak} | {konstruksi}
+                      </span>{" "}
+                      - Quantity:{" "}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumberQty(sisa)}{" "}
+                          {unit === "Meter" ? "m" : unit === "Yard" ? "yd" : "kg"}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
+
+        <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
         <button
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"

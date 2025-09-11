@@ -44,6 +44,7 @@ export default function KJPurchaseOrderForm() {
   const filteredSatuanOptions = () =>
     satuanUnitOptions().filter((u) => u.satuan.toLowerCase() !== "kilogram");
   const [contractItems, setContractItems] = createSignal([]);
+  const [purchaseContractData, setPurchaseContractData] = createSignal(null);
 
   const [form, setForm] = createSignal({
     jenis_po_id: "",
@@ -87,6 +88,21 @@ export default function KJPurchaseOrderForm() {
     });
   };
 
+  const formatNumberQty = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  };  
+
   onMount(async () => {
     setLoading(true);
     const [bgc, poTypes, suppliers, units, fabrics, colors] = await Promise.all(
@@ -112,10 +128,24 @@ export default function KJPurchaseOrderForm() {
       const data = res.order;
       const dataItems = res.order.items;
 
+      const fullPrintData = {
+        ...data,
+      };
+      // Simpan ke dalam signal
+      setPurchaseContractData(fullPrintData);
+
       if (!data) return;
 
       const normalizedItems = (dataItems || []).map((item) => {
         return {
+          // Data asli disimpan untuk display Quantity
+          meter_total: item.meter_total,
+          yard_total: item.yard_total,
+          meter_dalam_proses: item.meter_dalam_proses,
+          yard_dalam_proses: item.yard_dalam_proses,
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+
           pc_item_id: item.pc_item_id,
           fabric_id: item.corak_kain,
           lebar_greige: item.lebar_greige,
@@ -150,6 +180,9 @@ export default function KJPurchaseOrderForm() {
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
         keterangan: data.keterangan ?? "",
+        tanggal: data.created_at 
+          ? new Date(data.created_at).toISOString().substring(0, 10) // ⬅️ ambil created_at dari API
+          : prev.tanggal,
         //items: normalizedItems,
       }));
     } else {
@@ -246,6 +279,14 @@ export default function KJPurchaseOrderForm() {
       const subtotal = (hargaGreige + hargaMaklun) * qty;
 
       return {
+        // Data asli disimpan untuk display Quantity
+        meter_total: item.meter_total,
+        yard_total: item.yard_total,
+        meter_dalam_proses: item.meter_dalam_proses,
+        yard_dalam_proses: item.yard_dalam_proses,
+        corak_kain: item.corak_kain,
+        konstruksi_kain: item.konstruksi_kain,
+
         id: dataSumber.id,
         pc_item_id: dataSumber.pc_item_id,
         fabric_id: fabricId,
@@ -497,7 +538,7 @@ export default function KJPurchaseOrderForm() {
       }
       Swal.fire({
         icon: "success",
-        title: "Purchase Order berhasil disimpan!",
+        title: "Order Kain Jadi berhasil disimpan!",
         showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
@@ -507,7 +548,7 @@ export default function KJPurchaseOrderForm() {
     } catch (err) {
       Swal.fire({
         icon: "error",
-        title: "Gagal menyimpan Purchase Order",
+        title: "Gagal menyimpan Order Kain Jadi",
         text: err.message,
         showConfirmButton: false,
         timer: 1000,
@@ -516,11 +557,27 @@ export default function KJPurchaseOrderForm() {
     }
   };
 
+  // function handlePrint() {
+  //   //console.log("📄 Data yang dikirim ke halaman Print:",JSON.stringify(form(), null, 2));
+  //   const encodedData = encodeURIComponent(JSON.stringify(form()));
+  //   window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
+  // }
+
   function handlePrint() {
-    //console.log("📄 Data yang dikirim ke halaman Print:",JSON.stringify(form(), null, 2));
-    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    if (!purchaseContractData()) {
+      Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+      return;
+    }
+
+    const dataToPrint = {
+      ...purchaseContractData(),
+      //...form(),
+    };
+
+    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
-  }
+  }  
 
   return (
     <MainLayout>
@@ -530,7 +587,9 @@ export default function KJPurchaseOrderForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">Tambah Order Celup Kain Jadi</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Order Kain Jadi
+      </h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -672,6 +731,39 @@ export default function KJPurchaseOrderForm() {
             classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
+
+        <Show when={form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  const unit = form().satuan_unit_id == 1 ? 'Meter' : 'Yard';
+                  const sisa =
+                    unit === 'Meter'
+                      ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                      : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {item.corak_kain} | {item.konstruksi_kain}
+                      </span>{' '}
+                      - Quantity:{' '}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumberQty(sisa)} {unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>        
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 

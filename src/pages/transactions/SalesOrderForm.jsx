@@ -116,6 +116,9 @@ export default function SalesOrderForm() {
     if (isEdit) {
       const res = await getSalesOrders(params.id, user?.token);
       const soData = res.order;
+
+      console.log("Data sales order: ", JSON.stringify(soData, null, 2));
+
       if (!soData) return;
 
       const fullPrintData = {
@@ -127,6 +130,15 @@ export default function SalesOrderForm() {
           const subtotal = (Number(soItem.meter_total) || Number(soItem.yard_total) || Number(soItem.kilogram_total)) * Number(soItem.harga);
 
           return {
+              meter_total: soItem.meter_total,
+              yard_total: soItem.yard_total,
+              kilogram_total: soItem.kilogram_total,
+              meter_dalam_proses: soItem.meter_dalam_proses,
+              yard_dalam_proses: soItem.yard_dalam_proses,
+              kilogram_dalam_proses: soItem.kilogram_dalam_proses,
+              corak_kain: soItem.corak_kain,
+              konstruksi_kain: soItem.konstruksi_kain,
+
               id: soItem.id,
               sc_item_id: soItem.sc_item_id,
               fabric_id: soItem.kain_id,
@@ -212,7 +224,7 @@ export default function SalesOrderForm() {
           custDetail.kurs,
           Number(custDetail.termin),
           custDetail.ppn_percent,
-          custDetail.keterangan,
+          form().keterangan,
           custDetail.satuan_unit_id,
           custDetail.validity_contract,
           custDetail.customer_id,
@@ -234,7 +246,7 @@ export default function SalesOrderForm() {
           custDetail.kurs,
           Number(custDetail.termin),
           custDetail.ppn_percent,
-          custDetail.keterangan,
+          form().keterangan,
           custDetail.satuan_unit_id,
           custDetail.validity_contract,
           custDetail.customer_id,
@@ -303,6 +315,15 @@ export default function SalesOrderForm() {
 
     // Pastikan items sudah di-normalisasi biar field kain/grade/lebar langsung ada
     const normalizedItems = items.map((item, idx) => ({
+      meter_total: item.meter_total ?? "",
+      yard_total: item.yard_total ?? "",
+      kilogram_total: item.kilogram_total ?? "",
+      meter_dalam_proses: item.meter_dalam_proses,
+      yard_dalam_proses: item.yard_dalam_proses,
+      kilogram_dalam_proses: item.kilogram_dalam_proses,
+      corak_kain: item.corak_kain,
+      konstruksi_kain: item.konstruksi_kain,
+
       id: item.id ?? idx + 1,
       sc_item_id: item.sc_item_id ?? null,
       fabric_id: item.fabric_id ?? null,
@@ -311,11 +332,8 @@ export default function SalesOrderForm() {
       warna_id: item.warna_id ?? "",
       gramasi: item.gramasi ?? "",
       meter: item.meter ?? 0,
-      meter_total: item.meter_total ?? "",
       yard: item.yard ?? 0,
-      yard_total: item.yard_total ?? "",
       kilogram: item.kilogram ?? 0,
-      kilogram_total: item.kilogram_total ?? "",
       harga: item.harga ?? "",
       subtotal: item.subtotal ?? "",
       subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
@@ -590,7 +608,9 @@ export default function SalesOrderForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">Buat Sales Order Baru</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Order
+      </h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -611,7 +631,7 @@ export default function SalesOrderForm() {
               setForm({ ...form(), sales_contract_id: id });
               fetchSalesContractDetail(id);
             }}
-            disabled={isView}
+            disabled={isView || isEdit}
           />
         </div>
         <div class="grid grid-cols-5 gap-4">
@@ -666,6 +686,7 @@ export default function SalesOrderForm() {
                 });
               }}
               required
+              disabled
             >
               <option value="" disabled>
                 Pilih Tipe Customer
@@ -735,6 +756,7 @@ export default function SalesOrderForm() {
                 });
               }}
               required
+              disabled
             >
               <option value="" disabled>
                 Pilih Currency
@@ -763,6 +785,7 @@ export default function SalesOrderForm() {
                     })
                   }
                   required
+                  disabled
                 />
               </div>
             </div>
@@ -776,6 +799,7 @@ export default function SalesOrderForm() {
                 setForm({ ...form(), satuan_unit_id: e.target.value })
               }
               required
+              disabled
             >
               <option value="">Pilih Satuan</option>
               <For each={satuanUnitOptions()}>
@@ -831,10 +855,54 @@ export default function SalesOrderForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            disabled={true}
-            classList={{ "bg-gray-200" : true }}
+            disabled={isView}
+            classList={{ "bg-gray-200" : isView }}
           ></textarea>
         </div>
+
+        <Show when={form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  // tentukan satuan
+                  const unit =
+                    parseInt(form().satuan_unit_id) === 1
+                      ? "Meter"
+                      : parseInt(form().satuan_unit_id) === 2
+                      ? "Yard"
+                      : "Kilogram";
+
+                  // hitung sisa sesuai unit
+                  const sisa =
+                    unit === "Meter"
+                      ? Number(item.meter_total || 0) - Number(item.meter_dalam_proses || 0)
+                      : unit === "Yard"
+                      ? Number(item.yard_total || 0) - Number(item.yard_dalam_proses || 0)
+                      : Number(item.kilogram_total || 0) - Number(item.kilogram_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {item.corak_kain} | {item.konstruksi_kain}
+                      </span>{" "}
+                      - Quantity:{" "}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumber(sisa, 2)}{" "}
+                          {unit === "Meter" ? "m" : unit === "Yard" ? "yd" : "kg"}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 
@@ -853,6 +921,15 @@ export default function SalesOrderForm() {
                   items: [
                     ...prev.items,
                     {
+                      corak_kain: scItem.corak_kain,
+                      konstruksi_kain: scItem.konstruksi_kain,
+                      meter_total: scItem.meter_total,
+                      yard_total: scItem.yard_total,
+                      kilogram_total: scItem.kilogram_total,
+                      meter_dalam_proses: scItem.meter_dalam_proses,
+                      yard_dalam_proses: scItem.yard_dalam_proses,
+                      kilogram_dalam_proses: scItem.kilogram_dalam_proses,
+
                       sc_item_id: scItem.id,
                       fabric_id: scItem.kain_id,
                       grade_id: scItem.grade_id,

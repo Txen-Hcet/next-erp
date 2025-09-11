@@ -38,6 +38,7 @@ export default function KJPurchaseContractForm() {
     satuanUnitOptions().filter(
       (u) => u.satuan.toLowerCase() !== "kilogram"
     );
+  const [purchaseContractData, setPurchaseContractData] = createSignal(null);
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -70,6 +71,21 @@ export default function KJPurchaseContractForm() {
       maximumFractionDigits: options.decimals ?? 4,
     }).format(numValue);
   };
+
+  const formatNumberQty = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  };  
 
   const parseNumber = (str) => {
     if (typeof str !== 'string' || !str) return 0;
@@ -116,6 +132,12 @@ export default function KJPurchaseContractForm() {
       const data = res.contract;
       const dataItems = data.items;
 
+      const fullPrintData = {
+        ...data,
+      };
+      // Simpan ke dalam signal
+      setPurchaseContractData(fullPrintData);
+
       if (!data) return;
 
       // Normalisasi item
@@ -134,6 +156,14 @@ export default function KJPurchaseContractForm() {
         const subtotal = (hargaGreigeValue + hargaMaklunValue) * qty;
 
         return {
+          // Data asli disimpan untuk display Quantity
+          meter_total: item.meter_total,
+          yard_total: item.yard_total,
+          meter_dalam_proses: item.meter_dalam_proses,
+          yard_dalam_proses: item.yard_dalam_proses,
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+
           id: item.id,  
           fabric_id: item.kain_id,
           lebar_greige: formatNumber(lebarGreigeValue, { decimals: 0 }),
@@ -167,6 +197,9 @@ export default function KJPurchaseContractForm() {
         termin: data.termin ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
+        tanggal: data.created_at 
+          ? new Date(data.created_at).toISOString().substring(0, 10) // ⬅️ ambil created_at dari API
+          : prev.tanggal,
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
@@ -326,7 +359,7 @@ export default function KJPurchaseContractForm() {
 
       Swal.fire({
         icon: "success",
-        title: "Purchase Order berhasil disimpan!",
+        title: "Purchase Contract Kain Jadi berhasil disimpan!",
         showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
@@ -337,7 +370,7 @@ export default function KJPurchaseContractForm() {
       console.error(err);
       Swal.fire({
         icon: "error",
-        title: "Gagal menyimpan Purchase Order",
+        title: "Gagal menyimpan Purchase Contract Kain Jadi",
         text: err?.message || "Terjadi kesalahan.",
         showConfirmButton: false,
         timer: 1000,
@@ -346,8 +379,24 @@ export default function KJPurchaseContractForm() {
     }
   };
 
+  // function handlePrint() {
+  //   const encodedData = encodeURIComponent(JSON.stringify(form()));
+  //   window.open(`/print/kainjadi/contract?data=${encodedData}`, "_blank");
+  // }
+
   function handlePrint() {
-    const encodedData = encodeURIComponent(JSON.stringify(form()));
+    if (!purchaseContractData()) {
+      Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+      return;
+    }
+
+    const dataToPrint = {
+      ...purchaseContractData(),
+      //...form(),
+    };
+
+    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/kainjadi/contract?data=${encodedData}`, "_blank");
   }
 
@@ -359,7 +408,9 @@ export default function KJPurchaseContractForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Proses</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Purchase Contract Kain Jadi
+      </h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -499,6 +550,39 @@ export default function KJPurchaseContractForm() {
             classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
+
+        <Show when={isView && form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  const unit = form().satuan_unit_id == 1 ? 'Meter' : 'Yard';
+                  const sisa =
+                    unit === 'Meter'
+                      ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                      : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {item.corak_kain} | {item.konstruksi_kain}
+                      </span>{' '}
+                      - Quantity:{' '}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumberQty(sisa)} {unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>        
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 

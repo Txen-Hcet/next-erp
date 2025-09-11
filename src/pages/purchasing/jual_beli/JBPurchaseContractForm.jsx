@@ -78,6 +78,21 @@ export default function JBPurchaseContractForm() {
     }).format(numValue);
   };
 
+  const formatNumberQty = (num, decimals = 2) => {
+    if (num === "" || num === null || num === undefined) return "";
+
+    const numValue = Number(num);
+    
+    if (isNaN(numValue)) return "";
+    
+    if (numValue === 0) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  };  
+
   const parseNumber = (str) => {
     if (typeof str !== 'string' || !str) return 0;
     // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
@@ -147,6 +162,14 @@ export default function JBPurchaseContractForm() {
         );
 
         return{
+          // Data asli disimpan untuk display Quantity
+          meter_total: item.meter_total,
+          yard_total: item.yard_total,
+          meter_dalam_proses: item.meter_dalam_proses,
+          yard_dalam_proses: item.yard_dalam_proses,
+          corak_kain: item.corak_kain,
+          konstruksi_kain: item.konstruksi_kain,
+
           fabric_id: item.kain_id,
           warna_id: item.warna_id,
           lebar_kain: formatNumber(lebarKainValue, { decimals: 0 }),
@@ -176,6 +199,9 @@ export default function JBPurchaseContractForm() {
         termin: data.termin ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
+        tanggal: data.created_at 
+          ? new Date(data.created_at).toISOString().substring(0, 10) // ⬅️ ambil created_at dari API
+          : prev.tanggal,
         no_seq: sequenceNumber ?? 0,
         items: normalizedItems,
       }));
@@ -368,7 +394,9 @@ export default function JBPurchaseContractForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">Tambah Kontrak Proses</h1>
+      <h1 class="text-2xl font-bold mb-4">
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Kontrak Jual Beli
+      </h1>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -527,6 +555,39 @@ export default function JBPurchaseContractForm() {
             classList={{ "bg-gray-200": isView }}
           ></textarea>
         </div>
+
+        <Show when={isView && form().items && form().items.length > 0}>
+          <div class="border p-3 rounded my-4 bg-gray-50">
+            <h3 class="text-md font-bold mb-2 text-gray-700">Quantity Kain:</h3>
+            <ul class="space-y-1 pl-5">
+              <For each={form().items}>
+                {(item) => {
+                  const unit = form().satuan_unit_id == 1 ? 'Meter' : 'Yard';
+                  const sisa =
+                    unit === 'Meter'
+                      ? Number(item.meter_total) - Number(item.meter_dalam_proses || 0)
+                      : Number(item.yard_total) - Number(item.yard_dalam_proses || 0);
+
+                  return (
+                    <li class="text-sm list-disc">
+                      <span class="font-semibold">
+                        {item.corak_kain} | {item.konstruksi_kain}
+                      </span>{' '}
+                      - Quantity:{' '}
+                      {sisa > 0 ? (
+                        <span class="font-bold text-blue-600">
+                          {formatNumberQty(sisa)} {unit === 'Meter' ? 'm' : 'yd'}
+                        </span>
+                      ) : (
+                        <span class="font-bold text-red-600">HABIS</span>
+                      )}
+                    </li>
+                  );
+                }}
+              </For>
+            </ul>
+          </div>
+        </Show>
 
         <h2 class="text-lg font-bold mt-6 mb-2">Items</h2>
 
