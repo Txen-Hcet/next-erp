@@ -1608,7 +1608,7 @@ export async function createSalesContract(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -1786,7 +1786,7 @@ export async function createSalesOrder(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -1963,7 +1963,7 @@ export async function createPackingList(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -2786,7 +2786,7 @@ export async function updateDataBeliGreige(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -2850,7 +2850,7 @@ export async function createBeliGreigeOrder(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -2965,7 +2965,7 @@ export async function updateDataBeliGreigeOrder(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -3320,7 +3320,7 @@ export async function updateDataOrderCelup(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -3384,7 +3384,7 @@ export async function createOrderCelupOrder(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -3498,7 +3498,7 @@ export async function updateDataOrderCelupOrder(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -3921,7 +3921,7 @@ export async function createKainJadiOrder(token, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -4038,7 +4038,7 @@ export async function updateDataKainJadiOrder(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
@@ -4393,7 +4393,7 @@ export async function updateDataJualBeli(token, id, payload) {
       }
     );
 
-    console.log(payload);
+    //console.log(payload);
 
     const data = await response.json();
 
