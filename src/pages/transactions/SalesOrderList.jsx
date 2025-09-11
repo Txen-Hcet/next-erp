@@ -129,7 +129,7 @@ export default function SalesOrderList() {
 
     // Kalau udah habis
     if (sisa <= 0) {
-      return "SELESAI";
+      return <span class="text-green-500">SELESAI</span>;
     }
 
     return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
@@ -160,7 +160,7 @@ export default function SalesOrderList() {
 
     // Kalau udah habis
     if (sisa <= 0) {
-      return "SELESAI";
+      return <span class="text-green-500">SELESAI</span>;
     }
 
     return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
