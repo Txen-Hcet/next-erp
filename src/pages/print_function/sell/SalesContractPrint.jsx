@@ -93,16 +93,33 @@ export default function SalesContractPrint(props) {
     return `${day}-${month}-${year}`;
   }
 
-  function formatRupiahNumber(value) {
+  function formatRupiah(value, decimals = 2) {
     if (typeof value !== "number") {
-      value = parseFloat(value);
+      value = parseFloat(value) || 0;
     }
-    if (isNaN(value)) return "-";
+     if (value === 0) {
+        return "Rp 0,00";
+    }
     return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(value);
   }
+
+  function formatAngka(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }  
 
   const itemsPerPage = 14;
   const itemPages = paginateItems(data.items ?? [], itemsPerPage);
@@ -347,17 +364,17 @@ export default function SalesContractPrint(props) {
                 </td>
                 <td className="p-1 text-center break-words">{item.gramasi}</td>
                 <td className="p-1 text-right break-words">
-                  {formatRibuan(item.meterValue)}
+                  {formatAngka(item.meterValue)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {formatRibuan(item.yardValue)}
+                  {formatAngka(item.yardValue)}
                 </td>
                 <td className="p-1 text-right break-words">
-                  {formatRupiahNumber(item.hargaValue)}
+                  {formatRupiah(item.hargaValue)}
                 </td>
                 <td className="p-1 text-right break-words">
                   {item.harga && item.meter
-                    ? formatRupiahNumber(item.hargaValue * item.meterValue)
+                    ? formatRupiah(item.hargaValue * item.meterValue)
                     : "-"}
                 </td>
               </tr>
@@ -382,10 +399,10 @@ export default function SalesContractPrint(props) {
             <tr>
               <td colSpan={6} className="border border-black font-bold px-2 py-1" >Total</td>
               <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRupiahNumber(totalMeter())}
+                {formatAngka(totalMeter())}
               </td>
               <td className="border border-black px-2 py-1 text-right font-bold">
-                {formatRupiahNumber(totalYard())}
+                {formatAngka(totalYard())}
               </td>
               {/* <td className="border border-black px-2 py-1 text-right font-bold">
                 Sub Total
@@ -397,7 +414,7 @@ export default function SalesContractPrint(props) {
                 {isPPN() ? 'Sub Total' : 'Jumlah Total'}
               </td>
               <td className="border border-black px-2 py-1 text-right">
-                {formatRupiahNumber(subTotal())}
+                {formatRupiah(subTotal())}
               </td>
             </tr>
             {/* <tr>
@@ -434,28 +451,28 @@ export default function SalesContractPrint(props) {
                   <td colSpan={8} className="px-2 py-1"/>
                   <td className="px-2 py-1 text-right font-bold">DPP</td>
                   <td className="px-2 py-1 text-right">
-                    {formatRupiahNumber(dataAkhir.dpp)}
+                    {formatRupiah(dataAkhir.dpp)}
                   </td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1"/>
                   <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
                   <td className="px-2 py-1 text-right">
-                    {formatRupiahNumber(dataAkhir.nilai_lain)}
+                    {formatRupiah(dataAkhir.nilai_lain)}
                   </td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1"/>
                   <td className="px-2 py-1 text-right font-bold">PPN</td>
                   <td className="px-2 py-1 text-right">
-                    {formatRupiahNumber(dataAkhir.ppn)}
+                    {formatRupiah(dataAkhir.ppn)}
                   </td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1"/>
                   <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
                   <td className="px-2 py-1 text-right">
-                    {formatRupiahNumber(dataAkhir.total)}
+                    {formatRupiah(dataAkhir.total)}
                   </td>
                 </tr>
               </>

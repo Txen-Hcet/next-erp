@@ -59,7 +59,7 @@ import { useSearchParams } from "@solidjs/router";
 export default function SalesContractDataDummyPrint() {
   const [searchParams] = useSearchParams();
 
-  const data = JSON.parse(decodeURIComponent(searchParams.data));
+  const data = JSON.parse(searchParams.data);
 
   onMount(() => {
     const closeAfterPrint = () => {

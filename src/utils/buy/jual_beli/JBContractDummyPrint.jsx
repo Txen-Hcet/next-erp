@@ -63,7 +63,7 @@ import { useSearchParams } from "@solidjs/router";
 export default function JBContractDataDummyPrint() {
   const [searchParams] = useSearchParams();
 
-  const data = JSON.parse(decodeURIComponent(searchParams.data));
+  const data = JSON.parse(searchParams.data);
 
   onMount(() => {
     const closeAfterPrint = () => {

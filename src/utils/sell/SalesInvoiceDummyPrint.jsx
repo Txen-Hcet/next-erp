@@ -5,7 +5,7 @@ import SalesInvoicePrint from "../../pages/print_function/invoice/SalesInvoicePr
 export default function SalesInvoiceDummyPrint() {
   const [searchParams] = useSearchParams();
 
-  const data = JSON.parse(decodeURIComponent(searchParams.data));
+  const data = JSON.parse(searchParams.data);
 
   onMount(() => {
     const closeAfterPrint = () => {

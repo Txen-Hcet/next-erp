@@ -5,7 +5,7 @@ import JBInvoicePrint from "../../../pages/print_function/invoice/JBInvoicePrint
 export default function JBInvoiceDummyPrint() {
   const [searchParams] = useSearchParams();
 
-  const data = JSON.parse(decodeURIComponent(searchParams.data));
+  const data = JSON.parse(searchParams.data);
 
   onMount(() => {
     const closeAfterPrint = () => {

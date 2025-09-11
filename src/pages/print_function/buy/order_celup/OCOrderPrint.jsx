@@ -1,25 +1,23 @@
 import { createMemo, createSignal, onMount } from "solid-js";
 import logoNavel from "../../../../assets/img/navelLogo.png";
-import {
-  getColor,
-  getFabric,
-  getGrades,
-  getSatuanUnits,
-  getSupplier,
-  getUser,
-} from "../../../../utils/auth";
 
 export default function OCOrderPrint(props) {
   const data = props.data;
-  const [supplier, setSupplier] = createSignal(null);
-  const [kainList, setKainList] = createSignal({});
-  const [gradeList, setGradeList] = createSignal({});
-  const [satuanUnitList, setSatuanUnitList] = createSignal({});
-  const [warnaList, setWarnaList] = createSignal({});
-
-  const tokUser = getUser(); // kalau token dibutuhkan
 
   function formatAngka(value, decimals = 2) {
+    if (typeof value !== "number") {
+      value = parseFloat(value) || 0;
+    }
+    if (value === 0) {
+        return "0,00";
+    }
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+
+  function formatAngkaNonDecimal(value, decimals = 0) {
     if (typeof value !== "number") {
       value = parseFloat(value) || 0;
     }
@@ -47,83 +45,17 @@ export default function OCOrderPrint(props) {
     }).format(value);
   }
 
-  function formatTanggal(tgl) {
-    if (!tgl) return "-";
-    const [year, month, day] = tgl.split("-");
+  function formatTanggal(dateString) {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+
+    // contoh format dd-mm-yyyy
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
     return `${day}-${month}-${year}`;
   }
-
-  async function handleGetSupplier() {
-    try {
-      const res = await getSupplier(data.supplier_id, tokUser?.token);
-
-      if (res.status === 200) {
-        setSupplier(res.suppliers || null);
-      }
-    } catch (err) {
-      console.error("Error getSupplier:", err);
-    }
-  }
-
-  async function handleGetKain(kainId) {
-    try {
-      const res = await getFabric(kainId, tokUser?.token);
-      setKainList((prev) => ({
-        ...prev,
-        [kainId]: res,
-      }));
-    } catch (err) {
-      console.error("Error getFabric:", err);
-    }
-  }
-
-  async function handleGetSatuanUnit(satuanUnitId) {
-    try {
-      const res = await getSatuanUnits(satuanUnitId, tokUser?.token);
-      if (res.status === 200) {
-        setSatuanUnitList((prev) => ({
-          ...prev,
-          [satuanUnitId]: res.data,
-        }));
-      }
-    } catch (err) {
-      console.error("Error getGrade:", err);
-    }
-  }
-
-  async function handleGetWarna(warnaId) {
-    try {
-      const res = await getColor(warnaId, tokUser?.token);
-      if (res.status === 200) {
-        setWarnaList((prev) => ({
-          ...prev,
-          [warnaId]: res.warna,
-        }));
-      }
-    } catch (err) {
-      console.error("Error getGrade:", err);
-    }
-  }
-
-  onMount(() => {
-    if (tokUser?.token) {
-      handleGetSupplier();
-      (data.items || []).forEach((item) => {
-        if (item.fabric_id) {
-          handleGetKain(item.fabric_id);
-        }
-        // if (item.grade_id) {
-        //   handleGetGrade(item.grade_id);
-        // }
-        if (item.warna_id) {
-          handleGetWarna(item.warna_id);
-        }
-      });
-      if (data.satuan_unit_id) {
-        handleGetSatuanUnit(data.satuan_unit_id);
-      }
-    }
-  });
 
   const itemsPerPage = 14;
   const itemPages = paginateItems(data.items ?? [], itemsPerPage);
@@ -137,39 +69,27 @@ export default function OCOrderPrint(props) {
   }
 
   const totalMeter = createMemo(() => 
-    data.items?.reduce((sum, i) => sum + (i.meterValue || 0), 0)
+      parseFloat(data.summary?.total_meter || 0)
   );
 
   const totalYard = createMemo(() =>
-    data.items?.reduce((sum, i) => sum + (i.yardValue || 0), 0)
+      parseFloat(data.summary?.total_yard || 0)
   );
 
-  const isPPN = createMemo(() => parseFloat(data.ppn) > 0);
+  const isPPN = createMemo(() => parseFloat(data.ppn_percent) > 0);
 
-  const subTotal = createMemo(() => {
-    return (data.items || []).reduce(
-      (sum, item) => sum + (item.subtotal || 0),
-      0
-    );
-  });
+  const subTotal = createMemo(() => Number(data?.summary?.subtotal) || 0);
 
-  // DPP = subTotal
+  const dpp = createMemo(() => subTotal() / 1.11);
 
-  const dpp = createMemo(() => {
-    return subTotal() / 1.11;
-  });
+  const nilaiLain = createMemo(() => dpp() * (11 / 12));
 
-  const nilaiLain = createMemo(() => {
-    return dpp() * (11 / 12);
-  });
-
-  const ppn = createMemo(() => {
-    return isPPN() ? nilaiLain() * 0.12 : 0;
-  });
+  const ppn = createMemo(() => (isPPN() ? nilaiLain() * 0.12 : 0));
 
   const jumlahTotal = createMemo(() => dpp() + ppn());
 
   const dataAkhir = {
+    subtotal: subTotal(),
     dpp: dpp(),
     nilai_lain: nilaiLain(),
     ppn: ppn(),
@@ -234,7 +154,7 @@ export default function OCOrderPrint(props) {
                   className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {supplier()?.nama}
+                  {data.supplier_name}
                 </td>
               </tr>
               <tr>
@@ -242,54 +162,24 @@ export default function OCOrderPrint(props) {
                   className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap"
                   colSpan={2}
                 >
-                  {supplier()?.alamat}
+                  {data.supplier_alamat}
                 </td>
               </tr>
-              {/* <tr>
-                <td
-                  className="px-2 max-w-[300px] break-words whitespace-pre-wrap"
-                  colSpan={2}
-                >
-                  KERTOHARJO PEKALONGAN SEL
-                </td>
-              </tr> */}
               <tr>
                 <td className="px-2 py-1 whitespace-nowrap">
-                  Telp: {supplier()?.no_telp}
+                  Telp: {data.supplier_no_telp}
                 </td>
                 <td className="px-2 py-1 whitespace-nowrap">Fax:</td>
               </tr>
             </tbody>
           </table>
 
-          {/* MIDDLE TABLE */}
-          {/* <div className="flex flex-col gap-2 w-[20%]">
-            <table className="border-2 border-black table-fixed w-full h-full">
-              <tbody>
-                <tr className="border-b border-black">
-                  <td className="px-2 py-1 w-[30%] whitespace-nowrap">Jenis</td>
-                  <td className="w-[5%] text-center">:</td>
-                  <td className="px-2 py-1 w-[65%] break-words">
-                    {data.currency_id}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-2 py-1 whitespace-nowrap">Kurs</td>
-                  <td className="text-center">:</td>
-                  <td className="px-2 py-1 break-words">
-                    {formatRupiahNumber(data.kurs)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div> */}
-
           {/* RIGHT TABLE */}
           <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
               {[
-                { label: "No. Kontrak", value: data.sequence_number },
-                { label: "Tanggal", value: formatTanggal(data.tanggal) },
+                { label: "No. Kontrak", value: data.no_po},
+                { label: "Tanggal", value: formatTanggal(data.created_at) },
                 {
                   label: "Validity",
                   value: formatTanggal(data.validity_contract),
@@ -344,64 +234,41 @@ export default function OCOrderPrint(props) {
               </th>
             </tr>
             <tr>
-              <th
-                colSpan={2} className="border border-black p-1 w-full"
-                hidden={data.satuan_unit_id == 2 ? true : false}
-              >
-                (Meter)
-              </th>
-              <th
-                colSpan={2} className="border border-black p-1 w-[14%]"
-                hidden={data.satuan_unit_id == 1 ? true : false}
-              >
-                (Yard)
+              <th colSpan={2} className="border border-black p-1 w-[24%]">
+                {data.satuan_unit_name || 'Meter'}
               </th>
             </tr>
           </thead>
           <tbody>
-            {(data.items || []).map((item, i) => (
-              <tr key={i}>
-                <td className="p-1 text-center">{i + 1}</td>
-                <td className="p-1 text-center break-words">
-                  {kainList()[item.fabric_id]?.corak || "-"}
+            {(data?.items || []).map((item, i) => {
+              return (
+                <tr key={i}>
+                  <td className="p-1 text-center break-words">{i + 1}</td>
+                  <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
+                  <td className="p-1 break-words">{item.konstruksi_kain}</td>
+                  <td className="p-1 break-words">{item.deskripsi_warna}</td>
+                  <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_greige)}"</td>
+                  <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_finish)}"</td>
+                  <td colSpan={2} className="p-1 text-center break-words">
+                    {data.satuan_unit_name === 'Meter' 
+                      ? formatAngka(item.meter_total)
+                      : formatAngka(item.yard_total)
+                    }
+                  </td>
+                  <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
+                  <td hidden className="p-1 text-right break-words">
+                    {(() => {
+                        const qty =
+                        data.satuan_unit_name === "Meter"
+                            ? parseFloat(item.meter_total || 0)
+                            : parseFloat(item.yard_total || 0);
+                        const harga = parseFloat(item.harga || 0);
+                        return harga && qty ? formatRupiah(harga * qty) : "-";
+                    })()}
                 </td>
-                <td className="p-1 break-words">
-                  {kainList()[item.fabric_id]?.konstruksi || "-"}
-                </td>
-                <td className="p-1 text-center break-words">
-                  {warnaList()[item.warna_id]?.deskripsi || "-"}
-                </td>
-                <td className="p-1 text-center break-words">
-                  {item.lebar_greige}"
-                </td>
-                <td className="p-1 text-center break-words">
-                  {item.lebar_finish}"
-                </td>
-                <td
-                  className="p-1 text-center break-words"
-                  colSpan={2}
-                >
-                  {data.satuan_unit_id == 1
-                    ? formatAngka(item.meterValue)
-                    : formatAngka(item.yardValue)}
-                </td>
-                <td className="p-1 text-right break-words" hidden>
-                  {formatRupiah(item.hargaValue)}
-                </td>
-                <td className="p-1 text-right break-words" hidden>
-                  {(() => {
-                    // Tentukan kuantitas yang benar berdasarkan satuan unit
-                    const qtyValue = data.satuan_unit_id == 1 ? item.meterValue : item.yardValue;
-                    
-                    // Hitung subtotal baris
-                    const lineSubtotal = item.hargaValue * qtyValue;
-
-                    // Tampilkan hasilnya jika valid
-                    return item.hargaValue && qtyValue ? formatRupiah(lineSubtotal) : "-";
-                  })()}
-                </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
 
             {/* Tambahin row kosong */}
             {Array.from({ length: 10 - data.items.length }).map((_, i) => (
@@ -417,23 +284,19 @@ export default function OCOrderPrint(props) {
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={6} className="border border-black font-bold px-2 py-1" >Total</td>
-              <td
-                colSpan={2} className="border border-black px-2 py-1 text-center font-bold"
-                hidden={data.satuan_unit_id == 2 ? true : false}
-              >
-                {formatAngka(totalMeter())}
+              <td colSpan={6} className="border border-black font-bold px-2 py-1">
+                Total:
               </td>
-              <td
-                colSpan={2} className="border border-black px-2 py-1 text-center font-bold"
-                hidden={data.satuan_unit_id == 1 ? true : false}
-              >
-                {formatAngka(totalYard())}
+              <td colSpan={2} className="border border-black px-2 py-1 text-center font-bold">
+                  {data.satuan_unit_name === 'Meter' 
+                    ? formatAngka(totalMeter())
+                    : formatAngka(totalYard())
+                  }
               </td>
-              <td className="border border-black px-2 py-1 text-right font-bold" hidden>
+              <td hidden className="border border-black px-2 py-1 text-right font-bold">
                 Sub Total
               </td>
-              <td className="border border-black px-2 py-1 text-right" hidden>
+              <td hidden className="border border-black px-2 py-1 text-right">
                 {formatRupiah(subTotal())}
               </td>
             </tr>
