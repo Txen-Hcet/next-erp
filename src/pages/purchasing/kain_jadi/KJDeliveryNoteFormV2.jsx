@@ -446,21 +446,33 @@ export default function KJDeliveryNoteForm() {
     }
   };
 
+  // function handlePrint() {
+  //   if (!deliveryNoteData()) {
+  //     Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+  //     return;
+  //   }
+
+  //   const dataToPrint = {
+  //     ...deliveryNoteData(),
+  //     //...form(),
+  //   };
+
+  //   //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+  //   const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
+  //   window.open(`/print/kainjadi/suratjalan?data=${encodedData}`, "_blank");
+  // }
+
   function handlePrint() {
     if (!deliveryNoteData()) {
       Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
       return;
     }
 
-    const dataToPrint = {
-      ...deliveryNoteData(),
-      //...form(),
-    };
-
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const dataToPrint = { ...deliveryNoteData() };
+    // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/kainjadi/suratjalan?data=${encodedData}`, "_blank");
-  }
+    window.open(`/print/kainjadi/suratjalan#${encodedData}`, "_blank");
+  }  
 
   return (
     <MainLayout>
@@ -471,7 +483,7 @@ export default function KJDeliveryNoteForm() {
         </div>
       )}
       <h1 class="text-2xl font-bold mb-4">
-        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Surat Jalan Order Celup
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Surat Penerimaan Order Celup
       </h1>
       <button
         type="button"
@@ -486,7 +498,7 @@ export default function KJDeliveryNoteForm() {
       <form class="space-y-4" onSubmit={handleSubmit}>
         <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block text-sm mb-1">No Surat Jalan</label>
+            <label class="block text-sm mb-1">No Surat Penerimaan</label>
             <div class="flex gap-2">
               <input
                 class="w-full border bg-gray-200 p-2 rounded"
@@ -605,7 +617,7 @@ export default function KJDeliveryNoteForm() {
               type="button"
               onClick={() => addItemGroup()}
               class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
-              hidden={isView}
+              hidden
               >
               + Tambah Item
             </button>
@@ -613,14 +625,14 @@ export default function KJDeliveryNoteForm() {
           <thead class="bg-gray-100">
             <tr>
               <th class="border p-2 w-10">#</th>
-              <th class="border p-2">Jenis Kain</th>
+              <th class="border p-2 w-100">Jenis Kain</th>
               <th class="border p-2">Warna</th>
-              <th class="border p-2">Lebar Greige</th>
-              <th class="border p-2">Lebar Finish</th>
-              <th class="border p-2 w-40">{form().unit}</th>
-              <th class="border p-2 w-48">Harga Greige</th>
-              <th class="border p-2 w-48">Harga Celup</th>
-              <th class="border p-2 w-48">Subtotal</th>
+              <th class="border p-2 w-48">Lebar Greige</th>
+              <th class="border p-2 w-48">Lebar Finish</th>
+              <th class="border p-2 w-50">{form().unit}</th>
+              <th hidden class="border p-2 w-48">Harga Greige</th>
+              <th hidden class="border p-2 w-48">Harga Celup</th>
+              <th hidden class="border p-2 w-48">Subtotal</th>
               <th class="border p-2 w-48">Aksi</th>
             </tr>
           </thead>
@@ -685,7 +697,7 @@ export default function KJDeliveryNoteForm() {
                           classList={{ "bg-gray-200": isView }}
                         />
                       </td>
-                      <td class="border p-2 text-right">
+                      <td hidden class="border p-2 text-right">
                         <input
                           class="w-full border p-2 rounded text-right"
                           value={formatHarga(group.item_details?.harga_greige)}
@@ -693,7 +705,7 @@ export default function KJDeliveryNoteForm() {
                           classList={{ "bg-gray-200": true }}
                         />
                       </td>
-                      <td class="border p-2 text-right">
+                      <td hidden class="border p-2 text-right">
                         <input
                           class="w-full border p-2 rounded text-right"
                           value={formatHarga(group.item_details?.harga_maklun)}
@@ -701,7 +713,7 @@ export default function KJDeliveryNoteForm() {
                           classList={{ "bg-gray-200": true }}
                         />
                       </td>
-                      <td class="border p-2 text-right font-semibold">
+                      <td hidden class="border p-2 text-right font-semibold">
                         <input
                           class="w-full border p-2 rounded text-right"
                           value={formatHarga(subtotal)}
@@ -735,10 +747,10 @@ export default function KJDeliveryNoteForm() {
               }
             </td>
             {/* Kolom kosong untuk harga */}
-            <td></td> 
-            <td></td> 
-            <td class="border p-2 text-right">{formatHarga(totalAll())}</td>
-            <td class="border-t border-gray-300"></td>
+            {/* <td></td> 
+            <td></td>  */}
+            <td hidden class="border p-2 text-right">{formatHarga(totalAll())}</td>
+            <td hidden class="border-t border-gray-300"></td>
         </tr>
         </tfoot>
         </table>
