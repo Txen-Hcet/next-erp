@@ -379,15 +379,11 @@ export default function OCPurchaseContractForm() {
       return;
     }
 
-    const dataToPrint = {
-      ...purchaseContractData(),
-      //...form(),
-    };
-
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const dataToPrint = { ...purchaseContractData() };
+    // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/ordercelup/contract?data=${encodedData}`, "_blank");
-  }  
+    window.open(`/print/ordercelup/contract#${encodedData}`, "_blank");
+  }
 
   return (
     <MainLayout>

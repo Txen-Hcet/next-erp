@@ -370,20 +370,32 @@ export default function JBPurchaseContractForm() {
     }
   };
 
+  // function handlePrint() {
+  //   if (!jualBeliData()) {
+  //     Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+  //     return;
+  //   }
+
+  //   const dataToPrint = {
+  //     ...jualBeliData(),
+  //     //...form(),
+  //   };  
+
+  //   //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+  //   const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
+  //   window.open(`/print/jualbeli/contract?data=${encodedData}`, "_blank");
+  // }
+
   function handlePrint() {
     if (!jualBeliData()) {
       Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
       return;
     }
 
-    const dataToPrint = {
-      ...jualBeliData(),
-      //...form(),
-    };  
-
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const dataToPrint = { ...jualBeliData() };
+    // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/jualbeli/contract?data=${encodedData}`, "_blank");
+    window.open(`/print/jualbeli/contract#${encodedData}`, "_blank");
   }
 
   return (
