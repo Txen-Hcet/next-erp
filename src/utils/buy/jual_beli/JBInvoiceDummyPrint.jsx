@@ -1,37 +1,46 @@
-import { onMount, onCleanup } from "solid-js";
-import { useSearchParams } from "@solidjs/router";
+import { onMount, onCleanup, createSignal } from "solid-js";
 import JBInvoicePrint from "../../../pages/print_function/invoice/JBInvoicePrint";
 
 export default function JBInvoiceDummyPrint() {
-  const [searchParams] = useSearchParams();
-
-  const data = JSON.parse(searchParams.data);
+  // CHANGED: pakai signal supaya reaktif saat data masuk
+  const [data, setData] = createSignal({ items: [], summary: {} });
 
   onMount(() => {
-    const closeAfterPrint = () => {
-      window.close();
-    };
+    try {
+      const raw = window.location.hash.slice(1);
+      const parsed = JSON.parse(decodeURIComponent(raw));
 
+      // FIX: ratakan struktur supaya punya field root: items & summary
+      const normalized = parsed.suratJalan
+        ? {
+            ...parsed.suratJalan,
+            items: parsed.items ?? parsed.suratJalan.items ?? [],
+            summary: parsed.summary ?? parsed.suratJalan.summary ?? {},
+          }
+        : {
+            ...parsed,
+            items: parsed.items ?? [],
+            summary: parsed.summary ?? {},
+          };
+
+      setData(normalized);
+    } catch (e) {
+      console.error("Gagal parse data print:", e);
+      alert("Data print tidak valid.");
+      window.close();
+      return;
+    }
+
+    const closeAfterPrint = () => window.close();
     window.addEventListener("afterprint", closeAfterPrint);
-
-    // Tunggu 300ms supaya render komponen print kelar
-    setTimeout(() => {
-      window.print();
-    }, 2500);
-
-    // Fallback close jika afterprint gak jalan
-    setTimeout(() => {
-      window.close();
-    }, 4000);
-
-    onCleanup(() => {
-      window.removeEventListener("afterprint", closeAfterPrint);
-    });
+    setTimeout(() => window.print(), 300);
+    setTimeout(() => window.close(), 3000);
+    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
   });
 
   return (
     <div class="p-6 print:p-0">
-      <JBInvoicePrint data={data} />
+      <JBInvoicePrint data={data()} /> {/* CHANGED: kirim signal value */}
     </div>
   );
 }

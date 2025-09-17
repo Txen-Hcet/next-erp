@@ -70,40 +70,39 @@
 //   return <OCSuratJalanPrint data={dummyDataOCSuratJalan} />;
 // }
 
-import { onMount, onCleanup } from "solid-js";
+import { onMount, onCleanup, createSignal } from "solid-js";
 import OCSuratJalanPrint from "../../../pages/print_function/buy/order_celup/OCSuratJalanPrint";
-import { useSearchParams } from "@solidjs/router";
 
 export default function OCSuratJalanDataDummyPrint() {
-  const [searchParams] = useSearchParams();
-
-  const data = JSON.parse(searchParams.data);
+  // CHANGED: pakai signal supaya reaktif saat data masuk
+  const [data, setData] = createSignal({ items: [], summary: {} });
 
   onMount(() => {
-    const closeAfterPrint = () => {
+    try {
+      // CHANGED: ambil payload dari hash (sesuai handlePrint baru)
+      const raw = window.location.hash.slice(1); // buang "#"
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      setData(parsed);
+    } catch (e) {
+      console.error("Gagal parse data print:", e);
+      alert("Data print tidak valid.");
       window.close();
-    };
+      return;
+    }
 
+    const closeAfterPrint = () => window.close();
     window.addEventListener("afterprint", closeAfterPrint);
 
-    setTimeout(() => {
-      window.print();
-    }, 2500);
+    // CHANGED: kasih jeda singkat agar render selesai
+    setTimeout(() => window.print(), 300);
+    setTimeout(() => window.close(), 3000);
 
-    // Fallback close jika afterprint gak jalan
-    setTimeout(() => {
-      window.close();
-    }, 4000);
-
-    // Clean up event
-    onCleanup(() => {
-      window.removeEventListener("afterprint", closeAfterPrint);
-    });
+    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
   });
 
   return (
     <div class="p-6 print:p-0">
-      <OCSuratJalanPrint data={data} />
+      <OCSuratJalanPrint data={data()} /> {/* CHANGED: kirim signal value */}
     </div>
   );
 }

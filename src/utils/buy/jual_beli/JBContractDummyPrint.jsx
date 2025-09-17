@@ -56,43 +56,39 @@
 //   return <JBContractPrint data={dummyDataJBContract} />;
 // }
 
-import { onCleanup, onMount } from "solid-js";
+import { onCleanup, onMount, createSignal } from "solid-js";
 import JBContractPrint from "../../../pages/print_function/buy/jual_beli/JBContractPrint";
-import { useSearchParams } from "@solidjs/router";
 
 export default function JBContractDataDummyPrint() {
-  const [searchParams] = useSearchParams();
-
-  const data = JSON.parse(searchParams.data);
+  // CHANGED: pakai signal supaya reaktif saat data masuk
+  const [data, setData] = createSignal({ items: [], summary: {} });
 
   onMount(() => {
-    const closeAfterPrint = () => {
+    try {
+      // CHANGED: ambil payload dari hash (sesuai handlePrint baru)
+      const raw = window.location.hash.slice(1); // buang "#"
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      setData(parsed);
+    } catch (e) {
+      console.error("Gagal parse data print:", e);
+      alert("Data print tidak valid.");
       window.close();
-    };
+      return;
+    }
 
+    const closeAfterPrint = () => window.close();
     window.addEventListener("afterprint", closeAfterPrint);
 
-    setTimeout(() => {
-      window.print();
-    }, 2500);
-    
-    // Fallback: Kalau `afterprint` nggak terpanggil (di browser tertentu)
-    setTimeout(() => {
-      window.close();
-    }, 1000); // kasih jeda 1 detik setelah print
+    // CHANGED: kasih jeda singkat agar render selesai
+    setTimeout(() => window.print(), 300);
+    setTimeout(() => window.close(), 3000);
 
-    // Trigger print
-    window.print();
-
-    // Clean up event
-    onCleanup(() => {
-      window.removeEventListener("afterprint", closeAfterPrint);
-    });
+    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
   });
 
   return (
     <div class="p-6 print:p-0">
-      <JBContractPrint data={data} />
+      <JBContractPrint data={data()} /> {/* CHANGED: kirim signal value */}
     </div>
   );
 }

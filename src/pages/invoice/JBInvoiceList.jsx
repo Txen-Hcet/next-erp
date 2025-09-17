@@ -156,7 +156,8 @@ const formatNumber = (num, decimals = 2) => {
       // Kirim data ke print
       //console.log("Data print: ", JSON.stringify(detail, null, 2));
       const encodedData = encodeURIComponent(JSON.stringify(detail));
-      window.open(`/print/jualbeli-invoice?data=${encodedData}`, "_blank");
+      //window.open(`/print/jualbeli-invoice?data=${encodedData}`, "_blank");
+      window.open(`/print/jualbeli-invoice#${encodedData}`, "_blank");
 
     } catch (err) {
       console.error(err);
