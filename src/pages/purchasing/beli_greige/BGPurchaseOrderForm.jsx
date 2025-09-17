@@ -161,111 +161,89 @@ export default function BGPurchaseOrderForm() {
   });
 
   const handlePurchaseContractChange = async (contractId, overrideItems) => {
-      let selectedContract = purchaseContracts().find(
-          (sc) => sc.id == contractId
-      );
+    // 1) Ambil kontrak dari cache (list)
+    let selectedContract = purchaseContracts().find(sc => sc.id == contractId);
 
-      if (!selectedContract || !selectedContract.items?.length) {
-          const detail = await getBeliGreiges(contractId, user?.token);
-          //console.log("Detail Greige untuk PO: ", JSON.stringify(detail, null, 2));
-          selectedContract = detail.contract;
-      }
+    // 2) SELALU fetch detail agar dapat qty, harga, lebar, dsb.
+    try {
+      const detail = await getBeliGreiges(contractId, user?.token);
+      if (detail?.contract) selectedContract = detail.contract;
+    } catch (e) {
+      console.warn("[PC change] gagal fetch detail, pakai cache:", e);
+    }
 
-      if (!selectedContract) return;
-      const {
-          supplier_id,
-          satuan_unit_id,
-          termin,
-          ppn_percent,
-          items = [],
-      } = selectedContract;
+    if (!selectedContract) return;
 
-      // Pilih sumber data: item PO (edit) atau item Kontrak (create)
-      const sourceItems = overrideItems ?? items;
+    const {
+      supplier_id,
+      satuan_unit_id,
+      termin,
+      ppn_percent,
+      items = [],
+    } = selectedContract;
 
-      const mappedItems = sourceItems.map((item) => {
-          let fabricId = null;
-          let dataSumber = {};
+    // 3) Sumber item: override dari PO (mode edit) atau item detail kontrak
+    const sourceItems = overrideItems ?? items;
 
-          if (overrideItems) {
-              const contractItem = selectedContract.items.find(
-                  (pcItem) => pcItem.id == item.pc_item_id
-              );
-              // Ambil ID kain dari item kontrak yang cocok
-              fabricId = contractItem ? (contractItem.kain_id || contractItem.fabric_id || contractItem.kain?.id) : null;
-              // Gunakan item PO sebagai sumber data utama
-              dataSumber = item;
-          } else {
-              // Ambil ID kain langsung dari item kontrak
-              fabricId = item.kain_id || item.fabric_id || item.kain?.id;
-              // Siapkan data sumber dari item kontrak
-              dataSumber = {
-                  id: null,
-                  pc_item_id: item.id, 
-                  lebar_greige: item.lebar_greige,
-                  meter: item.meter_total || item.meter,
-                  yard: item.yard_total || item.yard,
-                  harga: item.harga,
-              };
-          }
+    // 4) Map item lengkap → state form
+    const mappedItems = sourceItems.map((ci) => {
+      const fabricId = ci.kain_id ?? ci.fabric_id ?? ci.kain?.id ?? null;
 
-          // Kalkulasi menggunakan dataSumber yang sudah disiapkan
-          const meterNum = parseFloat(dataSumber.meter || 0);
-          const yardNum = parseFloat(dataSumber.yard || 0);
-          
-          let qty = 0;
-          if (satuan_unit_id === 1) qty = meterNum;
-          else if (satuan_unit_id === 2) qty = yardNum;
+      const meterNum = parseFloat(ci.meter_total ?? ci.meter ?? 0) || 0;
+      const yardNum  = parseFloat(ci.yard_total  ?? ci.yard  ?? 0) || 0;
+      const hargaNum = parseFloat(ci.harga ?? 0) || 0;
 
-          const harga = parseFloat(dataSumber.harga ?? 0);
-          const subtotal = qty * harga;
+      const qty = (parseInt(satuan_unit_id) === 2) ? yardNum : meterNum;
+      const subtotal = qty * hargaNum;
 
-          // Return objek item yang siap untuk form state
-          return {
-              // Data asli disimpan untuk display Quantity
-              meter_total: item.meter_total,
-              yard_total: item.yard_total,
-              meter_dalam_proses: item.meter_dalam_proses,
-              yard_dalam_proses: item.yard_dalam_proses,
-              corak_kain: item.corak_kain,
-              konstruksi_kain: item.konstruksi_kain,
-            
-              id: dataSumber.id,
-              pc_item_id: dataSumber.pc_item_id,
-              fabric_id: fabricId,
-              lebar_greige: dataSumber.lebar_greige,
-              meter: formatNumber(meterNum, { decimals: 2 }),
-              meterValue: meterNum,
-              yard: formatNumber(yardNum, { decimals: 2 }),
-              yardValue: yardNum,
-              harga,
-              hargaValue: harga,
-              hargaFormatted: formatIDR(harga),
-              subtotal,
-              subtotalFormatted: formatIDR(subtotal),
-              readOnly: false,
-          };
-      });
+      return {
+        // untuk panel "Quantity Kain"
+        meter_total: ci.meter_total ?? ci.meter ?? 0,
+        yard_total:  ci.yard_total  ?? ci.yard  ?? 0,
+        meter_dalam_proses: parseFloat(ci.meter_dalam_proses ?? 0),
+        yard_dalam_proses:  parseFloat(ci.yard_dalam_proses  ?? 0),
+        corak_kain: ci.corak_kain ?? ci.kain?.corak_kain ?? "-",
+        konstruksi_kain: ci.konstruksi_kain ?? ci.kain?.konstruksi_kain ?? "-",
 
-      const lastSeq = await getLastSequence(
-          user?.token,
-          "bg_o",
-          "domestik",
-          form().ppn
-      );
-      
-      setForm((prev) => ({
-          ...prev,
-          pc_id: contractId,
-          supplier_id: supplier_id,
-          satuan_unit_id: satuan_unit_id,
-          termin: termin,
-          ppn: ppn_percent,
-          keterangan: prev.keterangan || "",
-          items: mappedItems,
-          sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
-      }));
+        // kunci referensi
+        id: ci.id ?? null,
+        pc_item_id: ci.pc_item_id ?? ci.id,
+        fabric_id: fabricId,
+
+        // tampil di tabel
+        lebar_greige: ci.lebar_greige ?? "",
+        meter: formatNumber(meterNum, { decimals: 2 }),
+        meterValue: meterNum,
+        yard:  formatNumber(yardNum,  { decimals: 2 }),
+        yardValue: yardNum,
+
+        harga: formatIDR(hargaNum),
+        hargaValue: hargaNum,
+        hargaFormatted: formatIDR(hargaNum),
+
+        subtotal,
+        subtotalFormatted: formatIDR(subtotal),
+
+        readOnly: false,
+      };
+    });
+
+    // 5) Update form
+    const lastSeq = await getLastSequence(user?.token, "bg_o", "domestik", form().ppn);
+
+    setForm(prev => ({
+      ...prev,
+      pc_id: contractId,
+      supplier_id,
+      satuan_unit_id,
+      termin,
+      ppn: ppn_percent,
+      keterangan: prev.keterangan || "",
+      items: mappedItems,
+      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
+    }));
   };
+
 
   const formatIDR = (val) => {
     if (val === null || val === "") return "";
@@ -590,13 +568,10 @@ const handleItemChange = (index, field, value) => {
       return;
     }
 
-    const dataToPrint = {
-      ...purchaseContractData(),
-    };
-
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const dataToPrint = { ...purchaseContractData() };
+    // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/beligreige/order?data=${encodedData}`, "_blank");
+    window.open(`/print/beligreige/order#${encodedData}`, "_blank");
   }
 
   return (
@@ -876,8 +851,8 @@ const handleItemChange = (index, field, value) => {
                       onBlur={(e) =>
                         handleItemChange(i(), "harga", e.target.value)
                       }
-                      disabled={isView || isEdit}
-                      classList={{ "bg-gray-200": isView || isEdit }}
+                      disabled={true}
+                      classList={{ "bg-gray-200": true }}
                     />
                   </td>
                   <td class="border p-2">
