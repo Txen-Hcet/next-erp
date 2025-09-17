@@ -105,6 +105,26 @@ export default function OCPurchaseOrderForm() {
     }).format(numValue);
   };
 
+  const parsePercent = (s) => {
+    if (s === null || s === undefined) return 0;
+    if (typeof s !== "string") return Number(s) || 0;
+    let clean = s.replace(/[^0-9,.\-]/g, "");
+    const lastDot = clean.lastIndexOf(".");
+    const lastComma = clean.lastIndexOf(",");
+    if (lastComma > lastDot) {
+      clean = clean.replace(/\./g, "").replace(",", ".");
+    } else {
+      clean = clean.replace(/,/g, "");
+    }
+    const n = parseFloat(clean);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const formatPercent = (num) => {
+    if (num === "" || num === null || num === undefined || isNaN(num)) return "";
+    return `${formatNumber(Number(num), { decimals: 2 })} %`;
+  };
+
   onMount(async () => {
     setLoading(true);
     const [bgc, suppliers, units, fabrics, colors] = await Promise.all([
@@ -125,6 +145,8 @@ export default function OCPurchaseOrderForm() {
       const res = await getOrderCelupOrders(params.id, user?.token);
       const data = res.order;
       const dataItems = res.order.items;
+
+      //console.log("Data PO OC: ", JSON.stringify(data, null, 2));
 
       const fullPrintData = {
         ...data,
@@ -149,6 +171,12 @@ export default function OCPurchaseOrderForm() {
           lebar_greige: item.lebar_greige,
           lebar_finish: item.lebar_finish,
           warna_id: item.warna_id,
+          // Field Keterangan untuk warna
+          keterangan_warna: item.keterangan_warna || "",
+
+          std_susutValue: item.std_susut != null ? parseFloat(item.std_susut) : 0,
+          std_susut: item.std_susut != null ? formatPercent(parseFloat(item.std_susut)) : "",
+
           meter: item.meter_total,
           yard: item.yard_total,
           harga: item.harga,
@@ -205,106 +233,102 @@ export default function OCPurchaseOrderForm() {
   });
 
   const handlePurchaseContractChange = async (contractId, overrideItems) => {
-      let selectedContract = purchaseContracts().find(
-          (sc) => sc.id == contractId
-      );
+    // 1) Ambil dari cache
+    let selectedContract = purchaseContracts().find((sc) => sc.id == contractId);
 
-      if (!selectedContract || !selectedContract.items?.length) {
-          const detail = await getOrderCelups(contractId, user?.token);
-          selectedContract = detail.contract;
-      }
+    // 2) SELALU ambil detail supaya dapat qty/lebar/harga lengkap
+    try {
+      const detail = await getOrderCelups(contractId, user?.token);
+      if (detail?.contract) selectedContract = detail.contract;
+    } catch (e) {
+      console.warn("[OC] gagal fetch detail, pakai cache:", e);
+    }
 
-      if (!selectedContract) return;
-      const {
-          supplier_id,
-          satuan_unit_id,
-          termin,
-          ppn_percent,
-          items = [],
-      } = selectedContract;
+    if (!selectedContract) return;
 
-      const sourceItems = overrideItems ?? items;
+    const {
+      supplier_id,
+      satuan_unit_id,
+      termin,
+      ppn_percent,
+      items = [],
+    } = selectedContract;
 
-      const mappedItems = sourceItems.map((item) => {
-          let fabricId = null;
-          let dataSumber = {};
+    // 3) Sumber item: override dari PO (mode edit) atau item kontrak
+    const sourceItems = overrideItems ?? items;
 
-          if (overrideItems) {
-              const contractItem = selectedContract.items.find(
-                  (pcItem) => pcItem.id == item.pc_item_id
-              );
-              fabricId = contractItem ? (contractItem.kain_id || contractItem.fabric_id || contractItem.kain?.id) : null;
-              dataSumber = item;
-          } else {
-              fabricId = item.kain_id || item.fabric_id || item.kain?.id;
-              dataSumber = {
-                  id: null,
-                  pc_item_id: item.id, 
-                  lebar_greige: item.lebar_greige,
-                  lebar_finish: item.lebar_finish,
-                  meter: item.meter_total || item.meter,
-                  yard: item.yard_total || item.yard,
-                  harga: item.harga,
-              };
-          }
+    // 4) Map aman → semua angka/string ada default
+    const mappedItems = sourceItems.map((ci0) => {
+      // jika overrideItems dipakai (mode edit), struktur item sedikit beda
+      const ci = overrideItems ? ci0 : {
+        ...ci0,
+        pc_item_id: ci0.id,
+      };
 
-          const meterNum = parseFloat(dataSumber.meter || 0);
-          const yardNum = parseFloat(dataSumber.yard || 0);
-          
-          let qty = 0;
-          if (satuan_unit_id === 1) qty = meterNum;
-          else if (satuan_unit_id === 2) qty = yardNum;
+      const fabricId =
+        ci.kain_id ?? ci.fabric_id ?? ci.kain?.id ?? null;
 
-          const harga = parseFloat(dataSumber.harga ?? 0);
-          const subtotal = qty * harga;
+      const meterNum = parseFloat(ci.meter_total ?? ci.meter ?? 0) || 0;
+      const yardNum  = parseFloat(ci.yard_total  ?? ci.yard  ?? 0) || 0;
+      const hargaNum = parseFloat(ci.harga ?? 0) || 0;
 
-          return {
-              // Data asli disimpan untuk display Quantity
-              meter_total: item.meter_total,
-              yard_total: item.yard_total,
-              meter_dalam_proses: item.meter_dalam_proses,
-              yard_dalam_proses: item.yard_dalam_proses,
-              corak_kain: item.corak_kain,
-              konstruksi_kain: item.konstruksi_kain,
+      const qty = String(satuan_unit_id) === "2" ? yardNum : meterNum;
+      const subtotal = qty * hargaNum;
 
-              id: dataSumber.id,
-              pc_item_id: dataSumber.pc_item_id,
-              fabric_id: fabricId,
-              warna_id: dataSumber.warna_id,
-              lebar_greige: dataSumber.lebar_greige,
-              lebar_finish: dataSumber.lebar_finish,
-              meter: formatNumber(meterNum, { decimals: 2 }),
-              meterValue: meterNum,
-              yard: formatNumber(yardNum, { decimals: 2 }),
-              yardValue: yardNum,
-              harga,
-              hargaValue: harga,
-              hargaFormatted: formatIDR(harga),
-              subtotal,
-              subtotalFormatted: formatIDR(subtotal),
-              readOnly: false,
-          };
-      });
+      return {
+        // untuk panel "Quantity Kain"
+        meter_total:        parseFloat(ci.meter_total ?? ci.meter ?? 0) || 0,
+        yard_total:         parseFloat(ci.yard_total  ?? ci.yard  ?? 0) || 0,
+        meter_dalam_proses: parseFloat(ci.meter_dalam_proses ?? 0) || 0,
+        yard_dalam_proses:  parseFloat(ci.yard_dalam_proses  ?? 0) || 0,
+        corak_kain:         (ci.corak_kain ?? ci.kain?.corak_kain ?? "-"),
+        konstruksi_kain:    (ci.konstruksi_kain ?? ci.kain?.konstruksi_kain ?? "-"),
 
-      const lastSeq = await getLastSequence(
-          user?.token,
-          "oc_o",
-          "domestik",
-          form().ppn
-      );
-      
-      setForm((prev) => ({
-          ...prev,
-          pc_id: contractId,
-          supplier_id: supplier_id,
-          satuan_unit_id: satuan_unit_id,
-          termin: termin,
-          ppn: ppn_percent,
-          keterangan: prev.keterangan || "",
-          items: mappedItems,
-          sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
-      }));
-      setContractItems(selectedContract.items || []);
+        id: ci.id ?? null,
+        pc_item_id: ci.pc_item_id ?? ci.id ?? null,
+        fabric_id: fabricId,
+        warna_id: ci.warna_id ?? null,
+
+        lebar_greige: String(ci.lebar_greige ?? ""),
+        lebar_finish: String(ci.lebar_finish ?? ""),
+
+        keterangan_warna: ci.keterangan_warna ?? "",
+
+        std_susutValue: ci.std_susut != null ? parseFloat(ci.std_susut) : 0,
+        std_susut: ci.std_susut != null ? formatPercent(parseFloat(ci.std_susut)) : "",
+
+        meter:      formatNumber(meterNum, { decimals: 2 }),
+        meterValue: meterNum,
+        yard:       formatNumber(yardNum,  { decimals: 2 }),
+        yardValue:  yardNum,
+
+        harga:           hargaNum,                    // nilai mentah
+        hargaValue:      hargaNum,
+        hargaFormatted:  formatIDR(hargaNum),        // tampilan
+
+        subtotal,
+        subtotalFormatted: formatIDR(subtotal),
+
+        readOnly: false,
+      };
+    });
+
+    // 5) Update form
+    const lastSeq = await getLastSequence(user?.token, "oc_o", "domestik", form().ppn);
+
+    setForm((prev) => ({
+      ...prev,
+      pc_id: contractId,
+      supplier_id: supplier_id ?? prev.supplier_id,
+      satuan_unit_id: satuan_unit_id ?? prev.satuan_unit_id,
+      termin: termin ?? prev.termin,
+      ppn: ppn_percent ?? prev.ppn,
+      keterangan: prev.keterangan || "",
+      items: mappedItems,
+      sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
+    }));
+
+    setContractItems(selectedContract.items || []);
   };
 
   const generateNomorKontrak = async () => {
@@ -349,8 +373,13 @@ export default function OCPurchaseOrderForm() {
       pc_item_id: ci.id,
       fabric_id: fabricId,
       warna_id: ci.warna_id ?? null,        // biar bisa dipilih ulang
+      // Field Keterangan untuk warna
+      keterangan_warna: "",
       lebar_greige: ci.lebar_greige ?? "",
       lebar_finish: ci.lebar_finish ?? "",
+
+      std_susutValue: ci.std_susut != null ? parseFloat(ci.std_susut) : 0,
+      std_susut: ci.std_susut != null ? formatPercent(parseFloat(ci.std_susut)) : "",
 
       meter:      formatNumber(meterNum, { decimals: 2 }),
       meterValue: meterNum,
@@ -447,7 +476,14 @@ const handleItemChange = (index, field, value) => {
             }
           }
         }
-      } else { 
+      } else if (field === "keterangan_warna") {
+        item.keterangan_warna = value; // Simpan keterangan warna
+      } else if (field === "std_susut") {
+        const p = parsePercent(value);
+        item.std_susutValue = p;
+        item.std_susut = formatPercent(p);
+      } else {
+
         const numValue = parseNumber(value);
         item[`${field}Value`] = numValue;
   
@@ -528,6 +564,9 @@ const handleItemChange = (index, field, value) => {
           items: form().items.map((i) => ({
             pc_item_id: i.pc_item_id,
             warna_id: i.warna_id,
+            std_susut: i.std_susutValue || 0,
+            // Field Keterangan untuk warna
+            keterangan_warna: i.keterangan_warna,
             meter_total: i.meterValue || 0,
             yard_total: i.yardValue || 0,
           })),
@@ -546,6 +585,9 @@ const handleItemChange = (index, field, value) => {
           items: form().items.map((i) => ({
             pc_item_id: i.pc_item_id,
             warna_id: i.warna_id,
+            std_susut: i.std_susutValue || 0,
+            // Field Keterangan untuk warna
+            keterangan_warna: i.keterangan_warna ?? "",
             meter_total: i.meterValue || 0,
             yard_total: i.yardValue || 0,
           })),
@@ -584,14 +626,10 @@ const handleItemChange = (index, field, value) => {
       return;
     }
 
-    const dataToPrint = {
-      ...purchaseContractData(),
-      //...form(),
-    };
-
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(dataToPrint, null, 2));
+    const dataToPrint = { ...purchaseContractData() };
+    // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/ordercelup/order?data=${encodedData}`, "_blank");
+    window.open(`/print/ordercelup/order#${encodedData}`, "_blank");
   }
 
   return (
@@ -783,16 +821,18 @@ const handleItemChange = (index, field, value) => {
           <thead class="bg-gray-100">
             <tr>
               <th class="border p-2">#</th>
-              <th class="border p-2">Jenis Kain</th>
-              <th class="border p-2">Lebar Greige</th>
-              <th class="border p-2">Lebar Finish</th>
+              <th class="border p-2 w-92">Jenis Kain</th>
+              <th class="border p-2 w-30">Lebar Greige</th>
+              <th class="border p-2 w-30">Lebar Finish</th>
+              <th hidden class="border p-2 w-30">Std Susut</th>
               <th class="border p-2">Warna</th>
+              <th class="border p-2">Keterangan Warna</th>
               <Show when={parseInt(form().satuan_unit_id) === 1}>
-                <th class="border p-2">Meter</th>
+                <th class="border p-2 w-48">Meter</th>
               </Show>
 
               <Show when={parseInt(form().satuan_unit_id) === 2}>
-                <th class="border p-2">Yard</th>
+                <th class="border p-2 w-48">Yard</th>
               </Show>
               <th class="border p-2" hidden>Harga</th>
               <th class="border p-2" hidden>Subtotal</th>
@@ -804,7 +844,7 @@ const handleItemChange = (index, field, value) => {
               {(item, i) => (
                 <tr>
                   <td class="border p-2 text-center">{i() + 1}</td>
-                  <td class="border w-72 p-2">
+                  <td class="border w-92 p-2">
                     <FabricDropdownSearch
                       fabrics={fabricOptions}
                       item={item}
@@ -815,7 +855,7 @@ const handleItemChange = (index, field, value) => {
                   <td class="border p-2">
                     <input
                       type="number"
-                      class="border p-1 rounded w-full bg-gray-200"
+                      class="border p-1 rounded w-30 bg-gray-200"
                       value={item.lebar_greige}
                       disabled={true}
                     />
@@ -823,9 +863,19 @@ const handleItemChange = (index, field, value) => {
                   <td class="border p-2">
                     <input
                       type="number"
-                      class="border p-1 rounded w-full bg-gray-200"
+                      class="border p-1 rounded w-30 bg-gray-200"
                       value={item.lebar_finish}
                       disabled={true}
+                    />
+                  </td>
+                  <td hidden class="border p-2">
+                    <input
+                      type="text"
+                      class="border p-1 rounded w-30"
+                      value={item.std_susut ?? ""}
+                      onBlur={(e) => handleItemChange(i(), "std_susut", e.target.value)}
+                      disabled={isView}
+                      // placeholder="0,00 %"
                     />
                   </td>
                   <td class="border p-2">
@@ -836,12 +886,23 @@ const handleItemChange = (index, field, value) => {
                       disabled={isView}
                     />
                   </td>
+                  <td class="border p-2">  {/* kolom Keterangan warna */}
+                    <input
+                      type="text"
+                      class="border p-1 rounded w-full"
+                      value={item.keterangan_warna ?? ""}
+                      onBlur={(e) => handleItemChange(i(), "keterangan_warna", e.target.value)}
+                      disabled={isView}
+                      classList={{ "bg-gray-200 " : isView}}
+                      placeholder="Keterangan warna..."
+                    />
+                  </td>
                   <Show when={parseInt(form().satuan_unit_id) === 1}>
                     <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
-                        class="border p-1 rounded w-full"
+                        class="border p-1 rounded w-48"
                         classList={{
                           "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 2,
                         }}
@@ -860,7 +921,7 @@ const handleItemChange = (index, field, value) => {
                       <input
                         type="text"
                         inputmode="decimal"
-                        class="border p-1 rounded w-full"
+                        class="border p-1 rounded w-48"
                         classList={{
                           "bg-gray-200": isView || parseInt(form().satuan_unit_id) === 1,
                         }}
@@ -913,7 +974,7 @@ const handleItemChange = (index, field, value) => {
           </tbody>
           <tfoot>
             <tr class="font-bold bg-gray-100">
-              <td colSpan="5" class="text-right p-2">
+              <td colSpan="6" class="text-right p-2">
                 TOTAL
               </td>
               <Show when={parseInt(form().satuan_unit_id) === 1}>
