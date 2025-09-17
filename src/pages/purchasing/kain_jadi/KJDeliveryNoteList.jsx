@@ -176,12 +176,12 @@ export default function KJDeliveryNoteList() {
   return (
     <MainLayout>
           <div class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-bold">Daftar Surat Jalan Kain Jadi</h1>
+            <h1 class="text-2xl font-bold">Daftar Surat Penerimaan Kain Jadi</h1>
             <button
               class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
               onClick={() => navigate("/kainjadi-deliverynote/form")}
             >
-              + Tambah Surat Jalan
+              + Tambah Surat Penerimaan
             </button>
           </div>
     
@@ -190,7 +190,7 @@ export default function KJDeliveryNoteList() {
               <thead>
                 <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
                   <th class="py-2 px-4">ID</th>
-                  <th class="py-2 px-2">No Surat Jalan</th>
+                  <th class="py-2 px-2">No Surat Penerimaan</th>
                   <th class="py-2 px-2">No Purchase Order</th>
                   <th class="py-2 px-2 text-center">
                     <div>Qty by System</div>
