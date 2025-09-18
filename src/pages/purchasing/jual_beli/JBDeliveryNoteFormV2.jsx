@@ -80,7 +80,7 @@ export default function JBDeliveryNoteForm() {
 
     if (isEdit) {
       const sjResponse = await getJBDeliveryNotes(params.id, user?.token);
-      //console.log("Data SJ JB per id: ", JSON.stringify(sjResponse, null, 2));
+      console.log("Data SJ JB per id: ", JSON.stringify(sjResponse, null, 2));
       const suratJalanData = sjResponse?.suratJalan;
 
       if (!suratJalanData) {
@@ -138,6 +138,9 @@ export default function JBDeliveryNoteForm() {
           },
           meter_total: Number(group.meter_total) || 0,
           yard_total: Number(group.yard_total) || 0,
+
+          gulung: typeof group.gulung === "number" ? group.gulung : 0,
+          lot: typeof group.lot === "number" ? group.lot : 0,
           }))
       });
 
@@ -233,13 +236,31 @@ export default function JBDeliveryNoteForm() {
       return { ...prev, itemGroups: updatedItemGroups };
     });
   };
+
+  const handleGulungChange = (index, value) => {
+    const numValue = parseNumber(value);
+    setForm(prev => {
+      const arr = [...prev.itemGroups];
+      arr[index] = { ...arr[index], gulung: numValue };
+      return { ...prev, itemGroups: arr };
+    });
+  };
+
+  const handleLotChange = (index, value) => {
+    const numValue = parseNumber(value);
+    setForm(prev => {
+      const arr = [...prev.itemGroups];
+      arr[index] = { ...arr[index], lot: numValue };
+      return { ...prev, itemGroups: arr };
+    });
+  };
   
   const handleSuratJalanChange = async (selectedPO) => {
     if (!selectedPO) return;
 
     // Hanya jalankan logika untuk mode "Tambah Baru"
     const res = await getJualBelis(selectedPO.id, user?.token);
-    //console.log("Data get BG ORDER ", JSON.stringify(res, null, 2));    
+    console.log("Data SP JB ", JSON.stringify(res, null, 2));    
     const selectedPOData = res?.mainRow; 
 
     const poTypeLetter = selectedPO.no_jb.split("/")[1];
@@ -324,6 +345,9 @@ export default function JBDeliveryNoteForm() {
       // Keduanya diisi, UI tinggal pilih mana yang ditampilkan sesuai form().unit
       meter_total: meterVal,
       yard_total:  yardVal,
+
+      gulung: 0,
+      lot: 0,
     };
   };
 
@@ -399,6 +423,8 @@ export default function JBDeliveryNoteForm() {
             jb_item_id: Number(g.purchase_order_item_id),
             meter_total: Number(g.meter_total) || 0,
             yard_total: Number(g.yard_total) || 0,
+            gulung: Number(g.gulung) || 0,
+            lot: Number(g.lot) || 0,
           })),
         deleted_items: deletedItems(),
       };
@@ -420,6 +446,8 @@ export default function JBDeliveryNoteForm() {
                 jb_item_id: Number(g.purchase_order_item_id),
                 meter_total: Number(g.meter_total) || 0,
                 yard_total: Number(g.yard_total) || 0,
+                gulung: Number(g.gulung) || 0,
+                lot: Number(g.lot) || 0,
           })),
         }; 
         await createJBDeliveryNote(user?.token, payload);
@@ -629,6 +657,8 @@ export default function JBDeliveryNoteForm() {
               <th class="border p-2 w-48">Lebar Kain</th>
               <th class="border p-2 w-60">Warna</th>
               <th class="border p-2 w-55">{form().unit}</th>
+              <th class="border p-2 w-32">Gulung</th>
+              <th class="border p-2 w-32">Lot</th>
               <th hidden class="border p-2 w-48">Harga</th>
               <th hidden class="border p-2 w-48">Subtotal</th>
               <th class="border p-2 w-48">Aksi</th>
@@ -680,6 +710,31 @@ export default function JBDeliveryNoteForm() {
                           class="w-full border p-2 rounded text-right"
                           value={formatNumber(quantity)}
                           onBlur={(e) => handleQuantityChange(i(), e.target.value)}
+                          disabled={isView}
+                          classList={{ "bg-gray-200": isView }}
+                        />
+                      </td>
+                      {/* NEW: Gulung */}
+                      <td class="border p-2">
+                        <input
+                          type="number"
+                          placeholder="Banyak gulung..."
+                          class="w-full border p-2 rounded text-right"
+                          value={group.gulung ?? 0}
+                          onBlur={(e) => handleGulungChange(i(), e.target.value)}
+                          disabled={isView}
+                          classList={{ "bg-gray-200": isView }}
+                        />
+                      </td>
+
+                      {/* NEW: Lot */}
+                      <td class="border p-2">
+                        <input
+                          type="number"
+                          placeholder="Input lot..."
+                          class="w-full border p-2 rounded text-right"
+                          value={group.lot ?? 0}
+                          onBlur={(e) => handleLotChange(i(), e.target.value)}
                           disabled={isView}
                           classList={{ "bg-gray-200": isView }}
                         />

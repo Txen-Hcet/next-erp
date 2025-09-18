@@ -140,6 +140,9 @@ export default function OCDeliveryNoteForm() {
             },
             meter_total: group.meter_total || 0,
             yard_total: group.yard_total || 0,
+
+            gulung: typeof group.gulung === "number" ? group.gulung : 0,
+            lot: typeof group.lot === "number" ? group.lot : 0,
           };
         }),
       });
@@ -234,6 +237,24 @@ export default function OCDeliveryNoteForm() {
 
       updatedItemGroups[index] = itemToUpdate;
       return { ...prev, itemGroups: updatedItemGroups };
+    });
+  };
+
+  const handleGulungChange = (index, value) => {
+    const numValue = parseNumber(value);
+    setForm(prev => {
+      const arr = [...prev.itemGroups];
+      arr[index] = { ...arr[index], gulung: numValue };
+      return { ...prev, itemGroups: arr };
+    });
+  };
+
+  const handleLotChange = (index, value) => {
+    const numValue = parseNumber(value);
+    setForm(prev => {
+      const arr = [...prev.itemGroups];
+      arr[index] = { ...arr[index], lot: numValue };
+      return { ...prev, itemGroups: arr };
     });
   };
   
@@ -343,6 +364,9 @@ export default function OCDeliveryNoteForm() {
       },
       meter_total: meterVal,
       yard_total:  yardVal,
+
+      gulung: 0,
+      lot: 0,
     };
   };
 
@@ -401,6 +425,8 @@ export default function OCDeliveryNoteForm() {
             po_item_id: Number(g.purchase_order_item_id),
             meter_total: Number(g.meter_total) || 0,
             yard_total: Number(g.yard_total) || 0,
+            gulung: Number(g.gulung) || 0,
+            lot: Number(g.lot) || 0,
           })),
         deleted_items: deletedItems(),
       };
@@ -421,6 +447,8 @@ export default function OCDeliveryNoteForm() {
                 po_item_id: Number(g.purchase_order_item_id),
                 meter_total: Number(g.meter_total) || 0,
                 yard_total: Number(g.yard_total) || 0,
+                gulung: Number(g.gulung) || 0,
+                lot: Number(g.lot) || 0,
           })),
         }; 
         await createOCDeliveryNote(user?.token, payload);
@@ -631,6 +659,8 @@ export default function OCDeliveryNoteForm() {
               <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
               <th class="border p-2 w-40">{form().unit}</th>
+              <th class="border p-2 w-32">Gulung</th>
+              <th class="border p-2 w-32">Lot</th>
               <th hidden class="border p-2 w-48">Harga</th>
               <th hidden class="border p-2 w-48">Subtotal</th>
               <th class="border p-2 w-48">Aksi</th>
@@ -689,6 +719,31 @@ export default function OCDeliveryNoteForm() {
                           class="w-full border p-2 rounded text-right"
                           value={formatNumber(quantity)}
                           onBlur={(e) => handleQuantityChange(i(), e.target.value)}
+                          disabled={isView}
+                          classList={{ "bg-gray-200": isView }}
+                        />
+                      </td>
+                      {/* NEW: Gulung */}
+                      <td class="border p-2">
+                        <input
+                          type="number"
+                          placeholder="Banyak gulung..."
+                          class="w-full border p-2 rounded text-right"
+                          value={group.gulung ?? 0}
+                          onBlur={(e) => handleGulungChange(i(), e.target.value)}
+                          disabled={isView}
+                          classList={{ "bg-gray-200": isView }}
+                        />
+                      </td>
+
+                      {/* NEW: Lot */}
+                      <td class="border p-2">
+                        <input
+                          type="number"
+                          placeholder="Input lot..."
+                          class="w-full border p-2 rounded text-right"
+                          value={group.lot ?? 0}
+                          onBlur={(e) => handleLotChange(i(), e.target.value)}
                           disabled={isView}
                           classList={{ "bg-gray-200": isView }}
                         />
