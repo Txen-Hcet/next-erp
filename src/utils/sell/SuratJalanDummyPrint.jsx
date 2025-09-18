@@ -66,40 +66,39 @@
 //   return <SuratJalanPrint data={dummyDataSuratJalan} />;
 // }
 
-import { onMount, onCleanup } from "solid-js";
+import { onMount, onCleanup, createSignal } from "solid-js";
 import SuratJalanPrint from "../../pages/print_function/sell/SuratJalanPrint";
-import { useSearchParams } from "@solidjs/router";
 
 export default function SuratJalanDummyPrint() {
-  const [searchParams] = useSearchParams();
-
-  const data = JSON.parse(searchParams.data);
+  // CHANGED: pakai signal supaya reaktif saat data masuk
+  const [data, setData] = createSignal({ items: [], summary: {} });
 
   onMount(() => {
-    const closeAfterPrint = () => {
+    try {
+      // CHANGED: ambil payload dari hash (sesuai handlePrint baru)
+      const raw = window.location.hash.slice(1); // buang "#"
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      setData(parsed);
+    } catch (e) {
+      console.error("Gagal parse data print:", e);
+      alert("Data print tidak valid.");
       window.close();
-    };
+      return;
+    }
 
+    const closeAfterPrint = () => window.close();
     window.addEventListener("afterprint", closeAfterPrint);
 
-    // Tunggu 300ms supaya render komponen print kelar
-    setTimeout(() => {
-      window.print();
-    }, 2500);
+    // CHANGED: kasih jeda singkat agar render selesai
+    setTimeout(() => window.print(), 300);
+    setTimeout(() => window.close(), 3000);
 
-    // Fallback close jika afterprint gak jalan
-    setTimeout(() => {
-      window.close();
-    }, 4000);
-
-    onCleanup(() => {
-      window.removeEventListener("afterprint", closeAfterPrint);
-    });
+    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
   });
 
   return (
     <div class="p-6 print:p-0">
-      <SuratJalanPrint data={data} />
+      <SuratJalanPrint data={data()} /> {/* CHANGED: kirim signal value */}
     </div>
   );
 }

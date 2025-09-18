@@ -11,56 +11,27 @@ import {
   getDeliveryNotes,
   getLastSequence,
   getAllSalesOrders,
-  getAllCustomers,
-  getAllFabrics,
+  getSalesOrders,
 } from "../../utils/auth";
-import SuratJalanPrint from "../print_function/sell/SuratJalanPrint";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
+import PackingListDropdownSearch from "../../components/PackingListDropdownSearch";
 import IndeterminateCheckbox from "../../components/Indeterminate";
 import { Printer, Trash2 } from "lucide-solid";
 
 export default function DeliveryNoteForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
-  const isView = params.view === 'true';
+  const isView = params.view === "true";
   const navigate = useNavigate();
   const user = getUser();
 
   const [packingLists, setPackingLists] = createSignal([]);
-  const [lastNumberSequence, setLastNumberSequence] = createSignal(null);
-  const [showPreview, setShowPreview] = createSignal(false);
   const [salesOrders, setSalesOrders] = createSignal([]);
-  const [todayDate] = createSignal(new Date().toISOString().slice(0, 10));
-  const [hasInitializedEdit, setHasInitializedEdit] = createSignal(false);
-  const [deliveryNoteData, setDeliveryNoteData] = createSignal(null); 
-  const [customersList, setCustomersList] = createSignal([]);
+  const [deliveryNoteData, setDeliveryNoteData] = createSignal(null);
 
-  const qtyCounterbySystem = (pl, satuanUnit) => {
-    let total = 0;
-    let terkirim = 0;
-
-    switch (satuanUnit) {
-      case "Meter":
-        total = parseFloat(pl.summary?.total_meter || 0);
-        terkirim = parseFloat(pl.summary?.total_meter_dalam_proses || 0);
-        break;
-      case "Yard":
-        total = parseFloat(pl.summary?.total_yard || 0);
-        terkirim = parseFloat(pl.summary?.total_yard_dalam_proses || 0);
-        break;
-      case "Kilogram":
-        total = parseFloat(pl.summary?.total_kilogram || 0);
-        terkirim = parseFloat(pl.summary?.total_kilogram_dalam_proses || 0);
-        break;
-      default:
-        return "-";
-    }
-
-    const sisa = total - terkirim;
-    if (sisa <= 0) return "SELESAI";
-
-    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
-  };
+  // maps yang dipakai SAAT EDIT
+  let sjItemIdByPlItemId = new Map();     // pl_item_id -> sj_item_id
+  let sjRollIdByPliRollId = new Map();    // pli_roll_id -> sj_roll_id
 
   const [form, setForm] = createSignal({
     no_sj: "",
@@ -68,110 +39,120 @@ export default function DeliveryNoteForm() {
     no_surat_jalan_supplier: "",
     tanggal_surat_jalan: new Date().toISOString().split("T")[0],
     keterangan: "",
-    itemGroups: [], 
+    itemGroups: [], // [{ packing_list_id, no_pl, type, items: [rolls…] }]
     no_mobil: "",
     sopir: "",
     delivered_status: 0,
+    type: null,
+    ppn: 0,
+    sales_order_id: null,
+    so_no: null,
   });
 
   onMount(async () => {
     const pls = await getAllPackingLists(user?.token);
-    //console.log("Data PL: ", JSON.stringify(pls, null, 2));
     const dataSalesOrders = await getAllSalesOrders(user?.token);
-    setSalesOrders(dataSalesOrders.orders || []);
+
+    const soIdsWithPL = new Set((pls?.packing_lists || []).map((pl) => String(pl.so_id)));
+    const onlySOWithPL =
+      (dataSalesOrders.orders || []).filter((so) => soIdsWithPL.has(String(so.id))) || [];
+    setSalesOrders(onlySOWithPL);
 
     if (isEdit) {
       const res = await getDeliveryNotes(params.id, user?.token);
-      //console.log("Data SJ: ", JSON.stringify(res, null, 2));
       if (!res || !res.order) return;
 
-      setDeliveryNoteData(res.order); 
+      setDeliveryNoteData(res.order);
       const deliveryNote = res.order;
 
-      const selectedSO = dataSalesOrders.orders?.find(
-        (so) => so.no_so === deliveryNote.no_so
-      );
+      // siapkan map sj_item_id & sj_roll_id agar bisa dipakai saat rebuild PL
+      sjItemIdByPlItemId = new Map();
+      sjRollIdByPliRollId = new Map();
 
-      if (selectedSO) {
-        const relatedPackingLists = pls?.packing_lists?.filter(
-          (pl) => pl.so_id === selectedSO.id
-        );
-        setPackingLists(relatedPackingLists || []);
-      }
-
-      const deliveredRollsSet = new Set();
-      (deliveryNote.packing_lists || []).forEach(pl => {
-        (pl.items || []).forEach(item => {
-          (item.rolls || []).forEach(roll => {
-            // backend mengembalikan 'pli_roll_id' = id roll di Packing List
-            deliveredRollsSet.add(roll.pli_roll_id);
+      // struktur: deliveryNote.packing_lists[].items[].rolls[]
+      // item di SJ biasanya punya pl_item_id, id (sj_item_id)
+      // roll di SJ biasanya punya pli_roll_id, id (sj_roll_id)
+      (deliveryNote.packing_lists || []).forEach((pl) => {
+        (pl.items || []).forEach((it) => {
+          if (it.pl_item_id && it.id) {
+            sjItemIdByPlItemId.set(Number(it.pl_item_id), Number(it.id));
+          }
+          (it.rolls || []).forEach((r) => {
+            if (r.pli_roll_id && r.id) {
+              sjRollIdByPliRollId.set(Number(r.pli_roll_id), Number(r.id));
+            }
           });
         });
       });
 
-      const existingLotByPlId = new Map();
-        (deliveryNote.packing_lists || []).forEach(pl => {
-          const lots = new Set();
-          (pl.items || []).forEach(it => {
-            if (it.lot) {
-              String(it.lot)
-                .split(",")
-                .map(s => s.trim())
-                .filter(Boolean)
-                .forEach(v => lots.add(v));
-            }
-          });
-          existingLotByPlId.set(pl.id, Array.from(lots).join(","));
+      const selectedSO = dataSalesOrders.orders?.find((so) => so.no_so === deliveryNote.no_so);
+      if (selectedSO) {
+        const relatedPackingLists = pls?.packing_lists?.filter((pl) => pl.so_id === selectedSO.id);
+        setPackingLists(relatedPackingLists || []);
+      }
+
+      // set roll yang ada di SJ ini (by pli_roll_id)
+      const deliveredRollsSet = new Set();
+      (deliveryNote.packing_lists || []).forEach((pl) => {
+        (pl.items || []).forEach((it) => {
+          (it.rolls || []).forEach((r) => deliveredRollsSet.add(Number(r.pli_roll_id)));
+        });
       });
 
+      // bangun itemGroups dari data SJ (mengambil data PL penuh agar semua roll tampil)
       const itemGroups = await Promise.all(
         (deliveryNote.packing_lists || []).map(async (pl) => {
           const plDetail = await getPackingLists(pl.id, user?.token);
-          //console.log("Data PL : ", JSON.stringify(plDetail, null, 2));
           const fullPl = plDetail?.order;
 
-          // let items = (fullPl.items || []).flatMap(item =>
-          //   (item.rolls || []).map(roll => ({
-          //     id: item.id,
-          //     packing_list_roll_id: roll.id,
-          //     meter: roll.meter,
-          //     yard: roll.yard,
-          //     packing_list_item_id: item.id,
-          //     konstruksi_kain: item.konstruksi_kain || "",
-          //     row_num: roll.row_num,
-          //     col_num: roll.col_num,
-          //     checked: !!deliveredPlItemMap[item.id],
-          //     disabled: !!deliveredPlItemMap[item.id],
-          //   }))
-          // );
+          let items = (fullPl.items || []).flatMap((item) =>
+            (item.rolls || []).flatMap((roll) => {
+              const meterVal = parseFloat(roll.meter ?? 0);
+              const yardVal = parseFloat(roll.yard ?? 0);
+              if ((isNaN(meterVal) || meterVal === 0) && (isNaN(yardVal) || yardVal === 0)) {
+                return []; // sembunyikan roll qty 0
+              }
 
-          let items = (fullPl.items || []).flatMap(item =>
-            (item.rolls || []).map(roll => {
-              const isInThisSJ = deliveredRollsSet.has(roll.id); // roll.id = ID roll di PL
-              return {
-                packing_list_roll_id: roll.id,
+              const pliRollId = Number(roll.id); // id roll di PL
+              const isInThisSJ = deliveredRollsSet.has(pliRollId);
+
+              return [{
+                // identitas PL roll
+                packing_list_roll_id: pliRollId,
+                packing_list_item_id: Number(item.id),
+
+                // info display
+                no_bal: roll.no_bal,
+                lot: roll.lot,
+                kode_warna: item.kode_warna,
+                deskripsi_warna: item.deskripsi_warna,
+                corak_kain: item.corak_kain,
+                konstruksi_kain: item.konstruksi_kain,
+                row_num: roll.row_num,
+                col_num: roll.col_num,
                 meter: roll.meter,
                 yard: roll.yard,
                 kilogram: roll.kilogram,
-                packing_list_item_id: item.id,
-                konstruksi_kain: item.konstruksi_kain || "",
-                row_num: roll.row_num,
-                col_num: roll.col_num,
-                checked: isInThisSJ,   // yang pernah dipilih → checked
-                disabled: false,       // di EDIT semuanya tetap checkbox (tidak pakai label "Terkirim")
-              };
+
+                // FLAG UI
+                checked: isInThisSJ,
+
+                // kunci untuk EDIT diff:
+                sj_item_id: sjItemIdByPlItemId.get(Number(item.id)) || null,
+                sj_roll_id: isInThisSJ ? (sjRollIdByPliRollId.get(pliRollId) || null) : null,
+              }];
             })
           );
 
-          if (isView) {
-            items = items.filter(r => r.checked);
-          }
+          if (isView) items = items.filter((r) => r.checked);
+
+          const typeLetter = fullPl?.no_pl?.split("/")?.[1] || "";
+          const typeValue = typeLetter === "E" ? "Ekspor" : "Domestik";
 
           return {
             packing_list_id: fullPl.id,
             no_pl: fullPl.no_pl,
-            type: deliveryNote.type,
-            lot: existingLotByPlId.get(fullPl.id) || "",
+            type: typeValue,
             items,
           };
         })
@@ -179,45 +160,48 @@ export default function DeliveryNoteForm() {
 
       setForm({
         no_sj: deliveryNote.no_sj,
-        sequence_number: deliveryNote.no_sj, 
-        no_surat_jalan_supplier: deliveryNote.no_surat_jalan_supplier || "", 
+        sequence_number: deliveryNote.no_sj,
+        no_surat_jalan_supplier: deliveryNote.no_surat_jalan_supplier || "",
         tanggal_surat_jalan: new Date(deliveryNote.created_at).toISOString().split("T")[0],
         keterangan: deliveryNote.keterangan,
-        itemGroups, // ✅ sekarang semua roll tampil
+        itemGroups,
         ppn: selectedSO?.ppn_percent ?? 0,
-        sales_order_id: selectedSO?.id ?? null, 
+        sales_order_id: selectedSO?.id ?? null,
+        so_no: selectedSO?.no_so ?? null,
+        type: (String(selectedSO?.no_so || "").split("/")[1] === "E") ? 2 : 1,
         no_mobil: deliveryNote.no_mobil,
         sopir: deliveryNote.sopir,
         delivered_status: deliveryNote.delivered_status,
       });
-    }
-    else {
+    } else {
       setPackingLists(pls?.packing_lists || []);
     }
   });
 
-  const generateNomorKontrak = async () => {
-    const lastSeq = await getLastSequence(
-      user?.token,
-      "s_sj",
-      form().type == 1 ? "domestik" : form().type == 2 ? "ekspor" : "domestik",
-      form().ppn // pastikan ini sudah ada dari salesOrder
-    );
+  /* ---------------- helpers ---------------- */
 
-    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const year = String(now.getFullYear()).slice(2);
-    const ppnValue = parseFloat(form().ppn) || 0;
-    const ppnType = ppnValue > 0 ? "P" : "N";
-    const type = form().type == 1 ? "D" : form().type == 2 ? "E" : "D";
-    const mmyy = `${month}${year}`;
-    const nomor = `SJ/${type}/${ppnType}/${mmyy}/${nextNum}`;
-    setForm((prev) => ({
-      ...prev,
-      sequence_number: nomor,
-      no_seq: lastSeq?.last_sequence + 1,
-    }));
+  const groupSOItems = (group) => {
+    const map = new Map();
+    (group?.items || []).forEach((r) => {
+      const k = r.packing_list_item_id;
+      let g = map.get(k);
+      if (!g) {
+        g = {
+          pl_item_id: k,
+          corak_kain: r.corak_kain || "",
+          kode_warna: r.kode_warna || "",
+          deskripsi_warna: r.deskripsi_warna || "",
+          rolls: [],
+          // untuk payload EDIT: simpan sj_item_id bila ada
+          sj_item_id: r.sj_item_id || null,
+        };
+        map.set(k, g);
+      }
+      // jika salah satu roll punya sj_item_id, simpan di group
+      if (r.sj_item_id && !g.sj_item_id) g.sj_item_id = r.sj_item_id;
+      g.rolls.push(r);
+    });
+    return Array.from(map.values());
   };
 
   const addPackingListGroup = () => {
@@ -235,6 +219,38 @@ export default function DeliveryNoteForm() {
     }));
   };
 
+  const generateNomorKontrak = async () => {
+    let typeLetter;
+    if (typeof form().type === "number") {
+      typeLetter = form().type === 2 ? "E" : "D";
+    } else if (form().itemGroups?.[0]?.type) {
+      typeLetter = form().itemGroups[0].type.startsWith("Eks") ? "E" : "D";
+    } else if (form().so_no) {
+      typeLetter = String(form().so_no).split("/")[1] || "D";
+    } else {
+      typeLetter = "D";
+    }
+
+    const jenisStr = typeLetter === "E" ? "ekspor" : "domestik";
+    const ppnValue = Number(form().ppn ?? 0);
+    const ppnType = ppnValue > 0 ? "P" : "N";
+
+    const lastSeq = await getLastSequence(user?.token, "s_sj", jenisStr, ppnValue);
+    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = String(now.getFullYear()).slice(2);
+    const mmyy = `${month}${year}`;
+    const nomor = `SJ/${typeLetter}/${ppnType}/${mmyy}/${nextNum}`;
+
+    setForm((prev) => ({
+      ...prev,
+      sequence_number: nomor,
+      no_seq: (lastSeq?.last_sequence || 0) + 1,
+      type: typeLetter === "E" ? 2 : 1,
+    }));
+  };
+
   const removePackingListGroup = (groupIndex) => {
     setForm((prev) => {
       const groups = [...prev.itemGroups];
@@ -246,16 +262,21 @@ export default function DeliveryNoteForm() {
   const handleSelectAll = (groupIndex, checked) => {
     setForm((prev) => {
       const groups = [...prev.itemGroups];
-      // groups[groupIndex] = {
-      //   ...groups[groupIndex],
-      //   items: groups[groupIndex].items.map((item) =>
-      //     item.disabled ? item : { ...item, checked }
-      //   ),
-      // };
-         groups[groupIndex] = {
-     ...groups[groupIndex],
-     items: groups[groupIndex].items.map((item) => ({ ...item, checked })),
-   };
+      const g = { ...groups[groupIndex] };
+      g.items = g.items.map((item) => ({ ...item, checked }));
+      groups[groupIndex] = g;
+      return { ...prev, itemGroups: groups };
+    });
+  };
+
+  const handleSelectAllInSOGroup = (groupIndex, plItemId, checked) => {
+    setForm((prev) => {
+      const groups = [...prev.itemGroups];
+      const g = { ...groups[groupIndex] };
+      g.items = g.items.map((item) =>
+        item.packing_list_item_id === plItemId ? { ...item, checked } : item
+      );
+      groups[groupIndex] = g;
       return { ...prev, itemGroups: groups };
     });
   };
@@ -267,31 +288,50 @@ export default function DeliveryNoteForm() {
     const pl = plDetail?.order;
 
     const typeLetter = pl?.no_pl?.split("/")?.[1] || "";
-    let typeValue = "";
-    if (typeLetter === "D") typeValue = "Domestik";
-    else if (typeLetter === "E") typeValue = "Ekspor";
+    const typeValue = typeLetter === "E" ? "Ekspor" : "Domestik";
+    const typeNumeric = typeLetter === "E" ? 2 : 1;
 
     const currentGroup = form().itemGroups[groupIndex];
     const allRolls = [];
 
     (pl?.items || []).forEach((item) => {
       (item.rolls || []).forEach((roll) => {
-        const wasSent = currentGroup.items.some(
-          (it) => it.packing_list_roll_id === roll.id
-        );
+        const meterVal = parseFloat(roll.meter ?? 0);
+        const yardVal = parseFloat(roll.yard ?? 0);
+        if ((isNaN(meterVal) || meterVal === 0) && (isNaN(yardVal) || yardVal === 0)) {
+          return;
+        }
+
+        const pliRollId = Number(roll.id);
+        const wasInThisSJ = sjRollIdByPliRollId.has(pliRollId); // true kalau di SJ lama
+
+        const isSelectableNow = roll.selected_status === 0;
+        const shouldShow = isEdit ? true : isSelectableNow;
+        if (!shouldShow) return;
+
+        // cari sj_item_id dari map (berdasar pl_item_id)
+        const sjItemIdGuess = sjItemIdByPlItemId.get(Number(item.id)) || null;
 
         allRolls.push({
-          packing_list_roll_id: roll.id,
-          meter: roll.meter,
-          yard: roll.yard,
-          kilogram: roll.kilogram,
-          //sales_order_item_id: item.sales_order_item_id,
-          packing_list_item_id: item.id,
+          packing_list_roll_id: pliRollId,
+          packing_list_item_id: Number(item.id),
+
+          no_bal: roll.no_bal,
+          lot: roll.lot,
+          kode_warna: item.kode_warna,
+          deskripsi_warna: item.deskripsi_warna,
+          corak_kain: item.corak_kain,
           konstruksi_kain: item.konstruksi_kain,
           row_num: roll.row_num,
           col_num: roll.col_num,
-          checked: wasSent,
-          disabled: wasSent,
+          meter: roll.meter,
+          yard: roll.yard,
+          kilogram: roll.kilogram,
+
+          checked: wasInThisSJ, // jika sebelumnya di SJ, centang default
+
+          sj_item_id: sjItemIdGuess,
+          sj_roll_id: wasInThisSJ ? (sjRollIdByPliRollId.get(pliRollId) || null) : null,
         });
       });
     });
@@ -302,43 +342,20 @@ export default function DeliveryNoteForm() {
         packing_list_id: plId,
         no_pl: pl?.no_pl,
         type: typeValue,
-        lot: groups[groupIndex]?.lot ?? "",
         items: allRolls,
       };
-      return {
-        ...prev,
-        itemGroups: groups,
-      };
+      return { ...prev, itemGroups: groups, type: prev.type ?? typeNumeric };
     });
   };
 
   const handleRollCheckedChange = (groupIndex, rollIndex, checked) => {
     setForm((prev) => {
       const groups = [...prev.itemGroups];
-      if (groups[groupIndex].items[rollIndex].disabled) {
-        return prev; // 🚫 skip kalau sudah terkirim
-      }
-      groups[groupIndex].items[rollIndex].checked = checked;
-      return {
-        ...prev,
-        itemGroups: groups,
-      };
-    });
-  };
-
-  const sanitizeLot = (v) =>
-    String(v ?? "")
-      .replace(/[^0-9,]/g, "")     // hanya angka & koma
-      .replace(/,{2,}/g, ",")      // buang koma ganda
-      .replace(/(^,|,$)/g, "");    // buang koma di awal/akhir
-
-  const handleGroupLotBlur = (groupIndex, value) => {
-    setForm(prev => {
-      const groups = [...prev.itemGroups];
-      groups[groupIndex] = {
-        ...groups[groupIndex],
-        lot: sanitizeLot(value),
-      };
+      const g = { ...groups[groupIndex] };
+      const items = [...g.items];
+      items[rollIndex] = { ...items[rollIndex], checked };
+      g.items = items;
+      groups[groupIndex] = g;
       return { ...prev, itemGroups: groups };
     });
   };
@@ -346,76 +363,64 @@ export default function DeliveryNoteForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Roll tercentang => isi SJ
     const selectedRolls = form().itemGroups.flatMap((group) =>
-      group.items.filter((item) => item.checked)  // ⬅️ hapus && !item.disabled
+      (group.items || []).filter((it) => it.checked)
     );
 
-    const groupedItems = {};
+    // Grouping per pl_item_id + siapkan id item SJ bila ada
+    const grouped = {}; // pl_item_id -> group
 
-    const lotByPlItemId = new Map();
-    form().itemGroups.forEach(g => {
-      const lotVal = String(g.lot || "");
-      (g.items || []).forEach(it => {
-        lotByPlItemId.set(it.packing_list_item_id, lotVal);
-      });
-    });
-
-    // 3. Iterasi dan kelompokkan setiap roll
     for (const roll of selectedRolls) {
-      const groupId = roll.packing_list_item_id;
-
-      if (!groupedItems[groupId]) {
-        groupedItems[groupId] = {
-          pl_item_id: groupId,
-          lot: "",
+      const gid = roll.packing_list_item_id;
+      if (!grouped[gid]) {
+        grouped[gid] = {
+          id: roll.sj_item_id || undefined,  // <-- penting untuk EDIT (biar update, bukan insert baru)
+          pl_item_id: gid,
           meter_total: 0,
           yard_total: 0,
           kilogram_total: 0,
           rolls: [],
+          _lots: new Set(),
         };
       }
 
-      groupedItems[groupId].rolls.push({
-        //id: roll.id,
+      grouped[gid].rolls.push({
+        id: roll.sj_roll_id || undefined,    // <-- penting untuk EDIT (roll lama tetap dipertahankan)
         pli_roll_id: roll.packing_list_roll_id,
-        row_num: roll.row_num, 
-        col_num: roll.col_num, 
+        row_num: roll.row_num,
+        col_num: roll.col_num,
         meter: roll.meter || 0,
         yard: roll.yard || 0,
         kilogram: roll.kilogram ?? null,
       });
 
-      // Akumulasikan total untuk grup tersebut
-      groupedItems[groupId].meter_total += parseFloat(roll.meter || 0);
-      groupedItems[groupId].yard_total += parseFloat(roll.yard || 0);
-      groupedItems[groupId].kilogram_total += parseFloat(roll.kilogram || 0);
+      grouped[gid].meter_total += parseFloat(roll.meter || 0);
+      grouped[gid].yard_total += parseFloat(roll.yard || 0);
+      grouped[gid].kilogram_total =
+        (grouped[gid].kilogram_total || 0) + parseFloat(roll.kilogram || 0);
+      if (roll.lot != null) grouped[gid]._lots.add(String(roll.lot));
     }
 
-    // 4. Ubah objek hasil pengelompokan menjadi array yang diinginkan backend
-    const finalItemsPayload = Object.values(groupedItems).map((group) => {
-      // Pastikan kilogram_total menjadi null jika totalnya 0, sesuai format backend
-      if (group.kilogram_total === 0) {
-        group.kilogram_total = null;
-      }
-      // Pembulatan untuk menghindari angka desimal yang panjang
-      group.meter_total = parseFloat(group.meter_total.toFixed(2));
-      group.yard_total = parseFloat(group.yard_total.toFixed(2));
-      group.lot = lotByPlItemId.get(group.pl_item_id) || "";
-      return group;
+    const itemsPayload = Object.values(grouped).map((g) => {
+      if (g.kilogram_total === 0) g.kilogram_total = null;
+      g.meter_total = parseFloat(g.meter_total.toFixed(2));
+      g.yard_total = parseFloat(g.yard_total.toFixed(2));
+      g.lot = Array.from(g._lots).filter(Boolean).join(",");
+      delete g._lots;
+      return g;
     });
 
     const plIds = form().itemGroups.map((g) => Number(g.packing_list_id));
 
-    // 5. Buat payload akhir dengan struktur items yang sudah benar
     const payload = isEdit
       ? {
-          // (Logika untuk update perlu disesuaikan jika berbeda)
           no_sj: form().no_sj,
           pl_ids: plIds,
           no_mobil: form().no_mobil || null,
           sopir: form().sopir || null,
           keterangan: form().keterangan,
-          items: finalItemsPayload,
+          items: itemsPayload,
         }
       : {
           type: form().itemGroups[0]?.type?.toLowerCase() || "domestik",
@@ -424,31 +429,32 @@ export default function DeliveryNoteForm() {
           no_mobil: form().no_mobil || null,
           sopir: form().sopir || null,
           keterangan: form().keterangan,
-          items: finalItemsPayload, // <-- Gunakan data yang sudah ditransformasi
+          items: itemsPayload,
         };
 
     try {
       if (isEdit) {
-        //console.log("UPDATE payload:", JSON.stringify(payload, null, 2));
+        //console.log("UPDATE SJ payload:", JSON.stringify(payload, null, 2));
         await updateDataDeliveryNote(user?.token, params.id, payload);
       } else {
-        //console.log("CREATE payload:", JSON.stringify(payload, null, 2));
+        //console.log("CREATE SJ payload:", JSON.stringify(payload, null, 2));
         await createDeliveryNote(user?.token, payload);
       }
+
       Swal.fire({
         icon: "success",
         title: isEdit ? "Berhasil Update" : "Berhasil Simpan",
-        showCancelButton: false,
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
       }).then(() => navigate("/deliverynote"));
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       Swal.fire({
         icon: "error",
         title: "Gagal",
-        text: error?.message || "Terjadi kesalahan.",
-        showCancelButton: false,
+        text: err?.message || "Terjadi kesalahan.",
+        showConfirmButton: false,
         timer: 1000,
         timerProgressBar: true,
       });
@@ -457,19 +463,15 @@ export default function DeliveryNoteForm() {
 
   function handlePrint() {
     if (!deliveryNoteData()) {
-        console.error("Data for printing is not available yet.");
-        Swal.fire("Error", "Data cetak tidak ditemukan.", "error");
-        return;
+      Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
+      return;
     }
-
-    const dataToPrint = {
-        ...deliveryNoteData(), 
-        ...form(),            
-    };
-    //console.log("📄 Data yang dikirim ke halaman Print:", JSON.stringify(form(), null, 2));
+    const dataToPrint = { ...deliveryNoteData() };
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/suratjalan?data=${encodedData}`, "_blank");
-}
+    window.open(`/print/suratjalan#${encodedData}`, "_blank");
+  }
+
+  /* ---------------- UI ---------------- */
 
   return (
     <MainLayout>
@@ -493,19 +495,33 @@ export default function DeliveryNoteForm() {
           form={form}
           setForm={setForm}
           disabled={isView || isEdit}
-          classList={{ "bg-gray-200" : isView || isEdit}}
+          classList={{ "bg-gray-200": isView || isEdit }}
           onChange={(so) => {
-            // Isi nilai PPN dari Sales Order yang dipilih ke form
+            const ppnNum = Number(so.ppn_percent ?? so.ppn ?? 0);
+            const typeLetterFromSO = String(so.no_so || "").split("/")[1] || "D";
+            const typeNumeric = typeLetterFromSO === "E" ? 2 : 1;
+
+            setPackingLists([]);
+
             setForm((prev) => ({
               ...prev,
-              ppn: so.ppn, // pastikan Sales Order punya property `ppn`
+              ppn: ppnNum,
+              sales_order_id: so.id,
+              so_no: so.no_so,
+              type: typeNumeric,
+              itemGroups: [],
+              sequence_number: "",
+              no_seq: undefined,
+              no_mobil: "",
+              sopir: "",
+              keterangan: "",
             }));
+
             getAllPackingLists(user?.token).then((pls) => {
-              const filtered = pls?.packing_lists.filter(
-                (pl) => pl.so_id === so.id
-              );
-              setPackingLists(filtered || []);
-              if (!filtered || filtered.length === 0) {
+              const filtered = pls?.packing_lists?.filter((pl) => pl.so_id === so.id) ?? [];
+              setPackingLists(filtered);
+
+              if (filtered.length === 0) {
                 Swal.fire({
                   icon: "info",
                   title: "Tidak ada packing list",
@@ -518,75 +534,75 @@ export default function DeliveryNoteForm() {
 
         {form().sales_order_id && (
           <>
-          <div class="w-full grid grid-cols-3 gap-4">
-            <div class="w-full mt-4">
-              <label class="text-sm font-medium">No. Surat Jalan</label>
-              <div class="flex gap-2">
+            <div class="w-full grid grid-cols-3 gap-4">
+              <div class="w-full mt-4">
+                <label class="text-sm font-medium">No. Surat Jalan</label>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    value={form().sequence_number || ""}
+                    class="w-full border p-2 rounded bg-gray-100"
+                    disabled={true}
+                    classList={{ "bg-gray-200" : true}}
+                  />
+                  <button
+                    type="button"
+                    class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
+                    onClick={generateNomorKontrak}
+                    hidden={isEdit}
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+
+              <div class="w-full mt-4">
+                <label class="text-sm font-medium">Tanggal Surat Jalan</label>
+                <input
+                  type="date"
+                  class="w-full border p-2 rounded bg-gray-100"
+                  value={form().tanggal_surat_jalan}
+                  disabled={isView}
+                  classList={{ "bg-gray-200" : isView }}
+                />
+              </div>
+
+              <div class="w-full mt-4">
+                <label class="text-sm font-medium">No. Mobil</label>
                 <input
                   type="text"
-                  value={form().sequence_number || ""}
-                  class="w-full border p-2 rounded bg-gray-100"
-                  disabled={true}
-                  classList={{ "bg-gray-200" : true }}
+                  class="w-full border p-2 rounded"
+                  value={form().no_mobil || ""}
+                  onInput={(e) => setForm({ ...form(), no_mobil: e.target.value })}
+                  disabled={isView}
+                  classList={{ "bg-gray-200": isView }}
                 />
-                <button
-                  type="button"
-                  class="bg-gray-300 text-sm px-2 rounded hover:bg-gray-400"
-                  onClick={generateNomorKontrak}
-                  hidden={isEdit}
-                >
-                  Generate
-                </button>
+              </div>
+
+              <div class="w-full mt-4">
+                <label class="text-sm font-medium">Sopir</label>
+                <input
+                  type="text"
+                  class="w-full border p-2 rounded"
+                  value={form().sopir || ""}
+                  onInput={(e) => setForm({ ...form(), sopir: e.target.value })}
+                  disabled={isView}
+                  classList={{ "bg-gray-200": isView }}
+                />
               </div>
             </div>
 
-            <div class="w-full mt-4">
-              <label class="text-sm font-medium">Tanggal Surat Jalan</label>
-              <input
-                type="date"
-                class="w-full border p-2 rounded bg-gray-100"
-                value={form().tanggal_surat_jalan}
-                disabled={isView}
-                classList={{ "bg-gray-200" : isView }}
-              />
-            </div>
-
-            <div class="w-full mt-4">
-              <label class="text-sm font-medium">No. Mobil</label>
-              <input
-                type="text"
+            <div class="w-full mt-2">
+              <label class="text-sm font-medium">Keterangan</label>
+              <textarea
                 class="w-full border p-2 rounded"
-                value={form().no_mobil || ""}
-                onInput={(e) => setForm({ ...form(), no_mobil: e.target.value })}
+                rows="3"
+                value={form().keterangan || ""}
+                onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
                 disabled={isView}
-                classList={{ "bg-gray-200" : isView }}
+                classList={{ "bg-gray-200": isView }}
               />
             </div>
-
-            <div class="w-full mt-4">
-              <label class="text-sm font-medium">Sopir</label>
-              <input
-                type="text"
-                class="w-full border p-2 rounded"
-                value={form().sopir || ""}
-                onInput={(e) => setForm({ ...form(), sopir: e.target.value })}
-                disabled={isView}
-                classList={{ "bg-gray-200" : isView }}
-              />
-            </div>
-          </div>
-          
-          <div class="w-full mt-2">
-            <label class="text-sm font-medium">Keterangan</label>
-            <textarea
-              class="w-full border p-2 rounded"
-              rows="3"
-              value={form().keterangan || ""}
-              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-              disabled={isView}
-              classList={{ "bg-gray-200" : isView }}
-            ></textarea>
-          </div>
           </>
         )}
 
@@ -601,12 +617,24 @@ export default function DeliveryNoteForm() {
         </button>
 
         <For each={form().itemGroups}>
-          {(group, groupIndex) => {
+          {(_, groupIndex) => {
+            const currentGroup = () => form().itemGroups[groupIndex()];
+            const soGroups = () => groupSOItems(currentGroup());
+
+            const allCheckedInPL = () => {
+              const g = currentGroup();
+              return g.items.length > 0 && g.items.every((i) => i.checked);
+            };
+            const someCheckedInPL = () => {
+              const g = currentGroup();
+              return g.items.some((i) => i.checked) && !allCheckedInPL();
+            };
+
             return (
               <div class="border p-4 mb-4 rounded">
                 <div class="mb-2 flex justify-between items-center">
                   <h3 class="font-semibold text-lg">
-                    {group.no_pl || `Packing List #${groupIndex() + 1}`}
+                    {currentGroup().no_pl || `Packing List #${groupIndex() + 1}`}
                   </h3>
                   <button
                     type="button"
@@ -618,204 +646,213 @@ export default function DeliveryNoteForm() {
                   </button>
                 </div>
 
-                <select
-                  class="w-full border p-2 rounded mb-4"
-                  value={group.packing_list_id}
-                  onInput={(e) => handlePackingListChange(groupIndex(), e.target.value)}
+                <PackingListDropdownSearch
+                  class="mb-3"
+                  packingLists={packingLists}
+                  salesOrders={salesOrders}
+                  value={currentGroup().packing_list_id}
                   disabled={isView}
-                  classList={{ "bg-gray-200": isView }}
-                >
-                  <option value="">Pilih Packing List</option>
-                  <For each={packingLists().filter(
-                    (pl) => qtyCounterbySystem(pl, pl.satuan_unit) !== "SELESAI"
-                  )}>
-                    {(pl) => <option value={pl.id}>{pl.no_pl}</option>}
-                  </For>
-                </select>
+                  onChange={(pl) => handlePackingListChange(groupIndex(), pl.id)}
+                  fetchPLDetail={(plId) => getPackingLists(plId, user?.token)}
+                  fetchSODetail={(soId) => getSalesOrders(soId, user?.token)}
+                />
 
-                <div class="mb-3 flex items-center gap-3">
-                  <label class="text-sm font-medium w-6">Lot: </label>
-                  <input
-                    type="text"
-                    class="border p-1 rounded w-48"
-                    value={group.lot ?? ""}
-                    onBlur={(e) => handleGroupLotBlur(groupIndex(), e.currentTarget.value)}
-                    disabled={isView}
-                    classList={{ "bg-gray-200": isView }}
-                  />
-                </div>
+                {!isView && (
+                  <div class="flex items-center justify-end mb-2 gap-2">
+                    <span class="text-sm text-gray-600">Pilih Semua Packing List Ini</span>
+                    <IndeterminateCheckbox
+                      checked={allCheckedInPL()}
+                      indeterminate={someCheckedInPL()}
+                      onChange={(e) => handleSelectAll(groupIndex(), e.currentTarget.checked)}
+                    />
+                  </div>
+                )}
 
-                <Show when={group.items?.length}>
-                  <table class="w-full border border-gray-300 text-sm mb-3">
-                    <thead class="bg-gray-100">
-                      <tr>
-                        <th class="border px-2 py-1">#</th>
-                        <th class="border px-2 py-1">Konstruksi Kain</th>
-                        <th class="border px-2 py-1">Meter</th>
-                        <th class="border px-2 py-1">Yard</th>
-                        
-                        <Show
-                            when={!isView}
-                            fallback={<th class="border px-2 py-1 text-center">Status</th>}
-                          >
-                          <th class="border px-2 py-1 text-center">
-                            <div class="flex flex-col items-center">
-                              <span class="mb-1">Pilih Semua</span>
+                <For each={soGroups()}>
+                  {(sg, sgIndex) => {
+                    const allChecked = () => sg.rolls.length > 0 && sg.rolls.every((r) => r.checked);
+                    const someChecked = () => sg.rolls.some((r) => r.checked) && !allChecked();
+
+                    const subPcs = () => sg.rolls.filter((r) => r.checked).length;
+                    const subMtr = () =>
+                      sg.rolls.reduce((s, r) => s + (r.checked ? parseFloat(r.meter || 0) : 0), 0).toFixed(2);
+                    const subYard = () =>
+                      sg.rolls.reduce((s, r) => s + (r.checked ? parseFloat(r.yard || 0) : 0), 0).toFixed(2);
+
+                    return (
+                      <div class="border rounded mb-4">
+                        <div class="px-3 py-2 bg-gray-50 border-b flex items-center justify-between">
+                          <div class="font-semibold">Sales Order Item Group #{sgIndex() + 1}</div>
+                          {!isView && (
+                            <div class="flex items-center gap-2">
+                              <span class="text-sm text-gray-600">Pilih Semua Group Ini</span>
                               <IndeterminateCheckbox
-                                checked={
-                                  group.items.length > 0 &&
-                                  group.items.every((i) => i.checked || i.disabled)
-                                }
-                                indeterminate={
-                                  group.items.some((i) => i.checked) &&
-                                  !group.items.every((i) => i.checked || i.disabled)
-                                }
+                                checked={allChecked()}
+                                indeterminate={someChecked()}
                                 onChange={(e) =>
-                                  handleSelectAll(groupIndex(), e.currentTarget.checked)
+                                  handleSelectAllInSOGroup(
+                                    groupIndex(),
+                                    sg.pl_item_id,
+                                    e.currentTarget.checked
+                                  )
                                 }
                               />
                             </div>
-                          </th>
-                        </Show>
+                          )}
+                        </div>
+
+                        <table class="w-full border border-gray-300 text-sm">
+                          <thead class="bg-gray-100">
+                            <tr>
+                              <th class="border px-2 py-1">#</th>
+                              <th class="border px-2 py-1">Bal</th>
+                              <th class="border px-2 py-1">Col</th>
+                              <th class="border px-2 py-1">Corak Kain</th>
+                              <th class="border px-2 py-1">Lot</th>
+                              <th class="border px-2 py-1">Meter</th>
+                              <th class="border px-2 py-1">Yard</th>
+                              <th class="border px-2 py-1 text-center">{isView ? "Status" : "Pilih"}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <For each={sg.rolls}>
+                              {(roll, rollIndex) => (
+                                <tr>
+                                  <td class="border px-2 py-1 text-center">{rollIndex() + 1}</td>
+                                  <td class="border px-2 py-1 text-center">{roll.no_bal}</td>
+                                  <td class="border px-2 py-1">
+                                    {(roll.kode_warna || "") + " | " + (roll.deskripsi_warna || "")}
+                                  </td>
+                                  <td class="border px-2 py-1">{roll.corak_kain}</td>
+                                  <td class="border px-2 py-1 text-center">{roll.lot}</td>
+                                  <td class="border px-2 py-1 text-right">{roll.meter}</td>
+                                  <td class="border px-2 py-1 text-right">{roll.yard}</td>
+                                  <td class="border px-2 py-1 text-center">
+                                    <Show
+                                      when={!isView}
+                                      fallback={
+                                        <span
+                                          classList={{
+                                            "font-semibold": true,
+                                            "text-green-600": form().delivered_status === 1,
+                                            "text-gray-500": form().delivered_status !== 1,
+                                          }}
+                                        >
+                                          {form().delivered_status === 1 ? "Terkirim" : "Belum Terkirim"}
+                                        </span>
+                                      }
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={roll.checked}
+                                        onChange={(e) =>
+                                          handleRollCheckedChange(
+                                            groupIndex(),
+                                            currentGroup().items.findIndex(
+                                              (x) => x.packing_list_roll_id === roll.packing_list_roll_id
+                                            ),
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                    </Show>
+                                  </td>
+                                </tr>
+                              )}
+                            </For>
+
+                            <tr class="bg-gray-50 font-semibold">
+                              <td class="border px-2 py-1 text-right" colSpan={5}>
+                                Sub Total
+                              </td>
+                              <td class="border px-2 py-1 text-right">{subMtr()}</td>
+                              <td class="border px-2 py-1 text-right">{subYard()}</td>
+                              <td class="border px-2 py-1 text-center">TTL/PCS: {subPcs()}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  }}
+                </For>
+
+                <div class="border-t pt-3">
+                  <div class="text-right font-semibold text-sm">Total Keseluruhan:</div>
+                  <table class="ml-auto text-sm mt-1 border border-gray-300">
+                    <thead class="bg-gray-100">
+                      <tr>
+                        <th class="px-4 py-2 border">Total Meter</th>
+                        <th class="px-4 py-2 border">Total Yard</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <For each={group.items}>
-                        {(roll, rollIndex) => (
-                          <tr>
-                            <td class="border px-2 py-1 text-center">
-                              {rollIndex() + 1}
-                            </td>
-                            <td class="border px-2 py-1">
-                              {roll.konstruksi_kain}
-                            </td>
-                            <td class="border px-2 py-1 text-right">
-                              {roll.meter}
-                            </td>
-                            <td class="border px-2 py-1 text-right">
-                              {roll.yard}
-                            </td>
-
-                            <td class="border px-2 py-1 text-center">
-                              {/* <Show
-                                when={!isView}
-                                fallback={
-                                  <span
-                                    classList={{
-                                      "font-semibold": true,
-                                      "text-green-600": form().delivered_status === 1,
-                                      "text-gray-500": form().delivered_status !== 1,
-                                    }}
-                                  >
-                                    {form().delivered_status === 1
-                                      ? "Terkirim"
-                                      : "Belum Terkirim"}
-                                  </span>
-                                }
-                              >
-                                <Show
-                                  when={!roll.disabled}
-                                  fallback={<span class="italic text-gray-500">Terkirim</span>}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={roll.checked}
-                                    onChange={(e) =>
-                                      handleRollCheckedChange(
-                                        groupIndex(),
-                                        rollIndex(),
-                                        e.target.checked
-                                      )
-                                    }
-                                  />
-                                </Show>
-                              </Show> */}
-                                <Show
-                                  when={!isView}
-                                  fallback={
-                                    <span
-                                      classList={{
-                                        "font-semibold": true,
-                                        "text-green-600": form().delivered_status === 1,
-                                        "text-gray-500": form().delivered_status !== 1,
-                                      }}
-                                    >
-                                      {form().delivered_status === 1 ? "Terkirim" : "Belum Terkirim"}
-                                    </span>
-                                  }
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={roll.checked}
-                                    onChange={(e) =>
-                                      handleRollCheckedChange(groupIndex(), rollIndex(), e.target.checked)
-                                    }
-                                  />
-                                </Show>
-                            </td>
-                          </tr>
-                        )}
-                      </For>
+                      <tr>
+                        <td class="px-4 py-2 border text-right">
+                          {currentGroup()
+                            ?.items?.reduce(
+                              (s, r) => s + (r.checked ? parseFloat(r.meter || 0) : 0),
+                              0
+                            )
+                            ?.toFixed(2)}
+                        </td>
+                        <td class="px-4 py-2 border text-right">
+                          {currentGroup()
+                            ?.items?.reduce(
+                              (s, r) => s + (r.checked ? parseFloat(r.yard || 0) : 0),
+                              0
+                            )
+                            ?.toFixed(2)}
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
-
-                  {/* TOTAL */}
-                  <div class="border-t pt-4 mt-4">
-                    <div class="text-right font-semibold text-sm">
-                      Total Keseluruhan:
-                    </div>
-                    <table class="ml-auto text-sm mt-1 border border-gray-300">
-                      <thead class="bg-gray-100">
-                        <tr>
-                          <th class="px-4 py-2 border">Total Meter</th>
-                          <th class="px-4 py-2 border">Total Yard</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td class="px-4 py-2 border text-right">
-                            {form()
-                              .itemGroups?.reduce((sum, group) => {
-                                return (
-                                  sum +
-                                  group.items?.reduce((s, item) => {
-                                    return (
-                                      s +
-                                      (item.checked
-                                        ? parseFloat(item.meter || 0)
-                                        : 0)
-                                    );
-                                  }, 0)
-                                );
-                              }, 0)
-                              ?.toFixed(2)}
-                          </td>
-                          <td class="px-4 py-2 border text-right">
-                            {form()
-                              .itemGroups?.reduce((sum, group) => {
-                                return (
-                                  sum +
-                                  group.items?.reduce((s, item) => {
-                                    return (
-                                      s +
-                                      (item.checked
-                                        ? parseFloat(item.yard || 0)
-                                        : 0)
-                                    );
-                                  }, 0)
-                                );
-                              }, 0)
-                              ?.toFixed(2)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </Show>
+                </div>
               </div>
             );
           }}
         </For>
+
+        <div class="border-t pt-4 mt-4">
+          <div class="text-right font-semibold text-sm">Total Keseluruhan:</div>
+          <table class="ml-auto text-sm mt-1 border border-gray-300">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-4 py-2 border">Total Meter</th>
+                <th class="px-4 py-2 border">Total Yard</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="px-4 py-2 border text-right">
+                  {form()
+                    .itemGroups?.reduce(
+                      (sum, group) =>
+                        sum +
+                        group.items?.reduce(
+                          (s, item) => s + (item.checked ? parseFloat(item.meter || 0) : 0),
+                          0
+                        ),
+                      0
+                    )
+                    ?.toFixed(2)}
+                </td>
+                <td class="px-4 py-2 border text-right">
+                  {form()
+                    .itemGroups?.reduce(
+                      (sum, group) =>
+                        sum +
+                        group.items?.reduce(
+                          (s, item) => s + (item.checked ? parseFloat(item.yard || 0) : 0),
+                          0
+                        ),
+                      0
+                    )
+                    ?.toFixed(2)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <div class="mt-6">
           <button
