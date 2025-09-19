@@ -9,6 +9,7 @@ import {
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
+import { formatCorak } from "../../../components/CorakKainList";
 
 export default function KJPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
@@ -70,6 +71,8 @@ export default function KJPurchaseContractList() {
 
   const handleGetAllBeliGreiges = async (tok) => {
     const result = await getAllKainJadis(tok);
+
+    console.log("All PC KJ: ", JSON.stringify(result, null, 2));
 
     if (result.status === 200) {
       const sortedData = result.contracts.sort((a, b) => a.id - b.id);
@@ -182,6 +185,43 @@ export default function KJPurchaseContractList() {
     return `${tanggalNum} ${bulan} ${tahun}`;
   }
 
+  function CorakCell(props) {
+    const maxShow = props.maxShow ?? 3;
+
+    // Pastikan selalu berupa array & ambil unik
+    const uniqCorak = () => {
+      const raw = Array.isArray(props.items)
+        ? props.items
+        : props.items
+          ? [props.items] // jaga-jaga kalau API kadang kirim object
+          : [];
+
+      const vals = raw
+        .map(it => (it?.corak_kain ?? "").toString().trim())
+        .filter(Boolean);
+
+      return Array.from(new Set(vals)); // unik
+    };
+
+    const full = () => uniqCorak().join(", ");
+
+    const display = () => {
+      const u = uniqCorak();
+      if (u.length === 0) return "-";
+      if (u.length <= maxShow) return u.join(", ");
+      return `${u.slice(0, maxShow).join(", ")} +${u.length - maxShow} lainnya`;
+    };
+
+    return (
+      <span
+        class="inline-block max-w-[260px] truncate align-middle"
+        title={full()} // tooltip semua corak
+      >
+        {display()}
+      </span>
+    );
+  }  
+
   createEffect(() => {
     if (tokUser?.token) {
       handleGetAllBeliGreiges(tokUser?.token);
@@ -207,6 +247,7 @@ export default function KJPurchaseContractList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Pembelian</th>
               <th class="py-2 px-2">Supplier</th>
+              <th class="py-2 px-2">Corak Kain</th>
               <th class="py-2 px-2 text-center">
                 <div>Qty Faktual</div>
                 <span class="text-xs text-gray-500">
@@ -231,6 +272,19 @@ export default function KJPurchaseContractList() {
                 </td>
                 <td class="py-2 px-4">{kj.no_pc}</td>
                 <td class="py-2 px-4">{kj.supplier_name}</td>
+                <td class="py-2 px-4">
+                  {(() => {
+                    const { display, full } = formatCorak(kj.items, { maxShow: 3 });
+                    return (
+                      <span
+                        class="inline-block max-w-[260px] truncate align-middle"
+                        title={full}
+                      >
+                        {display}
+                      </span>
+                    );
+                  })()}
+                </td>
                 <td
                   class={`py-2 px-4 text-center ${
                     qtyCounterReal(kj, kj.satuan_unit_id) === "SELESAI"

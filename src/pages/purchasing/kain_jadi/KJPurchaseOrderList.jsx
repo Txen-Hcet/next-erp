@@ -9,6 +9,7 @@ import {
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
+import { formatCorak } from "../../../components/CorakKainList";
 
 export default function KJPurchaseOrderList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
@@ -147,6 +148,43 @@ export default function KJPurchaseOrderList() {
     return `${tanggalNum} ${bulan} ${tahun}`;
   }
 
+  function CorakCell(props) {
+    const maxShow = props.maxShow ?? 3;
+
+    // Pastikan selalu berupa array & ambil unik
+    const uniqCorak = () => {
+      const raw = Array.isArray(props.items)
+        ? props.items
+        : props.items
+          ? [props.items] // jaga-jaga kalau API kadang kirim object
+          : [];
+
+      const vals = raw
+        .map(it => (it?.corak_kain ?? "").toString().trim())
+        .filter(Boolean);
+
+      return Array.from(new Set(vals)); // unik
+    };
+
+    const full = () => uniqCorak().join(", ");
+
+    const display = () => {
+      const u = uniqCorak();
+      if (u.length === 0) return "-";
+      if (u.length <= maxShow) return u.join(", ");
+      return `${u.slice(0, maxShow).join(", ")} +${u.length - maxShow} lainnya`;
+    };
+
+    return (
+      <span
+        class="inline-block max-w-[260px] truncate align-middle"
+        title={full()} // tooltip semua corak
+      >
+        {display()}
+      </span>
+    );
+  }   
+
   createEffect(() => {
     if (tokUser?.token) {
       handleGetAllPurchaseOrders(tokUser?.token);
@@ -173,6 +211,7 @@ export default function KJPurchaseOrderList() {
               <th class="py-2 px-2">No Order</th>
               <th class="py-2 px-2">No PC</th>
               <th class="py-2 px-2">Supplier</th>
+              <th class="py-2 px-2">Corak Kain</th>
               <th class="py-2 px-2 text-center">
                 <div>Qty by System</div>
                 <span class="text-xs text-gray-500">
@@ -192,6 +231,19 @@ export default function KJPurchaseOrderList() {
                 <td class="py-2 px-4">{po.no_po}</td>
                 <td class="py-2 px-4">{po.no_pc}</td>
                 <td class="py-2 px-4">{po.supplier_name}</td>
+                <td class="py-2 px-4">
+                  {(() => {
+                    const { display, full } = formatCorak(po.items, { maxShow: 3 });
+                    return (
+                      <span
+                        class="inline-block max-w-[260px] truncate align-middle"
+                        title={full}
+                      >
+                        {display}
+                      </span>
+                    );
+                  })()}
+                </td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(po.created_at)}</td> */}
                 <td
                   className={`py-2 px-4 text-center ${
