@@ -67,8 +67,8 @@ export default function BGSuratJalanPrint(props) {
   }));
 
   // ===== Pagination =====
-  const ROWS_FIRST_PAGE  = 15; // kapasitas item halaman 1
-  const ROWS_OTHER_PAGES = 24; // kapasitas item halaman 2+
+  const ROWS_FIRST_PAGE  = 18; // kapasitas item halaman 1
+  const ROWS_OTHER_PAGES = 18; // kapasitas item halaman 2+
 
   const pagesWithOffsets = createMemo(() =>
     splitIntoPagesWithOffsets(data().items || [], ROWS_FIRST_PAGE, ROWS_OTHER_PAGES)

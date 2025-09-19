@@ -62,8 +62,8 @@ export default function BGSuratJalanPrint(props) {
   }));
 
   // ===== Pagination =====
-  const ROWS_FIRST_PAGE  = 15;
-  const ROWS_OTHER_PAGES = 24;
+  const ROWS_FIRST_PAGE  = 18;
+  const ROWS_OTHER_PAGES = 18;
 
   const pagesWithOffsets = createMemo(() =>
     splitIntoPagesWithOffsets(data().items || [], ROWS_FIRST_PAGE, ROWS_OTHER_PAGES)
