@@ -43,13 +43,16 @@ export default function PackingOrderPrint(props) {
       return root().packing_lists.flatMap((pl) =>
         (pl.items || []).map((it) => {
           const validRolls = (it.rolls || []).filter((r) => hasQty(r.meter, r.yard));
+          const lotDisplay = (it.lot && String(it.lot).trim()) ? String(it.lot) : pickLotsFromRolls(validRolls);
+          const balDisplay = (it.no_bal && String(it.no_bal).trim()) ? String(it.no_bal) : pickBalsFromRolls(validRolls)
+
           return {
             kode: it.corak_kain ?? "-",
             warna: it.deskripsi_warna ?? "-",
             lebar: it.lebar ?? "-",
             grade: it.grade_name ?? "-",
-            lot: pickLotsFromRolls(validRolls),
-            no_bal: pickBalsFromRolls(validRolls),
+            lot: lotDisplay || "-",
+            no_bal: balDisplay || "-",
             rolls_count: validRolls.length,
             meter_total: parseFloat(it.meter_total || 0),
             yard_total: parseFloat(it.yard_total || 0),
@@ -108,8 +111,8 @@ export default function PackingOrderPrint(props) {
 
   /* ========= Pagination ========= */
   // Lebih pendek (landscape), baris per halaman lebih sedikit
-  const ROWS_FIRST_PAGE = 7;
-  const ROWS_OTHER_PAGES = 7;
+  const ROWS_FIRST_PAGE = 18;
+  const ROWS_OTHER_PAGES = 18;
   const pagesWithOffsets = createMemo(() => splitIntoPagesWithOffsets(displayRows(), ROWS_FIRST_PAGE, ROWS_OTHER_PAGES));
 
   return (
@@ -118,7 +121,16 @@ export default function PackingOrderPrint(props) {
         :root { --safe: 8mm; }
 
         /* Landscape Statement: 8.5in x 5.5in */
-        @page { size: 8.5in 5.5in; margin: 0; }
+        // @page { 
+        //   size: 8.5in 5.5in; 
+        //   margin: 0; 
+        // }
+
+        /* Portrait Letter */
+        @page {
+          size: 8.5in 11in;
+          margin: 0;
+        }
 
         html, body {
           margin: 0;
@@ -133,8 +145,14 @@ export default function PackingOrderPrint(props) {
         }
 
         .page {
+          // Landscape
+          // width: 8.5in;
+          // height: 5.40in;           
+
+          // Portrait Letter
           width: 8.5in;
-          height: 5.40in;              /* sedikit napas */
+          height: 10.8in; 
+
           position: relative;
           box-sizing: border-box;
           display: flex;
@@ -229,8 +247,96 @@ function PrintPage(props) {
   return (
     <div ref={bind("pageRef")} className="page">
       <div className="safe">
+        {/* Measurer (9 kolom: termasuk Bal hidden) */}
+        <table style="position:absolute; top:-10000px; left:-10000px; visibility:hidden;">
+          <tbody>
+            <tr ref={bind("measureRowRef")}>
+              <td class="p-1 text-center h-5"></td>
+              <td class="p-1 text-center hidden"></td>
+              <td class="p-1"></td>
+              <td class="p-1 text-center"></td>
+              <td class="p-1 text-center"></td>
+              <td class="p-1 text-center"></td>
+              <td class="p-1 text-center"></td>
+              <td class="p-1 text-center"></td>
+              <td class="p-1 text-right"></td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* HEADER TENGAH */}
+        <div className="w-full flex flex-col items-center justify-center gap-1 text-center">
+          <img
+            className="w-20 block"
+            src={logoNavel}
+            alt=""
+            onLoad={recalc}
+            style={{ display: isPPN ? "block" : "none" }} // tetap support hidden saat non-PPN
+          />
+          <h1 className="text-lg uppercase font-bold">Surat Jalan</h1>
+        </div>
+
+        {/* Header dua kolom */}
+        <div className="w-full grid gap-2 text-[11px] grid-cols-[50%_50%]">
+          {/* Kiri: Kepada Yth */}
+          <table className="border-2 border-black table-fixed">
+            <tbody>
+              <tr>
+                <td className="px-2 pt-1 max-w-[280px] break-words whitespace-pre-wrap" colSpan={2}>
+                  Kepada Yth:
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 max-w-[280px] break-words whitespace-pre-wrap" colSpan={2}>
+                  {data.customer_name}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Kanan: Info – dibikin lebih lebar + kolom fix */}
+          <table className="border-2 border-black table-fixed w-full text-[10px] leading-tight">
+            <colgroup>
+              <col style="width:15%" />
+              <col style="width:6%" />
+              <col style="width:60%" />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td className="font-bold px-2 py-1 whitespace-nowrap">No. SJ</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">{data.no_sj || data.sequence_number}</td>
+              </tr>
+              <tr>
+                <td className="font-bold px-2 py-1 whitespace-nowrap">Tanggal</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">
+                  {formatTanggal(data.tanggal_surat_jalan || data.created_at)}
+                </td>
+              </tr>
+              <tr>
+                <td className="font-bold px-2 py-1 whitespace-nowrap">No. SO</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">{data.no_so}</td>
+              </tr>
+              <tr>
+                <td className="font-bold px-2 py-1 whitespace-nowrap">No. Mobil</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">{data.no_mobil}</td>
+              </tr>
+              <tr>
+                <td className="font-bold px-2 py-1 whitespace-nowrap">Sopir</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">{data.sopir}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      {/* OLD HEADER LANDSCAPE*
+      <div className="safe">
         <div className="grid-header text-[11px]">
-          {/* Kiri: box judul + logo (logo hanya tampil saat PPN) */}
+          {/* Kiri: box judul + logo (logo hanya tampil saat PPN) 
           <div
             className="title-box"
             style={{ "min-height": isPPN ? "88px" : "60px" }} // lebih tinggi saat logo tampil
@@ -249,9 +355,9 @@ function PrintPage(props) {
             </div>
           </div>
 
-          {/* Kanan: panel info + Kepada */}
+          {/* Kanan: panel info + Kepada 
           <div className="info-stack">
-            {/* Panel info (tetap baris-baris seperti sebelumnya agar aman) */}
+            {/* Panel info (tetap baris-baris seperti sebelumnya agar aman) 
             <table className="thin table-fixed">
               <tbody>
                 <tr>
@@ -281,7 +387,7 @@ function PrintPage(props) {
               </tbody>
             </table>
 
-            {/* Kepada Yth */}
+            {/* Kepada Yth *
             <table className="thin table-fixed">
               <tbody>
                 <tr>
@@ -293,12 +399,14 @@ function PrintPage(props) {
           </div>
         </div>
 
+         OLD HEADER LANDSCAPE */}
+
         {/* Measurer: cocokkan jumlah kolom body (9 kolom; Bal tetap hidden) */}
         <table style="position:absolute;top:-10000px;left:-10000px;visibility:hidden;">
           <tbody>
             <tr ref={bind("measureRowRef")} className="text-[11px]">
               <td className="p-1 text-center h-5"></td>
-              <td hidden className="p-1 text-center"></td>
+              <td className="p-1 text-center"></td>
               <td className="p-1 text-center"></td>
               <td className="p-1 text-center"></td>
               <td className="p-1 text-center"></td>
@@ -315,13 +423,13 @@ function PrintPage(props) {
           <thead ref={bind("theadRef")} className="bg-gray-200">
             <tr>
               <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
-              <th hidden className="border border-black p-1 w-[9%]" rowSpan={2}>Bal</th>
+              <th className="border border-black p-1 w-[9%]" rowSpan={2}>Bal</th>
               <th className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th>
               <th className="border border-black p-1 w-[12%]" rowSpan={2}>Lot</th>
-              <th className="border border-black p-1 w-[20%]" rowSpan={2}>Warna</th>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>Warna</th>
               <th className="border border-black p-1 w-[8%]"  rowSpan={2}>Lebar</th>
               <th className="border border-black p-1 w-[8%]"  rowSpan={2}>Grade</th>
-              <th className="border border-black p-1 w-[9%]" rowSpan={2}>TTL/PCS</th>
+              <th className="border border-black p-1 w-[12%]" rowSpan={2}>TTL/PCS</th>
               <th className="border border-black p-1 w-[12%] text-center" colSpan={2}>Quantity</th>
             </tr>
             <tr>
@@ -334,7 +442,7 @@ function PrintPage(props) {
               {(it, i) => (
                 <tr>
                   <td className="p-1 text-center break-words">{startIndex + i() + 1}</td>
-                  <td hidden className="p-1 text-center break-words">{it.no_bal}</td>
+                  <td className="p-1 text-center break-words">{it.no_bal}</td>
                   <td className="p-1 break-words text-center">{it.kode}</td>
                   <td className="p-1 text-center break-words">{it.lot}</td>
                   <td className="p-1 break-words text-center">{it.warna}</td>
@@ -369,30 +477,31 @@ function PrintPage(props) {
           <tfoot ref={bind("tfootRef")} className="text-[11px]">
             <Show when={isLast}>
               <tr>
-                <td colSpan={6} className="border border-black text-right font-bold px-2 py-1">TOTAL</td>
+                <td colSpan={7} className="border border-black text-right font-bold px-2 py-1">TOTAL</td>
                 <td className="border border-black px-2 py-1 text-center font-bold">{formatAngka(totals.totalPCS, 0)}</td>
                 <td className="border border-black px-2 py-1 text-center font-bold" colSpan={2}>
                   {unit === "Yard" ? formatAngka(totals.totalYard) : formatAngka(totals.totalMeter)}
                 </td>
               </tr>
               <tr>
-                <td colSpan={9} className="border border-black p-2 align-top">
+                <td colSpan={10} className="border border-black p-2 align-top">
                   <div className="font-bold mb-1">Keterangan:</div>
                   <div className="whitespace-pre-wrap break-words italic">{data.keterangan ?? "-"}</div>
                 </td>
               </tr>
               <tr>
-                <td colSpan={9} className="border border-black">
+                <td colSpan={10} className="border border-black">
                   <div className="w-full flex justify-between text-[11px] py-4 px-2">
-                    <div className="text-center w-1/3">Yang Menerima<br/><br/><br/>( ...................... )</div>
-                    <div className="text-center w-1/3">Menyetujui<br/><br/><br/>( ...................... )</div>
-                    <div className="text-center w-1/3">Yang Membuat<br/><br/><br/>( ...................... )</div>
+                    <div className="text-center w-1/4">Yang Menerima<br/><br/><br/>( ...................... )</div>
+                    <div className="text-center w-1/4">Menyetujui<br/><br/><br/>( ...................... )</div>
+                    <div className="text-center w-1/4">Yang Membuat<br/><br/><br/>( ...................... )</div>
+                    <div className="text-center w-1/4">Sopir<br/><br/><br/>( ...................... )</div>
                   </div>
                 </td>
               </tr>
             </Show>
             <tr>
-              <td colSpan={9} className="border border-black px-2 py-1 text-right italic">
+              <td colSpan={10} className="border border-black px-2 py-1 text-right italic">
                 Halaman {pageNo} dari {pageCount}
               </td>
             </tr>

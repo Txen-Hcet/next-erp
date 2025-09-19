@@ -173,6 +173,11 @@ export default function DeliveryNoteForm() {
         sopir: deliveryNote.sopir,
         delivered_status: deliveryNote.delivered_status,
       });
+
+      const soColorByWarnaId = buildSoColorMapByWarnaId(selectedSO);
+      const maps = buildRollMapsFromForm(itemGroups);
+      const enriched = enrichDeliveryNote(deliveryNote, maps, soColorByWarnaId);
+      setDeliveryNoteData(enriched);
     } else {
       setPackingLists(pls?.packing_lists || []);
     }
@@ -215,15 +220,94 @@ export default function DeliveryNoteForm() {
       soDetail?.details ||
       [];
     for (const it of items) {
-      const wid = it.warna_id != null ? String(it.warna_id) : "";
+      const wid = it?.warna_id != null ? String(it.warna_id) : "";
       if (!wid) continue;
       map.set(wid, {
         code: norm(it.kode_warna) || "-",
         desc: norm(it.deskripsi_warna) || "-",
-        so_item_id: it.id ?? it.so_item_id, // kalau suatu saat butuh
+        so_item_id: it.id ?? it.so_item_id,
       });
     }
     return map;
+  }
+
+  // Ambil no_bal & lot dari form().itemGroups (sumber paling lengkap di UI)
+  function buildRollMapsFromForm(itemGroups) {
+    const balByRollId = new Map();       // pli_roll_id -> no_bal
+    const lotByRollId = new Map();       // pli_roll_id -> lot
+    const balSetByPlItemId = new Map();  // pl_item_id  -> Set(no_bal)
+    const lotSetByPlItemId = new Map();  // pl_item_id  -> Set(lot)
+
+    for (const g of itemGroups || []) {
+      for (const r of g.items || []) {
+        const pliRollId = Number(r.packing_list_roll_id);
+        const plItemId  = Number(r.packing_list_item_id);
+        const nb = norm(r.no_bal);
+        const lt = norm(r.lot);
+
+        if (pliRollId && nb) balByRollId.set(pliRollId, nb);
+        if (pliRollId && lt) lotByRollId.set(pliRollId, lt);
+
+        if (plItemId) {
+          if (!balSetByPlItemId.has(plItemId)) balSetByPlItemId.set(plItemId, new Set());
+          if (!lotSetByPlItemId.has(plItemId)) lotSetByPlItemId.set(plItemId, new Set());
+          if (nb) balSetByPlItemId.get(plItemId).add(nb);
+          if (lt) lotSetByPlItemId.get(plItemId).add(lt);
+        }
+      }
+    }
+    return { balByRollId, lotByRollId, balSetByPlItemId, lotSetByPlItemId };
+  }
+
+  // Enrich: isi no_bal, lot, dan warna dari SO
+  function enrichDeliveryNote(deliveryNote, maps, soColorByWarnaId) {
+    const { balByRollId, lotByRollId, balSetByPlItemId, lotSetByPlItemId } = maps;
+    const clone = JSON.parse(JSON.stringify(deliveryNote)); // deep clone aman
+
+    for (const pl of clone.packing_lists || []) {
+      for (const it of pl.items || []) {
+        // 1) Per-ROLL: no_bal & lot
+        for (const rr of it.rolls || []) {
+          const rid = Number(rr.pli_roll_id);
+          const nb = balByRollId.get(rid);
+          const lt = lotByRollId.get(rid);
+          if (nb && !norm(rr.no_bal)) rr.no_bal = nb;
+          if (lt && !norm(rr.lot))     rr.lot    = lt;
+        }
+
+        // 2) Level ITEM: gabungan unik no_bal & lot dari form/rolls
+        if (!norm(it.no_bal)) {
+          const s = balSetByPlItemId.get(Number(it.pl_item_id));
+          if (s && s.size) {
+            it.no_bal = Array.from(s).sort((a,b)=>Number(a)-Number(b)).join(", ");
+          } else {
+            // fallback: kumpulkan dari rolls
+            const set = new Set((it.rolls||[]).map(r=>norm(r.no_bal)).filter(Boolean));
+            it.no_bal = set.size ? Array.from(set).sort((a,b)=>Number(a)-Number(b)).join(", ") : "-";
+          }
+        }
+
+        // lot: selalu jadikan agregat unik dari rolls (lebih akurat)
+        {
+          const set = new Set((it.rolls||[]).map(r=>norm(r.lot)).filter(Boolean));
+          if (set.size) it.lot = Array.from(set).join(", ");
+          else if (!norm(it.lot)) it.lot = "-";
+        }
+
+        // 3) Warna dari SO: pakai pl_item_col (warna_id)
+        const warnaKey =
+          it.pl_item_col != null ? String(it.pl_item_col)
+          : it.col != null        ? String(it.col)
+          : it.warna_id != null   ? String(it.warna_id)
+          : "";
+        if (warnaKey && soColorByWarnaId?.has(warnaKey)) {
+          const s = soColorByWarnaId.get(warnaKey);
+          it.kode_warna = s.code;
+          it.deskripsi_warna = s.desc;
+        }
+      }
+    }
+    return clone;
   }
 
   const addPackingListGroup = () => {
@@ -503,6 +587,9 @@ export default function DeliveryNoteForm() {
       return;
     }
     const dataToPrint = { ...deliveryNoteData() };
+
+    //console.log("Data print SJ: ", JSON.stringify(dataToPrint, null, 2));
+
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/suratjalan#${encodedData}`, "_blank");
   }
