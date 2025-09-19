@@ -415,8 +415,8 @@ export default function DeliveryNoteForm() {
       // --- WARNA DARI SO: kunci pakai PL.items[].col (== warna_id) ---
       const warnaKey = String(item.col ?? "");
       const soColor = warnaKey ? soColorByWarnaId.get(warnaKey) : null;
-      const finalKode = soColor?.code ??  "";
-      const finalDesk = soColor?.desc ??  "";
+      const finalKode = soColor?.code ?? item.kode_warna ?? "";
+      const finalDesk = soColor?.desc ?? item.deskripsi_warna ?? "";
 
       (item.rolls || []).forEach((roll) => {
         const meterVal = parseFloat(roll.meter ?? 0);
