@@ -204,6 +204,71 @@ export default function DeliveryNoteForm() {
     return Array.from(map.values());
   };
 
+  const norm = (v) => (v == null ? "" : String(v).trim());
+
+  function buildSoColorMaps(soDetail) {
+    const byColCode = new Map();
+    const byColDesc = new Map();
+    const bySoIdCode = new Map();
+    const bySoIdDesc = new Map();
+
+    const items =
+      soDetail?.items ||
+      soDetail?.sales_order_items ||
+      soDetail?.detail_items ||
+      soDetail?.details ||
+      [];
+
+    for (const it of items) {
+      const code =
+        norm(it.kode_warna) ||
+        norm(it.color_code) ||
+        norm(it.kode) ||
+        "";
+
+      const desc =
+        norm(it.deskripsi_warna) ||
+        norm(it.warna_kain) ||
+        norm(it.warna) ||
+        norm(it.color_name) ||
+        "";
+
+      const colKey = norm(it.col) || norm(it.colour) || norm(it.color) || "";
+      const soItemId = it.id ?? it.so_item_id;
+
+      if (colKey) {
+        if (code) byColCode.set(colKey, code);
+        if (desc) byColDesc.set(colKey, desc);
+      }
+      if (soItemId != null) {
+        if (code) bySoIdCode.set(Number(soItemId), code);
+        if (desc) bySoIdDesc.set(Number(soItemId), desc);
+      }
+    }
+
+    return { byColCode, byColDesc, bySoIdCode, bySoIdDesc };
+  }
+
+  /** Ambil pasangan {code, desc} yg benar utk item PL */
+  function pickColorsForPlItem(plItem, soMaps) {
+    const colKey = norm(plItem.col);
+
+    const code =
+      (colKey && soMaps.byColCode.get(colKey)) ||
+      (plItem.so_item_id != null && soMaps.bySoIdCode.get(Number(plItem.so_item_id))) ||
+      norm(plItem.kode_warna);
+
+    const desc =
+      (colKey && soMaps.byColDesc.get(colKey)) ||
+      (plItem.so_item_id != null && soMaps.bySoIdDesc.get(Number(plItem.so_item_id))) ||
+      norm(plItem.deskripsi_warna);
+
+    return {
+      code: code || "-",
+      desc: desc || "-",
+    };
+  }
+
   const addPackingListGroup = () => {
     setForm((prev) => ({
       ...prev,
@@ -284,42 +349,52 @@ export default function DeliveryNoteForm() {
   const handlePackingListChange = async (groupIndex, plId) => {
     if (!plId) return;
 
+    // ambil PL detail
     const plDetail = await getPackingLists(plId, user?.token);
     const pl = plDetail?.order;
 
+    // siapkan numeric type berdasarkan PL
     const typeLetter = pl?.no_pl?.split("/")?.[1] || "";
     const typeValue = typeLetter === "E" ? "Ekspor" : "Domestik";
     const typeNumeric = typeLetter === "E" ? 2 : 1;
 
-    const currentGroup = form().itemGroups[groupIndex];
+    // ambil SO detail → peta warna
+    let soMaps = { byColCode: new Map(), byColDesc: new Map(), bySoIdCode: new Map(), bySoIdDesc: new Map() };
+    try {
+      const soDetailResp = await getSalesOrders(pl.so_id, user?.token);
+      const soDetail = soDetailResp?.order || soDetailResp;
+      soMaps = buildSoColorMaps(soDetail);
+    } catch (_) {}
+
     const allRolls = [];
 
     (pl?.items || []).forEach((item) => {
+      // warna final utk item ini (dipakai oleh semua roll item tsb)
+      const fixed = pickColorsForPlItem(item, soMaps);
+
       (item.rolls || []).forEach((roll) => {
         const meterVal = parseFloat(roll.meter ?? 0);
         const yardVal = parseFloat(roll.yard ?? 0);
-        if ((isNaN(meterVal) || meterVal === 0) && (isNaN(yardVal) || yardVal === 0)) {
-          return;
-        }
+        if ((isNaN(meterVal) || meterVal === 0) && (isNaN(yardVal) || yardVal === 0)) return;
 
-        const pliRollId = Number(roll.id);
-        const wasInThisSJ = sjRollIdByPliRollId.has(pliRollId); // true kalau di SJ lama
-
+        const pliRollId   = Number(roll.id);
+        const wasInThisSJ = sjRollIdByPliRollId.has(pliRollId);
         const isSelectableNow = roll.selected_status === 0;
         const shouldShow = isEdit ? true : isSelectableNow;
         if (!shouldShow) return;
 
-        // cari sj_item_id dari map (berdasar pl_item_id)
         const sjItemIdGuess = sjItemIdByPlItemId.get(Number(item.id)) || null;
 
         allRolls.push({
           packing_list_roll_id: pliRollId,
           packing_list_item_id: Number(item.id),
 
+          // ✨ warna sudah dipisah (kode & deskripsi)
+          kode_warna: fixed.code,
+          deskripsi_warna: fixed.desc,
+
           no_bal: roll.no_bal,
           lot: roll.lot,
-          kode_warna: item.kode_warna,
-          deskripsi_warna: item.deskripsi_warna,
           corak_kain: item.corak_kain,
           konstruksi_kain: item.konstruksi_kain,
           row_num: roll.row_num,
@@ -328,8 +403,7 @@ export default function DeliveryNoteForm() {
           yard: roll.yard,
           kilogram: roll.kilogram,
 
-          checked: wasInThisSJ, // jika sebelumnya di SJ, centang default
-
+          checked: wasInThisSJ,
           sj_item_id: sjItemIdGuess,
           sj_roll_id: wasInThisSJ ? (sjRollIdByPliRollId.get(pliRollId) || null) : null,
         });
@@ -704,14 +778,14 @@ export default function DeliveryNoteForm() {
                         <table class="w-full border border-gray-300 text-sm">
                           <thead class="bg-gray-100">
                             <tr>
-                              <th class="border px-2 py-1">#</th>
-                              <th class="border px-2 py-1">Bal</th>
-                              <th class="border px-2 py-1">Col</th>
-                              <th class="border px-2 py-1">Corak Kain</th>
-                              <th class="border px-2 py-1">Lot</th>
-                              <th class="border px-2 py-1">Meter</th>
-                              <th class="border px-2 py-1">Yard</th>
-                              <th class="border px-2 py-1 text-center">{isView ? "Status" : "Pilih"}</th>
+                              <th class="border px-2 py-1 w-[4%]">#</th>
+                              <th class="border px-2 py-1 w-[6%]">Bal</th>
+                              <th class="border px-2 py-1 w-[15%]">Col</th>
+                              <th class="border px-2 py-1 w-[15%]">Corak Kain</th>
+                              <th class="border px-2 py-1 w-[6%]">Lot</th>
+                              <th class="border px-2 py-1 w-[8%]">Meter</th>
+                              <th class="border px-2 py-1 w-[8%]">Yard</th>
+                              <th class="border px-2 py-1 text-center w-[20%]">{isView ? "Status" : "Pilih"}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -721,7 +795,7 @@ export default function DeliveryNoteForm() {
                                   <td class="border px-2 py-1 text-center">{rollIndex() + 1}</td>
                                   <td class="border px-2 py-1 text-center">{roll.no_bal}</td>
                                   <td class="border px-2 py-1">
-                                    {(roll.kode_warna || "") + " | " + (roll.deskripsi_warna || "")}
+                                    {(roll.kode_warna || "-") + " | " + (roll.deskripsi_warna || "-")}
                                   </td>
                                   <td class="border px-2 py-1">{roll.corak_kain}</td>
                                   <td class="border px-2 py-1 text-center">{roll.lot}</td>
