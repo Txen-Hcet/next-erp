@@ -70,6 +70,8 @@ export default function DeliveryNoteForm() {
       sjRollIdByPliRollId = new Map();
 
       // struktur: deliveryNote.packing_lists[].items[].rolls[]
+      // item di SJ biasanya punya pl_item_id, id (sj_item_id)
+      // roll di SJ biasanya punya pli_roll_id, id (sj_roll_id)
       (deliveryNote.packing_lists || []).forEach((pl) => {
         (pl.items || []).forEach((it) => {
           if (it.pl_item_id && it.id) {
@@ -119,7 +121,7 @@ export default function DeliveryNoteForm() {
                 packing_list_roll_id: pliRollId,
                 packing_list_item_id: Number(item.id),
 
-                // info display (warna akan dioverride dari SO saat enrich)
+                // info display
                 no_bal: roll.no_bal,
                 lot: roll.lot,
                 kode_warna: item.kode_warna,
@@ -156,13 +158,6 @@ export default function DeliveryNoteForm() {
         })
       );
 
-      // === WARNA dari SO (bukan PL) ===
-      const soColors = buildSoColorMapByWarnaId(selectedSO);
-      const maps = buildRollMapsFromForm(itemGroups);
-      const enriched = enrichDeliveryNote(deliveryNote, maps, soColors);
-      setDeliveryNoteData(enriched);
-
-      // set form
       setForm({
         no_sj: deliveryNote.no_sj,
         sequence_number: deliveryNote.no_sj,
@@ -178,6 +173,11 @@ export default function DeliveryNoteForm() {
         sopir: deliveryNote.sopir,
         delivered_status: deliveryNote.delivered_status,
       });
+
+      const soColorByWarnaId = buildSoColorMapByWarnaId(selectedSO);
+      const maps = buildRollMapsFromForm(itemGroups);
+      const enriched = enrichDeliveryNote(deliveryNote, maps, soColorByWarnaId);
+      setDeliveryNoteData(enriched);
     } else {
       setPackingLists(pls?.packing_lists || []);
     }
@@ -202,6 +202,7 @@ export default function DeliveryNoteForm() {
         };
         map.set(k, g);
       }
+      // jika salah satu roll punya sj_item_id, simpan di group
       if (r.sj_item_id && !g.sj_item_id) g.sj_item_id = r.sj_item_id;
       g.rolls.push(r);
     });
@@ -210,64 +211,24 @@ export default function DeliveryNoteForm() {
 
   const norm = (v) => (v == null ? "" : String(v).trim());
 
-  // === NEW: Map warna dari SO, lengkap 3 index
   function buildSoColorMapByWarnaId(soDetail) {
-    const byWarnaId = new Map();   // key: warna_id -> {code, desc, so_item_id}
-    const byItemId  = new Map();   // key: so_item_id|sc_item_id -> {code, desc, so_item_id}
-    const byCodeDesc = new Map();  // key: `${kode}|${desc}` -> {code, desc, so_item_id}
-
+    const map = new Map();
     const items =
       soDetail?.items ||
       soDetail?.sales_order_items ||
       soDetail?.detail_items ||
       soDetail?.details ||
       [];
-
     for (const it of items) {
-      const warnaKey = it?.warna_id != null ? String(it.warna_id) : "";
-      const code = norm(it?.kode_warna) || "-";
-      const desc = norm(it?.deskripsi_warna) || "-";
-      const soItemId = it?.id ?? it?.so_item_id ?? it?.sc_item_id ?? null;
-      const val = { code, desc, so_item_id: soItemId };
-
-      if (warnaKey) byWarnaId.set(warnaKey, val);
-      if (soItemId != null) byItemId.set(String(soItemId), val);
-      byCodeDesc.set(`${code}|${desc}`, val);
+      const wid = it?.warna_id != null ? String(it.warna_id) : "";
+      if (!wid) continue;
+      map.set(wid, {
+        code: norm(it.kode_warna) || "-",
+        desc: norm(it.deskripsi_warna) || "-",
+        so_item_id: it.id ?? it.so_item_id,
+      });
     }
-
-    return { byWarnaId, byItemId, byCodeDesc };
-  }
-
-  // === NEW: Resolver warna dari item PL -> data SO
-  function resolveColorFromSO(plItem, soColors) {
-    // 1) kunci utama: warna_id/col/pl_item_col
-    const warnaKey =
-      plItem?.pl_item_col != null ? String(plItem.pl_item_col)
-      : plItem?.col != null        ? String(plItem.col)
-      : plItem?.warna_id != null   ? String(plItem.warna_id)
-      : "";
-
-    if (warnaKey && soColors.byWarnaId.has(warnaKey)) {
-      return soColors.byWarnaId.get(warnaKey);
-    }
-
-    // 2) cadangan: berdasarkan so_item_id/sc_item_id
-    const guessItemId =
-      plItem?.so_item_id ?? plItem?.sc_item_id ?? plItem?.soItemId ?? plItem?.scItemId ?? null;
-    if (guessItemId != null && soColors.byItemId.has(String(guessItemId))) {
-      return soColors.byItemId.get(String(guessItemId));
-    }
-
-    // 3) fallback: cocokan kode+deskripsi (kalau PL sudah isi tapi warna_id salah)
-    const code = norm(plItem?.kode_warna);
-    const desc = norm(plItem?.deskripsi_warna);
-    if (code || desc) {
-      const key = `${code || "-"}|${desc || "-"}`;
-      if (soColors.byCodeDesc.has(key)) return soColors.byCodeDesc.get(key);
-    }
-
-    // 4) tidak ketemu
-    return { code: "", desc: "", so_item_id: null };
+    return map;
   }
 
   // Ambil no_bal & lot dari form().itemGroups (sumber paling lengkap di UI)
@@ -298,8 +259,8 @@ export default function DeliveryNoteForm() {
     return { balByRollId, lotByRollId, balSetByPlItemId, lotSetByPlItemId };
   }
 
-  // Enrich: isi no_bal, lot, dan WARNA dari SO (bukan PL)
-  function enrichDeliveryNote(deliveryNote, maps, soColors) {
+  // Enrich: isi no_bal, lot, dan warna dari SO
+  function enrichDeliveryNote(deliveryNote, maps, soColorByWarnaId) {
     const { balByRollId, lotByRollId, balSetByPlItemId, lotSetByPlItemId } = maps;
     const clone = JSON.parse(JSON.stringify(deliveryNote)); // deep clone aman
 
@@ -320,26 +281,29 @@ export default function DeliveryNoteForm() {
           if (s && s.size) {
             it.no_bal = Array.from(s).sort((a,b)=>Number(a)-Number(b)).join(", ");
           } else {
+            // fallback: kumpulkan dari rolls
             const set = new Set((it.rolls||[]).map(r=>norm(r.no_bal)).filter(Boolean));
             it.no_bal = set.size ? Array.from(set).sort((a,b)=>Number(a)-Number(b)).join(", ") : "-";
           }
         }
 
+        // lot: selalu jadikan agregat unik dari rolls (lebih akurat)
         {
           const set = new Set((it.rolls||[]).map(r=>norm(r.lot)).filter(Boolean));
           if (set.size) it.lot = Array.from(set).join(", ");
           else if (!norm(it.lot)) it.lot = "-";
         }
 
-        // 3) WARNA dari SO SELALU override
-        const resolved = resolveColorFromSO(it, soColors);
-        it.kode_warna = resolved.code;
-        it.deskripsi_warna = resolved.desc;
-
-        // turunkan ke roll untuk tampilan konsisten
-        for (const rr of it.rolls || []) {
-          rr.kode_warna = resolved.code;
-          rr.deskripsi_warna = resolved.desc;
+        // 3) Warna dari SO: pakai pl_item_col (warna_id)
+        const warnaKey =
+          it.pl_item_col != null ? String(it.pl_item_col)
+          : it.col != null        ? String(it.col)
+          : it.warna_id != null   ? String(it.warna_id)
+          : "";
+        if (warnaKey && soColorByWarnaId?.has(warnaKey)) {
+          const s = soColorByWarnaId.get(warnaKey);
+          it.kode_warna = s.code;
+          it.deskripsi_warna = s.desc;
         }
       }
     }
@@ -430,14 +394,14 @@ export default function DeliveryNoteForm() {
     const plDetail = await getPackingLists(plId, user?.token);
     const pl = plDetail?.order;
 
-    // 2) Ambil detail SO untuk map warna (WAJIB PAKAI SO)
-    let soColors = { byWarnaId: new Map(), byItemId: new Map(), byCodeDesc: new Map() };
+    // 2) Ambil detail SO untuk map warna
+    let soColorByWarnaId = new Map();
     try {
       const soResp = await getSalesOrders(pl.so_id, user?.token);
       const soDetail = soResp?.order || soResp;
-      soColors = buildSoColorMapByWarnaId(soDetail);
+      soColorByWarnaId = buildSoColorMapByWarnaId(soDetail);
     } catch (e) {
-      // kalau gagal, biarkan map kosong (warna menjadi "")
+      // kalau gagal, biarkan map kosong (akan fallback ke data PL)
     }
 
     // 3) Tipe (D/E)
@@ -448,10 +412,11 @@ export default function DeliveryNoteForm() {
     const allRolls = [];
 
     (pl?.items || []).forEach((item) => {
-      // === RESOLVE WARNA dari SO, abaikan warna PL ===
-      const resolved = resolveColorFromSO(item, soColors);
-      const finalKode = resolved.code;
-      const finalDesk = resolved.desc;
+      // --- WARNA DARI SO: kunci pakai PL.items[].col (== warna_id) ---
+      const warnaKey = String(item.col ?? "");
+      const soColor = warnaKey ? soColorByWarnaId.get(warnaKey) : null;
+      const finalKode = soColor?.code ?? item.kode_warna ?? "";
+      const finalDesk = soColor?.desc ?? item.deskripsi_warna ?? "";
 
       (item.rolls || []).forEach((roll) => {
         const meterVal = parseFloat(roll.meter ?? 0);
@@ -470,7 +435,7 @@ export default function DeliveryNoteForm() {
           packing_list_roll_id: pliRollId,
           packing_list_item_id: Number(item.id),
 
-          // 👉 SELALU pakai warna dari SO
+          // 👉 pakai warna dari SO (fallback PL)
           kode_warna: finalKode,
           deskripsi_warna: finalDesk,
 
@@ -589,8 +554,10 @@ export default function DeliveryNoteForm() {
 
     try {
       if (isEdit) {
+        //console.log("UPDATE SJ payload:", JSON.stringify(payload, null, 2));
         await updateDataDeliveryNote(user?.token, params.id, payload);
       } else {
+        //console.log("CREATE SJ payload:", JSON.stringify(payload, null, 2));
         await createDeliveryNote(user?.token, payload);
       }
 
@@ -620,6 +587,9 @@ export default function DeliveryNoteForm() {
       return;
     }
     const dataToPrint = { ...deliveryNoteData() };
+
+    //console.log("Data print SJ: ", JSON.stringify(dataToPrint, null, 2));
+
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
     window.open(`/print/suratjalan#${encodedData}`, "_blank");
   }
@@ -873,7 +843,7 @@ export default function DeliveryNoteForm() {
                                 <tr>
                                   <td class="border px-2 py-1 text-center">{rollIndex() + 1}</td>
                                   <td class="border px-2 py-1 text-center">{roll.no_bal}</td>
-                                  <td class="border px-2 py-1" title="Color diambil dari Sales Order">
+                                  <td class="border px-2 py-1">
                                     {(roll.kode_warna || "") + " | " + (roll.deskripsi_warna || "")}
                                   </td>
                                   <td class="border px-2 py-1">{roll.corak_kain}</td>
