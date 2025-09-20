@@ -815,6 +815,296 @@ export async function softDeleteCustomer(id, token) {
 
 // #endregion CUSTOMERS FUNCTION
 
+// #startregion AGENT FUNCTION
+
+export async function createAgent(token, agent_name) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/create-agent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({ agent_name: agent_name }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat agent");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getAllAgents(token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/agents`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    return {
+      status: response.status,
+      ...data,            
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data Agents",
+    };
+  }
+}
+
+export async function getAgents(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/agents/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal mengambil data Agent dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateAgents(token, id, agent_name) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/update-agent/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({ agent_name: agent_name }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah data agent");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteAgents(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/delete-agent/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal menghapus data agent dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion AGENT FUNCTION
+
+// #startregion BANK ACCOUNT FUNCTION
+
+export async function createBankAccount(token, bank_account_name, bank_account_number) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/create-bank-account`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({ 
+          bank_account_name: bank_account_name,
+          bank_account_number: bank_account_number,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat Bank Account");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function getAllBankAccounts(token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/bank-accounts`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    return {
+      status: response.status,
+      ...data,            
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data Bank Accounts",
+    };
+  }
+}
+
+export async function getBankAccounts(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/bank-accounts/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal mengambil data Bank Account dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateBankAccounts(token, id, bank_account_name, bank_account_number) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/update-bank-account/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({ 
+          bank_account_name: bank_account_name,
+          bank_account_number: bank_account_number,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah data Bank Account");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteBankAccounts(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/delete-bank-account/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || `Gagal menghapus data Bank Account dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion BANK ACCOUNT FUNCTION
+
 // #region COLORS FUNCTION
 
 export async function createColor(token, kode, deskripsi) {
@@ -4727,6 +5017,70 @@ export async function unsetInvoiceJB(token, id, payload = {}) {
 }
 
 // #endregion INVOICE
+
+// #startregion RETUR
+
+// Set retur untuk Surat Jalan Jual Beli
+export async function setReturnJB(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/retur-jual-beli-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Server error when returning surat jalan.");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Undo retur untuk item Surat Jalan Jual Beli
+export async function undoReturnJBItem(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/undo-retur-jual-beli-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal undo retur item Jual Beli");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// #endregion RETUR
 
 export function logout() {
   localStorage.removeItem("user");
