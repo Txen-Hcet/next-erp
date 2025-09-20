@@ -77,6 +77,9 @@ export default function MainLayout(props) {
     jualbeli: ["jualbeli-invoice", "jualbeli-invoice/form"],
   };
 
+  // RETUR
+  const [isReturOpen, setReturOpen] = createSignal(false);
+
   createEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -111,6 +114,8 @@ export default function MainLayout(props) {
           "/grade/form",
           "/units",
           "/units/form",
+          "/agent",
+          "/agent/form",
         ].some((p) => pathname.startsWith(p))
       ) {
         return "master";
@@ -172,6 +177,12 @@ export default function MainLayout(props) {
           .some((p) => pathname.startsWith(p))
       ) {
         return "invoice";
+      }
+
+      if(
+        Object.values(returRoutes).flat().some((p) => pathname.startsWith(p))
+      ){
+        return "retur";
       }
 
       return "unknown";
@@ -248,6 +259,10 @@ export default function MainLayout(props) {
         break;
       case "invoice":
         setInvoiceIsOpen(true);
+        break;
+
+      case "retur":
+        setReturOpen(true);
         break;
     }
 
@@ -426,6 +441,36 @@ export default function MainLayout(props) {
                           }`}
                         >
                           Customer
+                        </A>
+                      </li>
+                    )}
+                    {hasPermission("view_agent") && (
+                      <li>
+                        <A
+                          href="/agent"
+                          class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                            location.pathname === "/agent" ||
+                            location.pathname === "/agent/form"
+                              ? "bg-gray-700 text-white"
+                              : ""
+                          }`}
+                        >
+                          Agent
+                        </A>
+                      </li>
+                    )}
+                    {hasPermission("view_bank_account") && (
+                      <li>
+                        <A
+                          href="/bank-account"
+                          class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                            location.pathname === "/bank-account" ||
+                            location.pathname === "/bank-account/form"
+                              ? "bg-gray-700 text-white"
+                              : ""
+                          }`}
+                        >
+                          Bank Account
                         </A>
                       </li>
                     )}
@@ -1181,7 +1226,46 @@ export default function MainLayout(props) {
                     </li>
                   </ul>
                 </li>
+
+                {/* RETUR */}
+                {hasAllPermission(["return_jual_beli"]) && (
+                  <>
+                    <li>
+                      <button
+                        class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                        onClick={() => setReturOpen(!isReturOpen())}
+                      >
+                        Retur
+                        <span class="text-xs">{isReturOpen() ? "▲" : "▼"}</span>
+                      </button>
+                    </li>
+
+                    {/* SUB MENU RETUR */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isReturOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/retur-jualbeli"
+                            class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/retur-jualbeli" ||
+                              location.pathname === "/retur-jualbeli/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Retur Jual Beli
+                          </A>
+                        </li>
+                      </ul>
+                    </li>
+                  </>
+                )}
               </ul>
+              
             </nav>
 
             <div class="p-4 border-t border-gray-700">
