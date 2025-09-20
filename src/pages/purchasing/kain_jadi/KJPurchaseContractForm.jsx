@@ -625,9 +625,9 @@ export default function KJPurchaseContractForm() {
             <tr>
               <th class="border p-2">#</th>
               <th class="border p-2">Jenis Kain</th>
-              <th hidden class="border p-2">Lebar Greige</th>
+              <th class="border p-2">Lebar Greige</th>
               <th class="border p-2">Lebar Finish</th>
-              <th class="border p-2">Std Susut</th>
+              {/* <th class="border p-2">Std Susut</th> */}
               <Show when={parseInt(form().satuan_unit_id) === 1}>
                 <th class="border p-2">Meter</th>
               </Show>
@@ -656,7 +656,7 @@ export default function KJPurchaseContractForm() {
                       disabled={isView}
                     />
                   </td>
-                  <td hidden class="border p-2">
+                  <td class="border p-2">
                     <input
                       type="text"
                       inputmode="decimal"
@@ -682,7 +682,7 @@ export default function KJPurchaseContractForm() {
                       classList={{ "bg-gray-200": isView }}
                     />
                   </td>
-                  <td class="border p-2">
+                  {/* <td class="border p-2">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -693,7 +693,7 @@ export default function KJPurchaseContractForm() {
                       classList={{ "bg-gray-200": isView }}
                       // placeholder="0,00 %"
                     />
-                  </td>
+                  </td> */}
                   <Show when={parseInt(form().satuan_unit_id) === 1}>
                     <td class="border p-2">
                       <input

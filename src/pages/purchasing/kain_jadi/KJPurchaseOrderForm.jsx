@@ -290,7 +290,7 @@ export default function KJPurchaseOrderForm() {
       const qty = String(satuan_unit_id) === "2" ? yardNum : meterNum;
       const subtotal = (hargaGreige + hargaMaklun) * qty;
 
-      const stdSusut = contractItem.std_susut ?? ci.std_susut;
+      const stdSusut = ci.std_susut ?? null;
 
       return {
         // Panel "Quantity Kain"
@@ -402,8 +402,8 @@ export default function KJPurchaseOrderForm() {
       lebar_greige: ci.lebar_greige ?? "",
       lebar_finish: ci.lebar_finish ?? "",
 
-      std_susutValue: ci.std_susut != null ? parseFloat(ci.std_susut) : 0,
-      std_susut: ci.std_susut != null ? formatPercent(parseFloat(ci.std_susut)) : "",
+      std_susutValue: 0,
+      std_susut: "",
 
       meter: formatNumber(meterNum, { decimals: 2 }),
       meterValue: meterNum,
@@ -870,8 +870,8 @@ export default function KJPurchaseOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.std_susut ?? ""}
                       onBlur={(e) => handleItemChange(i(), "std_susut", e.target.value)}
-                      disabled={true}
-                      classList={{ "bg-gray-200": true }}
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
                       // placeholder="0,00 %"
                     />
                   </td>
