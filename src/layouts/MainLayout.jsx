@@ -36,6 +36,9 @@ export default function MainLayout(props) {
 
   // INVOICE
   const [isInvoiceOpen, setInvoiceIsOpen] = createSignal(false);
+  
+  // RETUR
+  const [isReturOpen, setReturOpen] = createSignal(false);
 
   const purchasingRoutes = {
     greige: [
@@ -77,8 +80,16 @@ export default function MainLayout(props) {
     jualbeli: ["jualbeli-invoice", "jualbeli-invoice/form"],
   };
 
-  // RETUR
-  const [isReturOpen, setReturOpen] = createSignal(false);
+  const returRoutes = {
+    retur: [
+      "/retur-greige",
+      "/retur-ordercelup",
+      "/retur-kainjadi",
+      "/retur-jualbeli",
+      "/retur-suratjalan",
+    ]
+  }
+
 
   createEffect(() => {
     const interval = setInterval(async () => {
@@ -880,19 +891,21 @@ export default function MainLayout(props) {
                         Sales Contract (Lokal)
                       </A>
                     </li>
-                    <li>
-                      <A
-                        href="/expor/salescontract"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/expor/salescontract" ||
-                          location.pathname === "/expor/salescontract/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Sales Contract (Ekspor)
-                      </A>
-                    </li>
+                    {hasPermission("edit_sales_contract") && (
+                      <li>
+                        <A
+                          href="/expor/salescontract"
+                          class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                            location.pathname === "/expor/salescontract" ||
+                            location.pathname === "/expor/salescontract/form"
+                              ? "bg-gray-700 text-white"
+                              : ""
+                          }`}
+                        >
+                          Sales Contract (Ekspor)
+                        </A>
+                      </li>
+                    )}
                     <li>
                       <A
                         href="/salesorder"
