@@ -111,8 +111,8 @@ export default function PackingOrderPrint(props) {
 
   /* ========= Pagination ========= */
   // Lebih pendek (landscape), baris per halaman lebih sedikit
-  const ROWS_FIRST_PAGE = 18;
-  const ROWS_OTHER_PAGES = 18;
+  const ROWS_FIRST_PAGE = 9;
+  const ROWS_OTHER_PAGES = 9;
   const pagesWithOffsets = createMemo(() => splitIntoPagesWithOffsets(displayRows(), ROWS_FIRST_PAGE, ROWS_OTHER_PAGES));
 
   return (
@@ -151,7 +151,7 @@ export default function PackingOrderPrint(props) {
 
           // Portrait Letter
           width: 8.5in;
-          height: 10.8in; 
+          height: 5.4in; 
 
           position: relative;
           box-sizing: border-box;
@@ -234,7 +234,7 @@ function PrintPage(props) {
   const { formatTanggal, formatAngka } = formatters;
 
   // Landscape -> header lebih padat, table lebih pendek; tambah fudge sedikit
-  const { extraRows, bind, recalc } = createStretch({ fudge: 80 });
+  const { extraRows, bind, recalc } = createStretch({ fudge: 24 });
 
   createEffect(() => {
     (items?.length ?? 0);
@@ -252,7 +252,7 @@ function PrintPage(props) {
           <tbody>
             <tr ref={bind("measureRowRef")}>
               <td class="p-1 text-center h-5"></td>
-              <td class="p-1 text-center hidden"></td>
+              <td class="p-1 text-center"></td>
               <td class="p-1"></td>
               <td class="p-1 text-center"></td>
               <td class="p-1 text-center"></td>
