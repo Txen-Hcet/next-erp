@@ -350,8 +350,8 @@ function PrintPage(props) {
                     <td className="p-1 text-center break-words">
                       {item.corak_kain || "-"}
                     </td>
-                    <td className="p-1 break-words">
-                      {item.design}
+                    <td className="p-1 break-words text-center">
+                      {item.design_kode}
                     </td>
                     <td className="p-1 break-words text-center">
                       {item.description_of_goods}

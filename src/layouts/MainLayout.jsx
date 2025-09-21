@@ -893,7 +893,7 @@ export default function MainLayout(props) {
                         Sales Contract (Lokal)
                       </A>
                     </li>
-                    {hasPermission("edit_sales_contract") && (
+                    {hasPermission("edit_sales_contracts") && (
                       <li>
                         <A
                           href="/expor/salescontract"

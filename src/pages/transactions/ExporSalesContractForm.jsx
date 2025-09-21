@@ -205,6 +205,13 @@ export default function ExporSalesContractForm() {
     }).format(numValue);
   };
 
+  const parseKurs = (s) => {
+    if (s == null) return 0;
+    // buang semua non-digit
+    const only = String(s).replace(/[^\d]/g, "");
+    return only ? Number(only) : 0;
+  };
+
   const formatGroupID = (n, decimals = 0) =>
     new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: decimals,
@@ -280,6 +287,9 @@ export default function ExporSalesContractForm() {
     if (isEdit) {
       const res = await getSalesContracts(params.id, user?.token);
       const data = res.contract;
+
+      //console.log("Data SC Export: ", JSON.stringify(data, null, 2));
+
       setPurchaseContractData({ ...data });
       if (!data) {
         setLoading(false);
@@ -304,10 +314,8 @@ export default function ExporSalesContractForm() {
             ? kilogramValue
             : 0);
 
-        const warnaId =
-          item.warna_id ??
-          item.warna?.id ??
-          findColorIdByName(item.design);
+        const designId  = item.design_id ?? item.warna_id ?? null;
+        const designKod = item.design_kode ?? item.design ?? colorNameById(designId) ?? "";
 
         return {
           meter_total: item.meter_total,
@@ -323,8 +331,8 @@ export default function ExporSalesContractForm() {
           fabric_id: item.kain_id ?? null,
           grade_id: item.grade_id ?? "",
 
-          warna_id: warnaId ?? null,
-          design: item.design ?? (warnaId ? colorNameById(warnaId) : ""),
+          warna_id: designId,
+          design: designKod, 
 
           lebar: formatNumber(lebarValue, { decimals: 0, showZero: true }),
           lebarValue: Math.round(lebarValue),
@@ -383,7 +391,7 @@ export default function ExporSalesContractForm() {
           : "",
         customer_id: data.customer_id ?? "",
         currency_id: data.currency_id ?? "",
-        kurs: formatGroupID(parseFloat(data.kurs) || 0),
+        kurs: Number(data.kurs) || 0,
         termin: parseInt(data.termin) ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
@@ -483,15 +491,12 @@ export default function ExporSalesContractForm() {
 
       if (field === "fabric_id" || field === "grade_id") {
         item[field] = value;
-      } else if (field === "warna_id") {
-        // value bisa number atau object dari dropdown
-        const obj = typeof value === "object" && value !== null ? value : {};
-        const id = obj.id ?? value ?? null;
-        const name =
-          obj.warna ?? obj.nama ?? obj.name ?? obj.label ?? colorNameById(id) ?? "";
-
-        item.warna_id = id;
-        item.design = name;
+        } else if (field === "warna_id") {
+          const obj  = (typeof value === "object" && value) ? value : {};
+          const id   = obj.id ?? value ?? null;
+          const name = obj.warna ?? obj.nama ?? obj.name ?? obj.label ?? colorNameById(id) ?? "";
+          item.warna_id = id;
+          item.design   = name;
       } else if (field === "lebar") {
         const intVal = sanitizeInt(value);
         item.lebarValue = intVal;
@@ -556,7 +561,10 @@ export default function ExporSalesContractForm() {
         id: item.id,
         kain_id: item.fabric_id,
         grade_id: item.grade_id,
-        design: item.design || colorNameById(item.warna_id) || "",
+
+        design_id: item.warna_id ? Number(item.warna_id) : null,
+        design_kode: item.design || colorNameById(item.warna_id) || "",
+
         lebar: item.lebarValue || 0,
         description_of_goods: item.description_of_goods || "",
         gramasi: item.gramasiValue || 0,
@@ -575,7 +583,7 @@ export default function ExporSalesContractForm() {
         validity_contract: form().validity_contract,
         customer_id: parseInt(form().customer_id),
         currency_id: parseInt(form().currency_id),
-        kurs: parseNumber(form().kurs),
+        kurs: Number(form().kurs) || 0,
         termin: form().termin ? parseInt(form().termin) : null,
         ppn_percent: form().ppn_percent,
         keterangan: form().keterangan,
@@ -774,13 +782,8 @@ export default function ExporSalesContractForm() {
                 <input
                   class="w-full border p-2 rounded rounded-l-none"
                   type="text"
-                  value={form().kurs}
-                  onInput={(e) =>
-                    setForm({ ...form(), kurs: parseNumber(e.target.value) })
-                  }
-                  onBlur={() =>
-                    setForm({ ...form(), kurs: formatGroupID(form().kurs) })
-                  }
+                  value={formatGroupID(form().kurs)}
+                  onInput={(e) => setForm({ ...form(), kurs: parseKurs(e.target.value) })}
                   required
                   disabled={isView}
                   classList={{ "bg-gray-200": isView }}
