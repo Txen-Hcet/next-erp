@@ -190,9 +190,11 @@ export default function MainLayout(props) {
         return "invoice";
       }
 
-      if(
-        Object.values(returRoutes).flat().some((p) => pathname.startsWith(p))
-      ){
+      if (
+        Object.values(returRoutes)
+          .flat()
+          .some((p) => pathname.startsWith(p))
+      ) {
         return "retur";
       }
 
@@ -1256,7 +1258,9 @@ export default function MainLayout(props) {
                     {/* SUB MENU RETUR */}
                     <li
                       class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isReturOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
+                        isReturOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
                       }`}
                     >
                       <ul>
@@ -1278,7 +1282,6 @@ export default function MainLayout(props) {
                   </>
                 )}
               </ul>
-              
             </nav>
 
             <div class="p-4 border-t border-gray-700">
