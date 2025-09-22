@@ -113,6 +113,8 @@ export default function SuratJalanList() {
     try {
       const result = await getAllDeliveryNotes(tok);
 
+      //console.log("Data SJ: ", JSON.stringify(result, null, 2))
+
       if (result.status === 200) {
         const suratJalanList = result.surat_jalan_list || [];
         const sortedData = suratJalanList.sort((a, b) => a.id - b.id);
@@ -196,7 +198,7 @@ export default function SuratJalanList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">#</th>
               <th class="py-2 px-4">No. Surat Jalan</th>
-              <th class="py-2 px-2">Tanggal Pembuatan Surat Jalan</th>
+              <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">No. Packing List</th>
               <th class="py-2 px-2">Nama Customer</th>
               <th class="py-2 px-2">Satuan Unit</th>

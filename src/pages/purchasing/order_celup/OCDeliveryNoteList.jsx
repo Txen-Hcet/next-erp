@@ -143,6 +143,30 @@ export default function OCDeliveryNoteList() {
     return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
   };
 
+  function formatTanggalIndo(tanggalString) {
+    const tanggal = new Date(tanggalString);
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+
+    const tanggalNum = tanggal.getDate();
+    const bulan = bulanIndo[tanggal.getMonth()];
+    const tahun = tanggal.getFullYear();
+
+    return `${tanggalNum} ${bulan} ${tahun}`;
+  }  
+
   createEffect(() => {
     if (tokUser?.token) {
       handleGetAllDeliveryNotes(tokUser?.token);
@@ -168,6 +192,7 @@ export default function OCDeliveryNoteList() {
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Surat Penerimaan</th>
               <th class="py-2 px-2">No Purchase Order</th>
+              <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2 text-center">
                 <div>Qty by System</div>
                 <span class="text-xs text-gray-500">
@@ -186,6 +211,7 @@ export default function OCDeliveryNoteList() {
                 </td>
                 <td class="py-2 px-4">{sj.no_sj}</td>
                 <td class="py-2 px-4">{sj.no_po}</td>
+                <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
                 <td
                   className={`py-2 px-4 text-center ${
                     qtyCounterbySystem(sj, sj.satuan_unit_name) === "SELESAI"

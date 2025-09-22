@@ -89,6 +89,8 @@ export default function BGDeliveryNoteList() {
     try {
       const result = await getAllBGDeliveryNotes(tok);
 
+      console.log("Data All SP BG: ", JSON.stringify(result, null, 2))
+
       if (result && Array.isArray(result.suratJalans)) {
         const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
         setPackingOrders(sortedData);
@@ -198,6 +200,7 @@ export default function BGDeliveryNoteList() {
               <th class="py-2 px-2">keterangan</th> */}
               <th class="py-2 px-2">No Surat Penerimaan</th>
               <th class="py-2 px-2">No Purchase Order</th>
+              <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Corak Kain</th>
               <th class="py-2 px-2 text-center">
@@ -218,6 +221,7 @@ export default function BGDeliveryNoteList() {
                 </td>
                 <td class="py-2 px-4">{sj.no_sj}</td>
                 <td class="py-2 px-4">{sj.no_po}</td>
+                <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
                 <td class="py-2 px-4">{sj.supplier_name}</td>
                 <td class="py-2 px-4">
                   {(() => {

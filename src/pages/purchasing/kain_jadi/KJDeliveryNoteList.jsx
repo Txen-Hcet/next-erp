@@ -192,6 +192,7 @@ export default function KJDeliveryNoteList() {
                   <th class="py-2 px-4">ID</th>
                   <th class="py-2 px-2">No Surat Penerimaan</th>
                   <th class="py-2 px-2">No Purchase Order</th>
+                  <th class="py-2 px-2">Tanggal</th>
                   <th class="py-2 px-2 text-center">
                     <div>Qty by System</div>
                     <span class="text-xs text-gray-500">
@@ -210,6 +211,7 @@ export default function KJDeliveryNoteList() {
                     </td>
                     <td class="py-2 px-4">{sj.no_sj}</td>
                     <td class="py-2 px-4">{sj.no_po}</td>
+                    <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
                     <td
                       className={`py-2 px-4 text-center ${
                         qtyCounterbySystem(sj, sj.satuan_unit_name) === "SELESAI"
