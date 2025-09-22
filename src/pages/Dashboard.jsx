@@ -73,6 +73,21 @@ export default function Dashboard() {
     return s.length ? s.join(sep) : "";
   };
 
+  // ==== FORMAT ANGKA ===
+
+  const fmt2 = (val) => {
+    if (val === undefined || val === null || val === "") return "-";
+    // pastikan bisa di-parse walau datang sebagai string
+    const n = Number(String(val).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return "-";
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  };
+
+  const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "");
+
   // ==== Config section + Datasource ====
   const SECTIONS = [
     {
@@ -252,6 +267,7 @@ export default function Dashboard() {
 
         /* center warna & kain */
         thead th:nth-child(6), tbody td:nth-child(6){ text-align:center; }
+        ${showGrade ? `thead th:nth-child(7), tbody td:nth-child(7){ text-align:center; }` : ``}
         ${showGrade
           ? `thead th:nth-child(8), tbody td:nth-child(8){ text-align:center; }`
           : `thead th:nth-child(7), tbody td:nth-child(7){ text-align:center; }`
@@ -290,9 +306,9 @@ export default function Dashboard() {
         <td>${r.kode_warna ?? r.warna_kode ?? r.warna ?? "-"}</td>
         ${showGrade ? `<td>${r.grade_name ?? "-"}</td>` : ``}
         <td>${r.corak_kain ?? "-"}</td>
-        <td>${r.meter_total ?? r.summary?.total_meter ?? "-"}</td>
-        <td>${r.yard_total ?? r.summary?.total_yard ?? "-"}</td>
-        <td>${r.total_kilogram ?? r.summary?.total_kilogram ?? "-"}</td>
+        <td>${fmt2(pick(r.meter_total,  r.summary?.total_meter))}</td>
+        <td>${fmt2(pick(r.yard_total,   r.summary?.total_yard))}</td>
+        <td>${fmt2(pick(r.total_kilogram, r.summary?.total_kilogram))}</td>
       </tr>`).join("");
 
     const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
