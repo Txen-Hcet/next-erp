@@ -173,7 +173,7 @@ function PrintPage(props) {
 
         <img className="w-24" src={logoNavel} alt="" onLoad={recalc} hidden={!isPPN} />
 
-        <h1 className="text-xl uppercase font-bold">Beli Greige Surat Jalan</h1>
+        <h1 className="text-xl uppercase font-bold">Kontrak Beli Greige</h1>
 
         <div className="w-full flex gap-2 text-sm">
           {/* LEFT TABLE */}
@@ -181,12 +181,18 @@ function PrintPage(props) {
             <tbody>
               <tr>
                 <td className="px-2 pt-1 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
+                  Kepada Yth: <br></br>
                   Supplier
                 </td>
               </tr>
               <tr>
                 <td className="px-2 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
                   {data.supplier_name}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-2 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>
+                  {data.supplier_alamat}
                 </td>
               </tr>
               <tr>
@@ -207,34 +213,24 @@ function PrintPage(props) {
           <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
               <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SJ</td>
+                <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. Kontrak</td>
                 <td className="w-[5%] text-center">:</td>
-                <td className="px-2 break-words w-[65%]">{data.no_sj}</td>
+                <td className="px-2 break-words w-[65%]">{data.no_pc}</td>
               </tr>
               <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal SJ</td>
+                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal</td>
                 <td className="w-[5%] text-center">:</td>
                 <td className="px-2 break-words w-[65%]">{formatTanggal(data.created_at)}</td>
               </tr>
               <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. SJ Supplier</td>
+                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Validity</td>
                 <td className="w-[5%] text-center">:</td>
-                <td className="px-2 break-words w-[65%]">{data.no_sj_supplier}</td>
+                <td className="px-2 break-words w-[65%]">{formatTanggal(data.validity_contract)}</td>
               </tr>
               <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Alamat Kirim</td>
+                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Payment</td>
                 <td className="w-[5%] text-center">:</td>
-                <td className="px-2 break-words w-[65%]">{data.supplier_kirim_alamat}</td>
-              </tr>
-              <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">Tanggal Kirim</td>
-                <td className="w-[5%] text-center">:</td>
-                <td className="px-2 break-words w-[65%]">{formatTanggal(data.tanggal_kirim)}</td>
-              </tr>
-              <tr>
-                <td className="font-bold px-2 w-[30%] whitespace-nowrap">No. PO</td>
-                <td className="w-[5%] text-center">:</td>
-                <td className="px-2 break-words w-[65%]">{data.no_po}</td>
+                <td className="px-2 break-words w-[65%]">{data.termin == 0 ? "Cash" : data.termin + " Hari"}</td>
               </tr>
             </tbody>
           </table>
@@ -245,12 +241,12 @@ function PrintPage(props) {
           <thead ref={bind("theadRef")} className="bg-gray-200">
             <tr>
               <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
-              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Kode</th>
-              <th className="border border-black p-1 w-[20%]" rowSpan={2}>Jenis Kain</th>
-              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Greige</th>
-              <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>Quantity</th>
-              <th hidden className="border border-black p-1 w-[15%]" rowSpan={2}>Harga</th>
-              <th hidden className="border border-black p-1 w-[15%]" rowSpan={2}>Jumlah</th>
+              <th className="border border-black p-1 w-[12%]" rowSpan={2}>Kode</th>
+              <th className="border border-black p-1 w-[16%]" rowSpan={2}>Jenis Kain</th>
+              <th className="border border-black p-1 w-[8%]" rowSpan={2}>Lebar</th>
+              <th className="border border-black p-1 w-[15%] text-center" colSpan={2}>Quantity</th>
+              <th className="border border-black p-1 w-[15%]" rowSpan={2}>Harga</th>
+              <th className="border border-black p-1 w-[20%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
               <th colSpan={2} className="border border-black p-1 w-[24%]">
@@ -272,8 +268,8 @@ function PrintPage(props) {
                       ? formatAngka(item.meter_total)
                       : formatAngka(item.yard_total)}
                   </td>
-                  <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
-                  <td hidden className="p-1 text-right break-words">
+                  <td className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
+                  <td className="p-1 text-right break-words">
                     {(() => {
                       const qty = data.satuan_unit_name === "Meter"
                         ? parseFloat(item.meter_total || 0)
@@ -311,34 +307,34 @@ function PrintPage(props) {
                     ? formatAngka(totals.totalMeter)
                     : formatAngka(totals.totalYard)}
                 </td>
-                <td hidden className="border border-black px-2 py-1 text-right font-bold">Sub Total</td>
-                <td hidden className="border border-black px-2 py-1 text-right">{formatRupiah(totals.subTotal)}</td>
+                <td className="border border-black px-2 py-1 text-right font-bold">Sub Total</td>
+                <td className="border border-black px-2 py-1 text-right">{formatRupiah(totals.subTotal)}</td>
               </tr>
 
               {/* Baris total keuangan disembunyikan (aktifkan jika perlu) */}
-              <tr hidden>
+              <tr >
                 <td colSpan={6} className="px-2 py-1" />
                 <td className="px-2 py-1 text-right font-bold">DPP</td>
                 <td className="px-2 py-1 text-right">{formatRupiah(totals.dpp)}</td>
               </tr>
-              <tr hidden>
+              <tr >
                 <td colSpan={6} className="px-2 py-1" />
                 <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
                 <td className="px-2 py-1 text-right">{formatRupiah(totals.nilaiLain)}</td>
               </tr>
-              <tr hidden>
+              <tr >
                 <td colSpan={6} className="px-2 py-1" />
                 <td className="px-2 py-1 text-right font-bold">PPN</td>
                 <td className="px-2 py-1 text-right">{formatRupiah(totals.ppn)}</td>
               </tr>
-              <tr hidden>
+              <tr >
                 <td colSpan={6} className="px-2 py-1" />
                 <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
                 <td className="px-2 py-1 text-right">{formatRupiah(totals.grand)}</td>
               </tr>
 
               <tr>
-                <td colSpan={6} className="border border-black p-2 align-top">
+                <td colSpan={8} className="border border-black p-2 align-top">
                   <div className="font-bold mb-1">NOTE:</div>
                   <div className="whitespace-pre-wrap break-words italic">
                     {data.keterangan ?? "-"}
@@ -346,7 +342,7 @@ function PrintPage(props) {
                 </td>
               </tr>
               <tr>
-                <td colSpan={6} className="border border-black">
+                <td colSpan={8} className="border border-black">
                   <div className="w-full flex justify-between text-[12px] py-5 px-2">
                     <div className="text-center w-1/3 pb-3">
                       Yang Menerima
@@ -366,7 +362,7 @@ function PrintPage(props) {
             </Show>
 
             <tr>
-              <td colSpan={6} className="border border-black px-2 py-1 text-right italic">
+              <td colSpan={8} className="border border-black px-2 py-1 text-right italic">
                 Halaman {pageNo} dari {pageCount}
               </td>
             </tr>
