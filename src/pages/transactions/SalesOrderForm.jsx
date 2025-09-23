@@ -24,6 +24,7 @@ import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import SearchableSalesContractSelect from "../../components/SalesContractDropdownSearch";
 import ColorDropdownSearch from "../../components/ColorDropdownSearch";
 import GradeDropdownSearch from "../../components/GradeDropdownSearch";
+import { jwtDecode } from "jwt-decode";
 
 export default function SalesOrderForm() {
   const navigate = useNavigate();
@@ -45,6 +46,31 @@ export default function SalesOrderForm() {
   const isEdit = !!params.id;
   const isView = params.view === "true";
 
+  const payload = (() => {
+    try { return user?.token ? jwtDecode(user.token) : null; }
+    catch { return null; }
+  })();
+
+  const [me, setMe] = createSignal(payload);
+  const strictFromParam = (params.strict || "").toLowerCase() === "warna";
+
+  // role 12 / "staff marketing 2" → strict
+  const isStrictColorEdit = () => {
+    const u = me();
+    const rid = Number(u?.role?.id ?? u?.role_id ?? 0);
+    const rname = String(u?.role?.name ?? u?.role_name ?? "").toLowerCase();
+    const byRole = rid === 12 || rname === "staff marketing 2";
+    return strictFromParam || byRole;
+  };
+
+  const canEditAll = () => !isView && !isStrictColorEdit();
+  const canEditColorOnly = () => !isView && isStrictColorEdit();
+
+  const canEditKeteranganWarna = () => !isView && (!isEdit || !isStrictColorEdit());
+  const canEditKeterangan       = () => !isView && (!isEdit || !isStrictColorEdit());
+  const canEditQty              = () => !isView && (!isEdit || !isStrictColorEdit());
+  const isAddFromSCDisabled = () => isView || (isEdit && isStrictColorEdit());
+
   const [form, setForm] = createSignal({
     type: "",
     sequence_number: "",
@@ -63,6 +89,8 @@ export default function SalesOrderForm() {
     items: [],
   });
 
+  // ==== FORMATTER ====
+
   const selectedCurrency = () =>
     currencyList().find((c) => c.id == form().currency_id);
 
@@ -79,6 +107,22 @@ export default function SalesOrderForm() {
     if (!str) return "";
     const onlyNumbers = str.replace(/[^\d]/g, "");
     return onlyNumbers ? parseInt(onlyNumbers) : "";
+  };
+
+  const currencyCode = () =>
+  (form().currency_name || selectedCurrency()?.name || "IDR").toUpperCase();
+
+  const formatMoney = (val, code = currencyCode()) => {
+    if (val === null || val === "" || val === undefined) return "";
+    const n = typeof val === "string" ? parseFloat(val) : Number(val);
+    if (!Number.isFinite(n)) return "";
+    const isIDR = code === "IDR";
+    return new Intl.NumberFormat(isIDR ? "id-ID" : "en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: isIDR ? 0 : 2,
+      maximumFractionDigits: isIDR ? 0 : 2,
+    }).format(n);
   };
 
   onMount(async () => {
@@ -127,7 +171,9 @@ export default function SalesOrderForm() {
       setSalesOrderData(fullPrintData); 
 
       const mappedItems = (soData.items || []).map((soItem) => {
-          const subtotal = (Number(soItem.meter_total) || Number(soItem.yard_total) || Number(soItem.kilogram_total)) * Number(soItem.harga);
+          const hargaNum = parseFloat(soItem.harga) || 0;
+          const qty = Number(soItem.meter_total) || Number(soItem.yard_total) || Number(soItem.kilogram_total) || 0;
+          const subtotal = qty * hargaNum;
 
           return {
               meter_total: soItem.meter_total,
@@ -143,7 +189,7 @@ export default function SalesOrderForm() {
               sc_item_id: soItem.sc_item_id,
               fabric_id: soItem.kain_id,
               grade_id: soItem.grade_id,
-              lebar_greige: soItem.lebar,
+              lebar: soItem.lebar ?? "0.00",
               gramasi: soItem.gramasi,
               warna_id: soItem.warna_id ?? null,
               // Field keterangan warna
@@ -151,9 +197,9 @@ export default function SalesOrderForm() {
               meter: soItem.meter_total ?? "0.00",
               yard: soItem.yard_total ?? "0.00",
               kilogram: soItem.kilogram_total ?? "0.00",
-              harga: soItem.harga ?? "0.00",
-              subtotal: subtotal,
-              subtotalFormatted: subtotal > 0 ? formatIDR(subtotal) : "",
+              harga: hargaNum ?? "0.00",
+              subtotal,
+              subtotalFormatted: subtotal > 0 ? formatMoney(subtotal) : "",
           };
       });
 
@@ -184,6 +230,8 @@ export default function SalesOrderForm() {
 
     try {
       const res = await getSalesContracts(id, user.token);
+
+      //console.log("Data SC: ", JSON.stringify(res, null, 2));
 
       const custDetail = res.contract || "";
       const existingItems = form().items || [];
@@ -330,7 +378,7 @@ export default function SalesOrderForm() {
       sc_item_id: item.sc_item_id ?? null,
       fabric_id: item.fabric_id ?? null,
       grade_id: item.grade_id ?? "",
-      lebar_greige: item.lebar_greige ?? "",
+      lebar: item.lebar ?? 0,
       warna_id: item.warna_id ?? "",
       // Field keterangan warna
       keterangan_warna: item.keterangan_warna ?? "",
@@ -338,9 +386,9 @@ export default function SalesOrderForm() {
       meter: item.meter ?? 0,
       yard: item.yard ?? 0,
       kilogram: item.kilogram ?? 0,
-      harga: item.harga ?? "",
-      subtotal: item.subtotal ?? "",
-      subtotalFormatted: item.subtotal > 0 ? formatIDR(item.subtotal) : "",
+      harga: item.harga ? parseFloat(item.harga) : 0,
+      subtotal: item.subtotal ?? 0,
+      subtotalFormatted: item.subtotal > 0 ? formatMoney(item.subtotal) : "",
     }));
 
     setForm({
@@ -398,7 +446,7 @@ export default function SalesOrderForm() {
         sc_item_id: lastItem.sc_item_id ?? lastItem.id ?? null,
         fabric_id: lastItem.fabric_id ?? null,
         grade_id: lastItem.grade_id ?? "",
-        lebar_greige: lastItem.lebar_greige ?? "",
+        lebar: lastItem.lebar ?? 0,
         gramasi: lastItem.gramasi ?? "",
         // Field keterangan warna
         keterangan_warna: "",
@@ -516,7 +564,7 @@ export default function SalesOrderForm() {
 
       const subtotal = qty * harga;
       item.subtotal = subtotal;
-      item.subtotalFormatted = formatIDR(subtotal);
+      item.subtotalFormatted = formatMoney(subtotal);
 
       items[index] = item;
       return { ...prev, items };
@@ -884,8 +932,8 @@ export default function SalesOrderForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            disabled={isView}
-            classList={{ "bg-gray-200" : isView }}
+            disabled={!canEditKeterangan()}
+            classList={{ "bg-gray-200": !canEditKeterangan() }}
           ></textarea>
         </div>
 
@@ -939,11 +987,17 @@ export default function SalesOrderForm() {
           <label class="block mb-1 font-medium">Tambah Item dari SC</label>
           <select
             class="border p-2 rounded"
+            disabled={isAddFromSCDisabled()}
+            classList={{
+              "bg-gray-200": isAddFromSCDisabled(),
+              "cursor-not-allowed": isAddFromSCDisabled(),
+            }}
             onChange={(e) => {
               const selectedId = parseInt(e.target.value);
               const scItem = availableSCItems().find(
                 (si) => si.id === selectedId
               );
+              
               if (scItem) {
                 setForm((prev) => ({
                   ...prev,
@@ -962,7 +1016,7 @@ export default function SalesOrderForm() {
                       sc_item_id: scItem.id,
                       fabric_id: scItem.kain_id,
                       grade_id: scItem.grade_id,
-                      lebar_greige: scItem.lebar,
+                      lebar: scItem.lebar,
                       gramasi: scItem.gramasi,
                       harga: scItem.harga,
                       meter: null,
@@ -1010,7 +1064,7 @@ export default function SalesOrderForm() {
               <th class="border p-2 w-[2%]">#</th>
               <th class="border p-2 w-[16%]">Jenis Kain</th>
               <th class="border p-2 w-[4%]">Grade Kain</th>
-              <th class="border p-2 w-[7%]">Lebar Finish</th>
+              <th class="border p-2 w-[7%]">Lebar</th>
               <th class="border p-2 w-[12%]">Warna</th>
               <th class="border p-2 w-[18%]">Keterangan Warna</th>
               <th class="border p-2 w-[7%]">Gramasi</th>
@@ -1049,7 +1103,7 @@ export default function SalesOrderForm() {
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200 text-right"
-                      value={formatNumber(item.lebar_greige, 2)}
+                      value={formatNumber(item.lebar, 2)}
                       readOnly
                     />
                   </td>
@@ -1068,8 +1122,8 @@ export default function SalesOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.keterangan_warna ?? ""}
                       onBlur={(e) => handleItemChange(i(), "keterangan_warna", e.target.value)}
-                      disabled={isView}
-                      classList={{ "bg-gray-200": isView }}
+                      disabled={!canEditKeteranganWarna()}
+                      classList={{ "bg-gray-200": !canEditKeteranganWarna() }}
                       placeholder="Keterangan warna..."
                     />
                   </td>
@@ -1081,49 +1135,62 @@ export default function SalesOrderForm() {
                       readOnly
                     />
                   </td>
-                  <td class="border p-2">
-                    <Show when={parseInt(form().satuan_unit_id) === 1}>
+                  <Show when={parseInt(form().satuan_unit_id) === 1}>
+                    <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
-                        class="border p-1 rounded w-full text-right"
-                        readOnly={isView}
+                        class="border p-1 rounded w-48"
+                        readOnly={isView || !canEditQty() || parseInt(form().satuan_unit_id) === 2}
+                        classList={{ "bg-gray-200": isView || !canEditQty() || parseInt(form().satuan_unit_id) === 2 }}
                         value={formatNumber(item.meter)}
-                        onBlur={(e) => handleItemChange(i(), "meter", e.target.value)}
-                        disabled={isView}
-                        classList={{ "bg-gray-200": isView }}
+                        onBlur={(e) => {
+                          if (parseInt(form().satuan_unit_id) === 1 && canEditQty()) {
+                            handleItemChange(i(), "meter", e.target.value);
+                          }
+                        }}
                       />
-                    </Show>
-                    <Show when={parseInt(form().satuan_unit_id) === 2}>
+                    </td>
+                  </Show>
+                  <Show when={parseInt(form().satuan_unit_id) === 2}>
+                    <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
-                        class="border p-1 rounded w-full text-right"
-                        readOnly={isView}
+                        class="border p-1 rounded w-48"
+                        readOnly={isView || !canEditQty() || parseInt(form().satuan_unit_id) === 1}
+                        classList={{ "bg-gray-200": isView || !canEditQty() || parseInt(form().satuan_unit_id) === 1 }}
                         value={formatNumber(item.yard)}
-                        onBlur={(e) => handleItemChange(i(), "yard", e.target.value)}
-                        disabled={isView}
-                        classList={{ "bg-gray-200": isView }}
+                        onBlur={(e) => {
+                          if (parseInt(form().satuan_unit_id) === 2 && canEditQty()) {
+                            handleItemChange(i(), "yard", e.target.value);
+                          }
+                        }}
                       />
-                    </Show>
-                    <Show when={parseInt(form().satuan_unit_id) === 3}>
+                    </td>
+                  </Show>
+                  <Show when={parseInt(form().satuan_unit_id) === 3}>
+                    <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
-                        class="border p-1 rounded w-full text-right"
-                        readOnly={isView}
+                        class="border p-1 rounded w-48"
+                        readOnly={isView || !canEditQty()}
+                        classList={{ "bg-gray-200": isView || !canEditQty() }}
                         value={formatNumber(item.kilogram)}
-                        onBlur={(e) => handleItemChange(i(), "kilogram", e.target.value)}
-                        disabled={isView}
-                        classList={{ "bg-gray-200": isView }}
+                        onBlur={(e) => {
+                          if (canEditQty()) {
+                            handleItemChange(i(), "kilogram", e.target.value);
+                          }
+                        }}
                       />
-                    </Show>
-                  </td>
+                    </td>
+                  </Show>
                   <td class="border p-2 text-right">
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200 text-right"
-                      value={formatIDR(item.harga)}
+                      value={formatMoney(item.harga)}
                       readOnly
                     />
                   </td>
@@ -1131,7 +1198,7 @@ export default function SalesOrderForm() {
                     <input
                       type="text"
                       class="border p-1 rounded w-full bg-gray-200 text-right"
-                      value={item.subtotalFormatted ?? ""}
+                      value={item.subtotalFormatted ?? formatMoney(item.subtotal)}
                       readOnly
                     />
                   </td>
@@ -1152,7 +1219,7 @@ export default function SalesOrderForm() {
           <tfoot>
             <tr class="font-bold bg-gray-100">
               <td colSpan="7" class="text-right p-2">TOTAL</td>
-              <td class="border p-2 text-right">
+              <td class="border p-2 text-left">
                 <Show when={parseInt(form().satuan_unit_id) === 1}>
                   {formatNumber(totalMeter())}
                 </Show>
@@ -1164,7 +1231,7 @@ export default function SalesOrderForm() {
                 </Show>
               </td>
               <td></td>
-              <td class="border p-2">{formatIDR(totalAll())}</td>
+              <td class="border p-2">{formatMoney(totalAll())}</td>
               <td></td>
             </tr>
           </tfoot>
