@@ -89,7 +89,7 @@ export default function BGDeliveryNoteList() {
     try {
       const result = await getAllBGDeliveryNotes(tok);
 
-      console.log("Data All SP BG: ", JSON.stringify(result, null, 2))
+      //console.log("Data All SP BG: ", JSON.stringify(result, null, 2))
 
       if (result && Array.isArray(result.suratJalans)) {
         const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
