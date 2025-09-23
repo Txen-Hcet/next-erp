@@ -28,8 +28,8 @@ export default function SalesOrderList() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus sales contract?",
-      text: `Apakah kamu yakin ingin menghapus sales contract dengan ID ${id}?`,
+      title: "Hapus Sales Order?",
+      text: `Apakah kamu yakin ingin menghapus Sales Order dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -44,7 +44,7 @@ export default function SalesOrderList() {
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data sales order dengan ID ${id} berhasil dihapus.`,
+          text: `Data Sales Order dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
