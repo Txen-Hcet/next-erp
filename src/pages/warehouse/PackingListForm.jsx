@@ -15,8 +15,9 @@ import {
   getSalesOrders,
 } from "../../utils/auth";
 import SearchableSalesOrderSelect from "../../components/SalesOrderSearch";
-import ColorDropdownSearch from "../../components/ColorDropdownSearch";
+import ColorDropdownSearch from "../../components/ColorDropdownSearch"; // tetap di-import untuk jaga struktur
 import { Printer, Trash2, XCircle } from "lucide-solid";
+import { jwtDecode } from "jwt-decode";
 
 // (2) Component Start
 export default function PackingListForm() {
@@ -25,6 +26,56 @@ export default function PackingListForm() {
   const isView = params.view === 'true';
   const navigate = useNavigate();
   const user = getUser();
+
+  // --- ROLE / STRICT EDIT (staff gudang) ---
+  const payload = (() => {
+    try { return user?.token ? jwtDecode(user.token) : null; }
+    catch { return null; }
+  })();
+
+  const [me, setMe] = createSignal(payload);
+
+  // Hanya aktif saat EDIT dan user adalah staff gudang
+  const isStrictWarehouseEdit = () => {
+    const u = me();
+    const rid = Number(u?.role?.id ?? u?.role_id ?? 0);
+    const rname = String(u?.role?.name ?? u?.role_name ?? "").toLowerCase();
+    return isEdit && (rid === 13 || rname === "staff gudang");
+  };
+
+    // --- STRICT helpers (per-roll / per-row) ---
+  const isExistingRoll = (roll) => !!roll?.roll_id;
+
+  // Qty input per roll: lock kalau existing & strict edit
+  const isQtyDisabled = (roll) => {
+    if (isView) return true;
+    if (!isEdit) return false;
+    if (!isStrictWarehouseEdit()) return false;
+    return isExistingRoll(roll);
+  };
+
+  // Row-level (BAL/LOT) boleh di-edit pada strict edit
+  // hanya jika di baris itu ADA roll BARU (tanpa roll_id)
+  const rowHasNewRoll = (chunk /* array of {roll, index} */) =>
+    (chunk || []).some((rc) => !isExistingRoll(rc.roll));
+
+  const rowFieldDisabled = (chunk) => {
+    if (isView) return true;
+    if (!isEdit) return false;
+    if (!isStrictWarehouseEdit()) return false;
+    return !rowHasNewRoll(chunk); // true => disable
+  };
+
+  // Utility untuk menentukan disabled/hide
+  // type: 'roll-qty' | 'add-roll' | 'non-roll'
+  const isDisabled = (type) => {
+    if (isView) return true;           // view selalu terkunci
+    if (!isEdit) return false;         // CREATE: bebas edit
+    if (!isStrictWarehouseEdit()) return false;  // EDIT non-strict: bebas edit
+
+    // EDIT strict (staff gudang): hanya boleh isi qty roll & tambah roll
+    return !(type === "roll-qty" || type === "add-roll");
+  };
 
   const [salesOrderList, setSalesOrderList] = createSignal([]);
   const [openStates, setOpenStates] = createSignal([]);
@@ -59,8 +110,6 @@ export default function PackingListForm() {
     if (isEdit) {
       const res = await getPackingLists(params.id, user?.token);
       const packingList = res?.order;
-
-      //console.log("Data PL: ", JSON.stringify(packingList, null, 2));
 
       if (!packingList) return;
 
@@ -171,19 +220,28 @@ export default function PackingListForm() {
   const handleSalesOrderChange = async (selectedSO) => {
     if (!selectedSO) return;
 
+    // reset semua group & state pendukung SETIAP kali SO berubah
+    setForm(prev => ({ ...prev, itemGroups: [] }));
+    setOpenStates([]);          // tutup semua accordion/row state lama
+    setGroupRollCounts([]);     // reset input jumlah roll per group
+    setSoColors([]);            // akan diisi ulang dari SO baru
+
     let selectedOrder;
 
     if (isEdit) {
-      const res = await getSalesOrders(selectedSO, user?.token); // selectedSO = so_id (number)
+      // selectedSO = so_id (number) pada mode edit
+      const res = await getSalesOrders(selectedSO, user?.token);
       selectedOrder = res?.order;
 
-      setForm({
-        ...form(),
+      setForm(prev => ({
+        ...prev,
+        sales_order_id: selectedSO,
         sales_order_items: selectedOrder,
         satuan_unit: selectedOrder?.satuan_unit || "",
-      });
+      }));
     } else {
-      const res = await getSalesOrders(selectedSO.id, user?.token); // selectedSO = object SO
+      // selectedSO = object SO pada mode create
+      const res = await getSalesOrders(selectedSO.id, user?.token);
       selectedOrder = res?.order;
 
       const soTypeLetter = (selectedSO.no_so || "").split("/")[1];
@@ -193,20 +251,20 @@ export default function PackingListForm() {
 
       const generatedNoPL = await generatePackingListNumber(typeValue, ppnValue);
 
-      setForm({
-        ...form(),
+      setForm(prev => ({
+        ...prev,
         sales_order_id: selectedSO.id,
         type: typeValue,
         no_pl: generatedNoPL,
         sales_order_items: selectedOrder,
         satuan_unit: selectedOrder?.satuan_unit || "",
-      });
+        itemGroups: [], // PASTIKAN kosong saat ganti SO
+      }));
     }
 
-    // === build daftar warna dari selectedOrder ===
+    // bangun daftar warna dari SO baru
     const items = selectedOrder?.items || [];
     const colorMap = new Map();
-
     items.forEach((it) => {
       const id =
         it.warna_id ?? it.color_id ?? it.warna?.id ?? it.col_id ?? it.col ?? null;
@@ -219,16 +277,10 @@ export default function PackingListForm() {
         it.color_desc ??
         it.warna_kain ??
         "";
-
       if (id != null) {
-        colorMap.set(String(id), {
-          id,
-          kode: String(kode || ""),
-          deskripsi: String(deskripsi || ""),
-        });
+        colorMap.set(String(id), { id, kode: String(kode || ""), deskripsi: String(deskripsi || "") });
       }
     });
-
     setSoColors(Array.from(colorMap.values()));
   };
 
@@ -251,14 +303,80 @@ export default function PackingListForm() {
     return `PL/${type}/${ppnType}/${mmyy}-${nextNum}`;
   };
 
+  // ==========================
+  // === Perubahan utama:  ====
+  // ==========================
+
+  // helpers label (untuk tampil read-only)
+  const colorLabel = (id) => {
+    if (id == null || id === "") return "";
+    const found = (soColors() || []).find(c => String(c.id) === String(id));
+    if (!found) return "";
+    const code = found.kode ? `${found.kode}` : "";
+    const desc = found.deskripsi ? ` | ${found.deskripsi}` : "";
+    return `${code}${desc}`.trim();
+  };
+
+  const itemLabel = (soItemId) => {
+    const it = (form().sales_order_items?.items || []).find(x => String(x.id) === String(soItemId));
+    if (!it) return "";
+    return `${it.corak_kain} | ${it.konstruksi_kain}`;
+  };
+
+  // buat item group dari item SO (col & item terkunci)
+  const soItemToGroup = (soItem) => ({
+    sales_order_item_id: soItem.id,
+    item: soItem.id,
+    col: (
+      soItem.warna_id ?? soItem.color_id ??
+      soItem.warna?.id ?? soItem.col_id ?? soItem.col ?? ""
+    ),
+    meter_total: 0,
+    yard_total: 0,
+    kilogram_total: null,
+    rolls: [
+      {
+        row_num: 1,
+        col_num: 1,
+        col: (
+          soItem.warna_id ?? soItem.color_id ??
+          soItem.warna?.id ?? soItem.col_id ?? soItem.col ?? ""
+        ),
+        item: soItem.id,
+        meter: "",
+        yard: "",
+        kilogram: null,
+        lot: null,
+        no_bal: null,
+      },
+    ],
+  });
+
+  // tombol untuk menambah semua group dari SO
+  const addGroupsFromSO = () => {
+    const items = form().sales_order_items?.items || [];
+    if (!items.length) return;
+
+    setForm(prev => ({
+      ...prev,
+      itemGroups: [
+        ...prev.itemGroups,
+        ...items.map(soItem => soItemToGroup(soItem)),
+      ],
+    }));
+  };
+
+  // ==========================
+
   const addItemGroup = () => {
+    // tidak dipakai dari UI, tetap dipertahankan demi struktur
     setForm((prev) => ({
       ...prev,
       itemGroups: [
         ...prev.itemGroups,
         {
           sales_order_item_id: "",
-          col: "", // col untuk group
+          col: "",
           meter_total: 0,
           yard_total: 0,
           kilogram_total: null,
@@ -307,8 +425,8 @@ export default function PackingListForm() {
         ...roll,
         row_num: Math.floor(index / MAX_COL_PER_ROW()) + 1,
         col_num: (index % MAX_COL_PER_ROW()) + 1,
-        yard: (meterValue * 1.093613).toFixed(2),
-        kilogram: roll.kilogram || null,
+        // yard: (meterValue * 1.093613).toFixed(2),
+        // kilogram: roll.kilogram || null,
       };
     });
   };
@@ -345,8 +463,8 @@ export default function PackingListForm() {
       };
 
       const newRolls = Array.from({ length: count }, () => ({
-        col: lastRoll.col || "",
-        item: lastRoll.item || "",
+        col: lastRoll.col || group.col || "",
+        item: lastRoll.item || group.item || "",
         meter: lastRoll.meter || "",
         yard: lastRoll.yard || "",
         lot: lastRoll.lot ?? null,
@@ -355,7 +473,7 @@ export default function PackingListForm() {
 
       copy[groupIndex] = {
         ...group,
-        rolls: [...group.rolls, ...newRolls],
+        rolls: reindexRolls([...group.rolls, ...newRolls]),
       };
 
       return { ...prev, itemGroups: copy };
@@ -365,76 +483,97 @@ export default function PackingListForm() {
   const removeRoll = (groupIndex, rollIndex) => {
     setForm((prev) => {
       const copy = [...prev.itemGroups];
-      const group = copy[groupIndex];
 
+      // STRICT: kalau target roll existing, batalkan
+      const target = copy?.[groupIndex]?.rolls?.[rollIndex];
+      if (isEdit && isStrictWarehouseEdit() && target?.roll_id) {
+        return prev;
+      }
+
+      const group = copy[groupIndex];
       if (!group || !Array.isArray(group.rolls)) return prev;
 
       const updatedRolls = [...group.rolls];
       updatedRolls.splice(rollIndex, 1);
 
-      // hitung ulang total hanya dari roll yang punya qty
       const meter_total = updatedRolls.reduce((sum, r) => sum + (hasQty(r) ? Number(r.meter || 0) : 0), 0);
       const yard_total  = updatedRolls.reduce((s, r) => s + (hasQty(r) ? Number(r.yard  || 0) : 0), 0);
 
-      copy[groupIndex] = { ...group, rolls: updatedRolls, meter_total, yard_total };
-
+      copy[groupIndex] = { ...group, rolls: reindexRolls(updatedRolls), meter_total, yard_total };
       return { ...prev, itemGroups: copy };
     });
   };
 
   const handleRollChange = (groupIndex, rollIndex, field, value) => {
+    if (field === "col" || field === "item") return;
+
     setForm((prev) => {
-      const newGroups = [...prev.itemGroups];
-      const targetGroup = { ...newGroups[groupIndex] };
-      let newRolls = [...targetGroup.rolls];
-      const updatedRoll = { ...newRolls[rollIndex] };
+      const groups = [...prev.itemGroups];
+      const g = { ...groups[groupIndex] };
+      let rolls = [...g.rolls];
+      const r = { ...rolls[rollIndex] };
 
       if (field === "meter" || field === "yard") {
-        const numericValue = parseNumber(value);
+        // normalisasi angka desimal lokal
+        const numeric = (() => {
+          if (typeof value !== "string") return Number(value) || 0;
+          const cleaned = value.replace(/[^\d,.\-]/g, "").replace(",", ".");
+          return parseFloat(cleaned) || 0;
+        })();
 
-        // kalau <= 0 → treat sebagai kosong (tidak dihitung PCS)
-        if (!numericValue || numericValue <= 0) {
-          updatedRoll.meter = "";
-          updatedRoll.yard  = "";
+        if (!numeric || numeric <= 0) {
+          // 0 atau kosong -> set null agar tidak dihitung PCS
+          r.meter = null;
+          r.yard  = null;
         } else {
           if (form().satuan_unit === "Yard") {
-            updatedRoll.yard  = numericValue;
-            updatedRoll.meter = numericValue * 0.9144;
+            r.yard  = numeric;
+            r.meter = numeric * 0.9144;
           } else {
-            updatedRoll.meter = numericValue;
-            updatedRoll.yard  = numericValue * 1.093613;
+            r.meter = numeric;
+            r.yard  = numeric * 1.093613;
           }
         }
-        newRolls[rollIndex] = updatedRoll;
+        rolls[rollIndex] = r;
 
       } else if (field === "no_bal") {
-        // propagasi ke seluruh roll di baris yang sama
-        const rowNum = updatedRoll.row_num ?? Math.floor(rollIndex / MAX_COL_PER_ROW()) + 1;
+        const rowNum = r.row_num ?? Math.floor(rollIndex / MAX_COL_PER_ROW()) + 1;
         const v = value === "" ? null : Number(value);
-        newRolls = newRolls.map((r, idx) => {
-          const rn = r.row_num ?? Math.floor(idx / MAX_COL_PER_ROW()) + 1;
-          return rn === rowNum ? { ...r, no_bal: v } : r;
+        rolls = rolls.map((x, idx) => {
+          const rn = x.row_num ?? Math.floor(idx / MAX_COL_PER_ROW()) + 1;
+          if (rn !== rowNum) return x;
+          // STRICT: kalau existing & strict edit, JANGAN diubah
+          if (isEdit && isStrictWarehouseEdit() && x.roll_id) return x;
+          return { ...x, no_bal: v };
         });
+
       } else if (field === "lot") {
-        // LOT berlaku untuk seluruh roll dalam baris yang sama
-        const rowNum = updatedRoll.row_num ?? Math.floor(rollIndex / MAX_COL_PER_ROW()) + 1;
+        const rowNum = r.row_num ?? Math.floor(rollIndex / MAX_COL_PER_ROW()) + 1;
         const v = value === "" ? null : Number(value);
-        newRolls = newRolls.map((r, idx) => {
-          const rn = r.row_num ?? Math.floor(idx / MAX_COL_PER_ROW()) + 1;
-          return rn === rowNum ? { ...r, lot: v } : r;
+        rolls = rolls.map((x, idx) => {
+          const rn = x.row_num ?? Math.floor(idx / MAX_COL_PER_ROW()) + 1;
+          if (rn !== rowNum) return x;
+          // STRICT: kalau existing & strict edit, JANGAN diubah
+          if (isEdit && isStrictWarehouseEdit() && x.roll_id) return x;
+          return { ...x, lot: v };
         });
+
+
       } else {
-        updatedRoll[field] = value;
-        newRolls[rollIndex] = updatedRoll;
+        r[field] = value;
+        rolls[rollIndex] = r;
       }
 
-      // hitung subtotal hanya dari roll yang punya qty
-      targetGroup.meter_total = newRolls.reduce((sum, r) => sum + (hasQty(r) ? Number(r.meter || 0) : 0), 0);
-      targetGroup.yard_total  = newRolls.reduce((s, r) => s + (hasQty(r) ? Number(r.yard  || 0) : 0), 0);
+      // subtotal hanya dari roll yang punya qty > 0
+      const meter_total = rolls.reduce((s, x) => s + ((Number(x?.meter) || 0) > 0 ? Number(x.meter) : 0), 0);
+      const yard_total  = rolls.reduce((s, x) => s + ((Number(x?.yard)  || 0) > 0 ? Number(x.yard)  : 0), 0);
 
-      targetGroup.rolls = newRolls;
-      newGroups[groupIndex] = targetGroup;
-      return { ...prev, itemGroups: newGroups };
+      g.rolls = rolls;
+      g.meter_total = meter_total;
+      g.yard_total  = yard_total;
+
+      groups[groupIndex] = g;
+      return { ...prev, itemGroups: groups };
     });
   };
 
@@ -443,43 +582,42 @@ export default function PackingListForm() {
 
     try {
       if (isEdit) {
+        // EDIT: kirim SEMUA roll, yang kosong -> 0
         const payload = {
           no_pl: form().no_pl,
           so_id: Number(form().sales_order_id),
           keterangan: form().keterangan,
           items: form().itemGroups.map((g) => {
-            // buang roll tanpa qty
-            const filtered = g.rolls.filter(hasQty);
-            const rollsWithIndex = filtered.map((r, idx) => {
+            const rollsWithIndex = g.rolls.map((r, idx) => {
               const row_num = Math.floor(idx / MAX_COL_PER_ROW()) + 1;
               const col_num = (idx % MAX_COL_PER_ROW()) + 1;
+
+              const meterVal = Number(r.meter) || 0;
+              const yardVal  = Number(r.yard)  || (meterVal > 0 ? meterVal * 1.093613 : 0);
 
               const roll = {
                 row_num,
                 col_num,
-                meter: Number(r.meter) || 0,
-                yard: parseFloat(r.yard) || (Number(r.meter) || 0) * 1.093613,
+                meter: meterVal,
+                yard: yardVal,
                 kilogram: r.kilogram ? Number(r.kilogram) : null,
-                // Field Bal & Lot
                 lot: r.lot !== undefined && r.lot !== "" ? Number(r.lot) : null,
                 no_bal: r.no_bal !== undefined && r.no_bal !== "" ? Number(r.no_bal) : null,
               };
-
-              if (r.roll_id) {
-                roll.id = r.roll_id; // <-- pakai ID DB
-              }
+              if (r.roll_id) roll.id = r.roll_id;
               return roll;
             });
 
-            const meter_total = rollsWithIndex.reduce((sum, r) => sum + r.meter, 0);
-            const yard_total = rollsWithIndex.reduce((sum, r) => sum + r.yard, 0);
+            const meter_total = rollsWithIndex.reduce((sum, r) => sum + (r.meter > 0 ? r.meter : 0), 0);
+            const yard_total  = rollsWithIndex.reduce((sum, r) => sum + (r.yard  > 0 ? r.yard  : 0), 0);
             const kilogram_total =
               rollsWithIndex.reduce((sum, r) => sum + (r.kilogram || 0), 0) || null;
 
+            const first = g.rolls[0] || {};
             return {
               id: g.id,
-              so_item_id: Number(g.item || filtered[0]?.item || 0),
-              col: Number(g.col || filtered[0]?.col || 0),
+              so_item_id: Number(g.item || first.item || 0),
+              col: Number(g.col || first.col || 0),
               meter_total,
               yard_total,
               kilogram_total,
@@ -489,43 +627,40 @@ export default function PackingListForm() {
         };
         await updateDataPackingList(user?.token, params.id, payload);
       } else {
+        // CREATE: juga kirim SEMUA roll, yang kosong -> 0
         const payload = {
-          type:
-            form().type === "D"
-              ? "domestik"
-              : form().type === "E"
-              ? "ekspor"
-              : "",
+          type: form().type === "D" ? "domestik" : form().type === "E" ? "ekspor" : "",
           sequence_number: form().sequence_number || null,
           so_id: Number(form().sales_order_id),
           keterangan: form().keterangan,
           items: form().itemGroups.map((g) => {
-            // buang roll tanpa qty
-            const filtered = g.rolls.filter(hasQty);
-            const rollsWithIndex = filtered.map((r, idx) => {
+            const rollsWithIndex = g.rolls.map((r, idx) => {
               const row_num = Math.floor(idx / MAX_COL_PER_ROW()) + 1;
               const col_num = (idx % MAX_COL_PER_ROW()) + 1;
+
+              const meterVal = Number(r.meter) || 0;
+              const yardVal  = Number(r.yard)  || (meterVal > 0 ? meterVal * 1.093613 : 0);
 
               return {
                 row_num,
                 col_num,
-                meter: Number(r.meter) || 0,
-                yard: parseFloat(r.yard) || (Number(r.meter) || 0) * 1.093613,
+                meter: meterVal,
+                yard: yardVal,
                 kilogram: r.kilogram ? Number(r.kilogram) : null,
-                // Field Bal & Lot
                 lot: r.lot !== undefined && r.lot !== "" ? Number(r.lot) : null,
                 no_bal: r.no_bal !== undefined && r.no_bal !== "" ? Number(r.no_bal) : null,
               };
             });
 
-            const meter_total = rollsWithIndex.reduce((sum, r) => sum + r.meter, 0);
-            const yard_total = rollsWithIndex.reduce((sum, r) => sum + r.yard, 0);
+            const meter_total = rollsWithIndex.reduce((sum, r) => sum + (r.meter > 0 ? r.meter : 0), 0);
+            const yard_total  = rollsWithIndex.reduce((sum, r) => sum + (r.yard  > 0 ? r.yard  : 0), 0);
             const kilogram_total =
               rollsWithIndex.reduce((sum, r) => sum + (r.kilogram || 0), 0) || null;
 
+            const first = g.rolls[0] || {};
             return {
-              so_item_id: Number(g.item || filtered[0]?.item || 0),
-              col: Number(g.col || filtered[0]?.col || 0),
+              so_item_id: Number(g.item || first.item || 0),
+              col: Number(g.col || first.col || 0),
               meter_total,
               yard_total,
               kilogram_total,
@@ -533,7 +668,6 @@ export default function PackingListForm() {
             };
           }),
         };
-        //console.log("Create PL: ", JSON.stringify(payload, null, 2));
         await createPackingList(user?.token, payload);
       }
 
@@ -586,14 +720,14 @@ export default function PackingListForm() {
   const renderColGroup = () => {
     const widths = [
       "3%",                 // No
-      BAL_PCT(),            // Bal (diperkecil saat ekspor)
-      COL_PCT(),            // Col (diperkecil saat ekspor)
+      BAL_PCT(),            // Bal
+      COL_PCT(),            // Col
       ITEM_PCT,             // Item
       LOT_PCT(),
       ...Array.from({ length: MAX_COL_PER_ROW() }, () => `${ROLL_COL_PX()}px`),
-      `${PCS_PX()}px`,      // TTL/PCS (diperlebar saat ekspor)
-      `${TOTAL_PX()}px`,    // TTL/MTR (diperlebar saat ekspor)
-      `${TOTAL_PX()}px`,    // TTL/YARD (diperlebar saat ekspor)
+      `${PCS_PX()}px`,      // TTL/PCS
+      `${TOTAL_PX()}px`,    // TTL/MTR
+      `${TOTAL_PX()}px`,    // TTL/YARD
     ];
 
     return (
@@ -677,8 +811,8 @@ export default function PackingListForm() {
               onInput={(e) =>
                 setForm({ ...form(), keterangan: e.target.value })
               }
-              disabled={isView}
-              classList={{ "bg-gray-200": isView }}
+              disabled={isDisabled('non-roll')}
+              classList={{ "bg-gray-200": isDisabled('non-roll') }}
             ></textarea>
           </div>
         </div>
@@ -716,14 +850,28 @@ export default function PackingListForm() {
           </div>
         </Show>
 
+        {/* Tombol global untuk menyalin SEMUA item dari SO */}
+        <div class="mt-3">
+          <button
+            type="button"
+            onClick={addGroupsFromSO}
+            class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700"
+            hidden={isView || isStrictWarehouseEdit()}
+          >
+            + Tambah Item Group
+          </button>
+        </div>
+
         <div>
           <h2 class="text-lg font-bold mt-6 mb-2">Item Groups</h2>
 
+          {/* Tombol per-group disembunyikan agar sumber group hanya dari SO */}
           <Show when={form().itemGroups.length === 0 && !isView}>
             <button
               type="button"
               onClick={() => addItemGroup()}
               class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
+              hidden={true}
             >
               + Tambah Item Group
             </button>
@@ -743,7 +891,7 @@ export default function PackingListForm() {
                       type="button"
                       onClick={() => addItemGroup()}
                       class="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 text-sm"
-                      hidden={isView}
+                      hidden={true} // ⬅️ sembunyikan tombol per-group
                       title="Tambah Item Group"
                     >
                       + Tambah Item Group
@@ -752,7 +900,7 @@ export default function PackingListForm() {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeItemGroup(i()); }}
                       class="text-red-600 hover:text-red-800 text-sm"
-                      hidden={isView}
+                      hidden={isView || isStrictWarehouseEdit()}
                       title="Hapus Group Ini"
                     >
                       <XCircle class="w-10 h-10" />
@@ -792,12 +940,17 @@ export default function PackingListForm() {
                     </thead>
                     <tbody>
                       <For each={chunkArrayWithIndex(group.rolls, MAX_COL_PER_ROW())}>
-                        {(rollChunk, chunkIndex) =>
-                          rollChunk.length > 0 && (
+                        {(rollChunk, chunkIndex) => {
+                          // <-- DI SINI taruh const-nya
+                          const disabledRow = rowFieldDisabled(rollChunk);
+
+                          return rollChunk.length > 0 && (
                             <tr>
                               <td class="border text-center align-top">
                                 {chunkIndex() === 0 ? i() + 1 : ""}
                               </td>
+
+                              {/* BAL */}
                               <td class="border p-1 align-middle">
                                 <input
                                   type="number"
@@ -806,55 +959,35 @@ export default function PackingListForm() {
                                   onBlur={(e) =>
                                     handleRollChange(i(), rollChunk[0].index, "no_bal", e.currentTarget.value)
                                   }
-                                  disabled={isView}
-                                  classList={{ "bg-gray-200": isView }}
+                                  disabled={disabledRow}
+                                  classList={{ "bg-gray-200": disabledRow }}
                                   placeholder="Input Bal..."
                                 />
                               </td>
-                              <td class="border p-1 align-top">
+
+                              {/* Col — read-only label */}
+                              <td class="border p-1 align-middle">
                                 {chunkIndex() === 0 ? (
-                                  <ColorDropdownSearch
-                                    colors={soColors}
-                                    item={{
-                                      warna_id: rollChunk[0]?.roll.col || group.col || ""
-                                    }}
-                                    disabled={isView}
-                                    onChange={(warnaId) => {
-                                      handleRollChange(i(), rollChunk[0].index, "col", warnaId);
-                                      setForm(prev => {
-                                        const copy = [...prev.itemGroups];
-                                        const g = { ...copy[i()] };
-                                        g.col = warnaId;
-                                        g.rolls = g.rolls.map((r) =>
-                                          (r.col == null || r.col === "" ? { ...r, col: warnaId } : r)
-                                        );
-                                        copy[i()] = g;
-                                        return { ...prev, itemGroups: copy };
-                                      });
-                                    }}
+                                  <input
+                                    type="text"
+                                    class="border p-1 rounded w-full bg-gray-200"
+                                    value={colorLabel(rollChunk[0]?.roll.col || group.col || "") || "-"}
+                                    readOnly
+                                    title={colorLabel(rollChunk[0]?.roll.col || group.col || "") || "-"}
                                   />
                                 ) : ("")}
                               </td>
 
-                              {/* ITEM */}
+                              {/* Item — read-only label */}
                               <td class="border p-1 align-middle">
                                 {chunkIndex() === 0 ? (
-                                  <select
-                                    class="w-full border rounded p-1"
-                                    value={rollChunk[0]?.roll.item || ""}
-                                    onInput={(e) => handleRollChange(i(), rollChunk[0].index, "item", e.currentTarget.value)}
-                                    disabled={isView}
-                                    classList={{ "bg-gray-200": isView }}
-                                  >
-                                    <option value="">Pilih Item</option>
-                                    <For each={form().sales_order_items?.items || []}>
-                                      {(item) => (
-                                        <option value={item.id}>
-                                          {item.corak_kain} | {item.konstruksi_kain}
-                                        </option>
-                                      )}
-                                    </For>
-                                  </select>
+                                  <input
+                                    type="text"
+                                    class="border p-1 rounded w-full bg-gray-200"
+                                    value={itemLabel(rollChunk[0]?.roll.item || group.item || "") || "-"}
+                                    readOnly
+                                    title={itemLabel(rollChunk[0]?.roll.item || group.item || "") || "-"}
+                                  />
                                 ) : ("")}
                               </td>
 
@@ -865,8 +998,8 @@ export default function PackingListForm() {
                                   class="border p-1 rounded w-full"
                                   value={rollChunk[0]?.roll.lot ?? ""}
                                   onBlur={(e) => handleRollChange(i(), rollChunk[0].index, "lot", e.currentTarget.value)}
-                                  disabled={isView}
-                                  classList={{ "bg-gray-200": isView }}
+                                  disabled={disabledRow}
+                                  classList={{ "bg-gray-200": disabledRow }}
                                   placeholder="Input Lot..."
                                 />
                               </td>
@@ -880,11 +1013,9 @@ export default function PackingListForm() {
                                           type="text"
                                           inputmode="decimal"
                                           class="border w-full text-right text-[11px] leading-5 px-1 pr-6 rounded-sm"
-                                          value={
-                                            form().satuan_unit === "Yard"
-                                              ? formatRollCellValue(r.roll.yard)
-                                              : formatRollCellValue(r.roll.meter)
-                                          }
+                                          value={ form().satuan_unit === "Yard"
+                                                    ? formatRollCellValue(r.roll.yard)
+                                                    : formatRollCellValue(r.roll.meter) }
                                           onBlur={(e) =>
                                             handleRollChange(
                                               i(),
@@ -893,14 +1024,14 @@ export default function PackingListForm() {
                                               e.currentTarget.value
                                             )
                                           }
-                                          disabled={isView}
-                                          classList={{ "bg-gray-200": isView }}
+                                          disabled={isQtyDisabled(r.roll)}
+                                          classList={{ "bg-gray-200": isQtyDisabled(r.roll) }}
                                         />
                                         <button
                                           type="button"
                                           class="absolute inset-y-0 right-0 px-1 flex items-center justify-center rounded-r-sm bg-red-500 text-white"
                                           onClick={() => removeRoll(i(), r.index)}
-                                          hidden={isView}
+                                          hidden={isView || (isEdit && isStrictWarehouseEdit() && !!r.roll.roll_id)}
                                           title="Hapus roll ini"
                                         >
                                           <Trash2 size={12} />
@@ -922,7 +1053,7 @@ export default function PackingListForm() {
                               </td>
                             </tr>
                           )
-                        }
+                        }}
                       </For>
 
                       <tr>
@@ -962,6 +1093,8 @@ export default function PackingListForm() {
                         });
                       }}
                       hidden={isView}
+                      disabled={isDisabled('add-roll')}
+                      classList={{ "bg-gray-200": isDisabled('add-roll') }}
                     />
                     <button
                       type="button"
@@ -977,6 +1110,7 @@ export default function PackingListForm() {
                       }}
                       class="bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700"
                       hidden={isView}
+                      disabled={isDisabled('add-roll')}
                     >
                       + Tambah
                     </button>
