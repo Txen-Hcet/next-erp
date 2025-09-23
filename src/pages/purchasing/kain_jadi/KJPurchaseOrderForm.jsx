@@ -67,6 +67,10 @@ export default function KJPurchaseOrderForm() {
   const canEditAll = () => !isView && !isStrictColorEdit();
   const canEditColorOnly = () => !isView && isStrictColorEdit();
 
+  const canEditKeteranganWarna = () => !isView && (!isEdit || !isStrictColorEdit());
+  const canEditKeterangan       = () => !isView && (!isEdit || !isStrictColorEdit());
+  const canEditQty              = () => !isView && (!isEdit || !isStrictColorEdit());
+
   const [form, setForm] = createSignal({
     jenis_po_id: "",
     sequence_number: "",
@@ -821,8 +825,8 @@ export default function KJPurchaseOrderForm() {
             class="w-full border p-2 rounded"
             value={form().keterangan}
             onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            disabled={!canEditAll()}
-            classList={{ "bg-gray-200": !canEditAll() }}
+            disabled={!canEditKeterangan()}
+            classList={{ "bg-gray-200": !canEditKeterangan() }}
           ></textarea>
         </div>
 
@@ -948,8 +952,8 @@ export default function KJPurchaseOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.keterangan_warna ?? ""}
                       onBlur={(e) => handleItemChange(i(), "keterangan_warna", e.target.value)}
-                      disabled={!canEditAll()}
-                      classList={{ "bg-gray-200": !canEditAll() }}
+                      disabled={!canEditKeteranganWarna()}
+                      classList={{ "bg-gray-200": !canEditKeteranganWarna() }}
                       placeholder="Keterangan warna..."
                     />
                   </td>
@@ -959,11 +963,11 @@ export default function KJPurchaseOrderForm() {
                         type="text"
                         inputmode="decimal"
                         class="border p-1 rounded w-48"
-                        readOnly={isView || isStrictColorEdit() || parseInt(form().satuan_unit_id) === 2}
-                        classList={{ "bg-gray-200": isView || isStrictColorEdit() || parseInt(form().satuan_unit_id) === 2 }}
+                        readOnly={isView || !canEditQty() || parseInt(form().satuan_unit_id) === 2}
+                        classList={{ "bg-gray-200": isView || !canEditQty() || parseInt(form().satuan_unit_id) === 2 }}
                         value={item.meter}
                         onBlur={(e) => {
-                          if (parseInt(form().satuan_unit_id) === 1 && !isStrictColorEdit()) {
+                          if (parseInt(form().satuan_unit_id) === 1 && canEditQty()) {
                             handleItemChange(i(), "meter", e.target.value);
                           }
                         }}
@@ -976,11 +980,11 @@ export default function KJPurchaseOrderForm() {
                         type="text"
                         inputmode="decimal"
                         class="border p-1 rounded w-48"
-                        readOnly={isView || isStrictColorEdit() || parseInt(form().satuan_unit_id) === 1}
-                        classList={{ "bg-gray-200": isView || isStrictColorEdit() || parseInt(form().satuan_unit_id) === 1 }}
+                        readOnly={isView || !canEditQty() || parseInt(form().satuan_unit_id) === 1}
+                        classList={{ "bg-gray-200": isView || !canEditQty() || parseInt(form().satuan_unit_id) === 1 }}
                         value={item.yard}
                         onBlur={(e) => {
-                          if (parseInt(form().satuan_unit_id) === 2 && !isStrictColorEdit()) {
+                          if (parseInt(form().satuan_unit_id) === 2 && canEditQty()) {
                             handleItemChange(i(), "yard", e.target.value);
                           }
                         }}
@@ -1013,16 +1017,30 @@ export default function KJPurchaseOrderForm() {
                     />
                   </td>
                   <td class="border p-2 text-center">
-                    {!item.readOnly && !isStrictColorEdit() && (
-                      <button
-                        type="button"
-                        class="text-red-600 hover:text-red-800 text-xs"
-                        onClick={() => removeItem(i())}
-                        disabled={isView}
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    )}
+                    {(() => {
+                      const disabledDelete =
+                        isView || (isEdit && isStrictColorEdit());
+
+                      return (
+                        <button
+                          type="button"
+                          class="text-red-600 hover:text-red-800 text-xs disabled:text-gray-400 disabled:cursor-not-allowed"
+                          onClick={() => {
+                            if (!disabledDelete) removeItem(i());
+                          }}
+                          disabled={disabledDelete}
+                          title={
+                            disabledDelete
+                              ? isView
+                                ? "Tidak bisa hapus pada tampilan View"
+                                : "Strict edit: hanya boleh ubah warna"
+                              : "Hapus baris"
+                          }
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      );
+                    })()}
                   </td>
                 </tr>
               )}
