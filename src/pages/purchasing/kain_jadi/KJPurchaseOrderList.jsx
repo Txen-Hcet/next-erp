@@ -18,6 +18,13 @@ export default function KJPurchaseOrderList() {
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
+  const u = getUser();
+  const isStrictColorEditor = () => {
+    const rid = Number(u?.role_id ?? u?.role?.id ?? 0);
+    const rname = String(u?.role_name ?? u?.role?.name ?? "").toLowerCase();
+    return rid === 12 || rname === "staff marketing 2";
+  };
+
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(packingOrders().length / pageSize));
   });
@@ -265,12 +272,7 @@ export default function KJPurchaseOrderList() {
                     <Eye size={25} />
                   </button>
                   {hasPermission("edit_purchase_finish_order") && (
-                    <button
-                      class="text-blue-600 hover:underline"
-                      onClick={() =>
-                        navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)
-                      }
-                    >
+                    <button class="text-blue-600" onClick={() => navigate(`/kainjadi-purchaseorder/form?id=${po.id}`)}>
                       <Edit size={25} />
                     </button>
                   )}
