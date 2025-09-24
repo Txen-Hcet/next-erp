@@ -105,10 +105,18 @@ import SalesInvoicePrint from "./utils/sell/SalesInvoiceDummyPrint";
 import JBInvoiceList from "./pages/invoice/JBInvoiceList";
 import JBInvoicePrint from "./utils/buy/jual_beli/JBInvoiceDummyPrint";
 // RETUR
+import ReturGreigeList from "./pages/retur/ReturGreigeList";
+import ReturOrderCelupList from "./pages/retur/ReturOrderCelupList";
+import ReturKainJadiList from "./pages/retur/ReturKainJadiList";
 import ReturJualBeliList from "./pages/retur/ReturJualBeliList";
+import ReturSalesList from "./pages/retur/ReturSalesList";
 
 // RETUR PRINT
+import ReturGreigePrint from "./utils/retur/ReturGreigeDummyPrint";
+import ReturOrderCelupPrint from "./utils/retur/ReturOrderCelupDummyPrint";
+import ReturKainJadiPrint from "./utils/retur/ReturKainJadiDummyPrint";
 import ReturJualBeliPrint from "./utils/retur/ReturJualBeliDummyPrint";
+import ReturSalesPrint from "./utils/retur/ReturSalesDummyPrint";
 
 // FINANCE
 import FinanceMainLayout from "./layouts/FinanceMainLayout";
@@ -326,11 +334,19 @@ function App() {
       {/* Invoice */}
 
       {/* RETUR */}
+      <Route path="/retur-greige" component={ReturGreigeList}/>
+      <Route path="/retur-ordercelup" component={ReturOrderCelupList}/>
+      <Route path="/retur-kainjadi" component={ReturKainJadiList}/>
       <Route path="/retur-jualbeli" component={ReturJualBeliList}/>
+      <Route path="/retur-sales" component={ReturSalesList}/>
       {/* RETUR */}
 
       {/* PRINT RETUR */}
+      <Route path="/print/retur-greige" component={ReturGreigePrint}/>
+      <Route path="/print/retur-ordercelup" component={ReturOrderCelupPrint}/>
+      <Route path="/print/retur-kainjadi" component={ReturKainJadiPrint}/>
       <Route path="/print/retur-jualbeli" component={ReturJualBeliPrint}/>
+      <Route path="/print/retur-sales" component={ReturSalesPrint}/>
       {/* PRINT RETUR */}
 
       {/* MASTER DATA */}
