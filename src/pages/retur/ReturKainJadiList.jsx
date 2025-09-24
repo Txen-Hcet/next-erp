@@ -2,17 +2,16 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllJBDeliveryNotes,
+  getAllKJDeliveryNotes,
+  getKJDeliveryNotes,
   getUser,
-  softDeleteJBDeliveryNote,
-  setReturnJB,
-  undoReturnJBItem,
-  getJBDeliveryNotes,
+  setReturFinish,
+  undoReturFinish,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye, Printer, RotateCcw, CheckCircle, XCircle } from "lucide-solid";
 
-export default function ReturJBList() {
+export default function ReturOrderCelupList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
@@ -26,46 +25,11 @@ export default function ReturJBList() {
     return packingOrders().slice(startIndex, startIndex + pageSize);
   };
 
-  const handleDelete = async (id) => {
-    const result = await Swal.fire({
-      title: "Hapus Retur Jual Beli?",
-      text: `Apakah kamu yakin ingin menghapus Retur Jual Beli dengan ID ${id}?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#aaa",
-      confirmButtonText: "Ya, hapus",
-      cancelButtonText: "Batal",
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await softDeleteJBDeliveryNote(id, tokUser?.token);
-        await Swal.fire({
-          title: "Terhapus!",
-          text: `Data Retur Jual Beli dengan ID ${id} berhasil dihapus.`,
-          icon: "success",
-          confirmButtonColor: "#6496df",
-        });
-        setPackingOrders(packingOrders().filter((s) => s.id !== id));
-      } catch (error) {
-        console.error(error);
-        Swal.fire({
-          title: "Gagal",
-          text: error.message || `Gagal menghapus data surat penerimaan jual beli dengan ID ${id}`,
-          icon: "error",
-          showConfirmButton: false,
-          timer: 1000,
-          timerProgressBar: true,
-        });
-      }
-    }
-  };
-
-  const handleGetAllDeliveryNotes = async (tok) => {
+  const handleGetAllData = async (tok) => {
     try {
-      const result = await getAllJBDeliveryNotes(tok);
-      //console.log("Data All SP JB: ", JSON.stringify(result, null, 2));
+      const result = await getAllKJDeliveryNotes(tok);
+      
+      //console.log("Data All SP KJ: ", JSON.stringify(result, null, 2));
 
       if (result && Array.isArray(result.suratJalans)) {
         const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
@@ -73,7 +37,7 @@ export default function ReturJBList() {
       } else if (result.status === 403) {
         await Swal.fire({
           title: "Tidak Ada Akses",
-          text: "Anda tidak memiliki izin untuk melihat Retur Jual Beli",
+          text: "Anda tidak memiliki izin untuk melihat Retur Pembelian Kain Jadi",
           icon: "warning",
           confirmButtonColor: "#6496df",
         });
@@ -81,7 +45,7 @@ export default function ReturJBList() {
       } else {
         Swal.fire({
           title: "Gagal",
-          text: result.message || "Gagal mengambil data Retur Jual Beli",
+          text: result.message || "Gagal mengambil data Retur Pembelian Kain Jadi",
           icon: "error",
           showConfirmButton: false,
           timer: 1000,
@@ -90,7 +54,7 @@ export default function ReturJBList() {
         setPackingOrders([]);
       }
     } catch (error) {
-      console.error("Gagal mengambil data Retur Jual Beli:", error);
+      console.error("Gagal mengambil data Retur Pembelian Kain Jadi:", error);
       setPackingOrders([]);
     }
   };
@@ -132,7 +96,7 @@ export default function ReturJBList() {
     // fallback kalau unit kosong/tidak dikenal
     const meter = sj.summary?.total_meter ?? 0;
     return `${fmt(meter)}`;
-  };  
+  }; 
 
   // ========= Handler Retur =========
   const handleSetReturned = async (sj) => {
@@ -147,21 +111,9 @@ export default function ReturJBList() {
       return;
     }
 
-    // ✅ VALIDASI BARU: wajib sudah dicetak
-    if (!sj.printed_at) {
-      Swal.fire({
-        title: "Belum Dicetak",
-        text: "Silakan cetak surat penerimaan terlebih dahulu sebelum set retur.",
-        icon: "info",
-        timer: 1400,
-        showConfirmButton: false,
-      });
-      return;
-    }
-
     const konfirm = await Swal.fire({
       title: "Konfirmasi Retur",
-      text: `Jadikan Retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok pada kontrak akan dikembalikan.`,
+      text: `Jadikan Retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok akan dikembalikan.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonText: "Ya, Retur",
@@ -182,8 +134,11 @@ export default function ReturJBList() {
         return;
       }
 
-      const itemIds = sj.items.map((it) => it.jbsj_item_id);
-      await setReturnJB(tokUser?.token, sj.id, itemIds);
+        const itemIds = sj.items
+            .map((it) => it.pfsj_item_id ?? it.id)
+            .filter((id) => id != null)
+            .map((id) => Number(id));
+      await setReturFinish(tokUser?.token, sj.id, itemIds);
 
       setPackingOrders((prev) =>
         prev.map((x) =>
@@ -229,7 +184,7 @@ export default function ReturJBList() {
 
     const konfirm = await Swal.fire({
       title: "Batalkan Retur?",
-      text: `Batalkan status retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok pada kontrak akan dikoreksi kembali.`,
+      text: `Batalkan status retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok akan dikoreksi kembali.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Ya, Batalkan",
@@ -250,8 +205,11 @@ export default function ReturJBList() {
         return;
       }
 
-      const itemIds = sj.items.map((it) => it.jbsj_item_id);
-      await undoReturnJBItem(tokUser?.token, sj.id, itemIds);
+      const itemIds = sj.items
+        .map((it) => it.pfsj_item_id ?? it.id)
+        .filter((id) => id != null)
+        .map((id) => Number(id));
+      await undoReturFinish(tokUser?.token, sj.id, itemIds);
 
       setPackingOrders((prev) =>
         prev.map((x) => (x.id === sj.id ? { ...x, returned_at: null, returned_by: null } : x))
@@ -288,7 +246,7 @@ export default function ReturJBList() {
 
     try {
       // Ambil detail SJ JB by id (supaya print lengkap)
-      const detail = await getJBDeliveryNotes(sj.id, tokUser?.token);
+      const detail = await getKJDeliveryNotes(sj.id, tokUser?.token);
       const suratJalan = detail?.suratJalan;
       if (!suratJalan) {
         Swal.fire("Gagal", "Data retur tidak ditemukan.", "error");
@@ -302,9 +260,10 @@ export default function ReturJBList() {
         no_sj_supplier: suratJalan.no_sj_supplier,
         created_at: suratJalan.created_at,
         tanggal_kirim: suratJalan.tanggal_kirim,
-        no_jb: suratJalan.no_jb,
+        no_po: suratJalan.no_po,
         supplier_name: suratJalan.supplier_name,
         supplier_alamat: suratJalan.supplier_alamat,
+        supplier_kirim_alamat: suratJalan.supplier_kirim_alamat,
         telepon: suratJalan.supllier_no_telp ?? suratJalan.supplier_no_telp ?? "0",
         satuan_unit_name: suratJalan.satuan_unit_name,
         keterangan: suratJalan.keterangan ?? "-",
@@ -315,7 +274,8 @@ export default function ReturJBList() {
           corak_kain: it.corak_kain,
           konstruksi_kain: it.konstruksi_kain,
           deskripsi_warna: it.deskripsi_warna ?? "-",  // mungkin tidak ada di list; backend detail biasanya ada
-          lebar_kain: it.lebar_kain ?? 0,
+          lebar_greige: it.lebar_greige ?? 0,
+          lebar_finish: it.lebar_finish ?? 0,
           gulung: it.gulung ?? 0,
           lot: it.lot ?? 0,
           meter_total: it.meter_total ?? 0,
@@ -332,10 +292,10 @@ export default function ReturJBList() {
       };
 
       // Kirim via hash (aman dari 431)
-      //console.log("Data SP JB untuk Print: ", JSON.stringify(printData, null, 2));
+      //console.log("Data SP Greige untuk Print: ", JSON.stringify(printData, null, 2));
 
       const encoded = encodeURIComponent(JSON.stringify(printData));
-      window.open(`/print/retur-jualbeli#${encoded}`, "_blank");
+      window.open(`/print/retur-kainjadi#${encoded}`, "_blank");
     } catch (e) {
       console.error(e);
       Swal.fire("Gagal", e?.message || "Tidak bisa memuat data print.", "error");
@@ -343,7 +303,7 @@ export default function ReturJBList() {
   };
 
   createEffect(() => {
-    if (tokUser?.token) handleGetAllDeliveryNotes(tokUser?.token);
+    if (tokUser?.token) handleGetAllData(tokUser?.token);
   });
 
   function formatTanggalIndo(tanggalString) {
@@ -389,7 +349,7 @@ export default function ReturJBList() {
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Retur Jual Beli</h1>
+        <h1 class="text-2xl font-bold">Retur Surat Penerimaan Kain Jadi</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           onClick={() => navigate("/jualbeli-deliverynote/form")}
@@ -405,7 +365,6 @@ export default function ReturJBList() {
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">No Surat Penerimaan</th>
-              <th class="py-2 px-2">Nama Customer</th>
               <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Total</th>
@@ -424,7 +383,6 @@ export default function ReturJBList() {
                 <tr class="border-b" key={sj.id}>
                   <td class="py-2 px-4">{(currentPage() - 1) * pageSize + (index + 1)}</td>
                   <td class="py-2 px-4">{sj.no_sj}</td>
-                  <td class="py-2 px-4">{sj.customer_name}</td>
                   <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
                   <td class="py-2 px-4">{sj.supplier_name}</td>
                   <td class="py-2 px-4">{totalCounter(sj)}</td>
@@ -434,33 +392,24 @@ export default function ReturJBList() {
                   <td class="py-2 px-4">{renderStatusRetur(sj)}</td>
 
                   {/* Aksi (tanpa print) */}
-                  <td class="py-2 px-4 space-x-2">
-                  {!sj.returned_at ? (
-                    <button
-                      class={`${
-                        sj.printed_at
-                          ? "text-emerald-600 hover:underline"
-                          : "text-gray-400 cursor-not-allowed"
-                      }`}
-                      onClick={() => sj.printed_at && handleSetReturned(sj)}
-                      disabled={!sj.printed_at}                                  
-                      title={
-                        sj.printed_at
-                          ? "Set Retur"
-                          : "Belum dicetak — tidak bisa set retur"
-                      }
-                    >
-                      ⤿ Retur
-                    </button>
-                  ) : (
-                    <button
-                      class="text-amber-600 hover:underline"
-                      onClick={() => handleUnsetReturned(sj)}
-                      title="Batalkan Retur"
-                    >
-                      <RotateCcw size={20} class="inline-block mr-1" /> Batal Retur
-                    </button>
-                  )}
+                <td class="py-2 px-4 space-x-2">
+                    {!sj.returned_at ? (
+                        <button
+                        class="text-emerald-600 hover:underline"
+                        onClick={() => handleSetReturned(sj)}
+                        title="Set Retur"
+                        >
+                        ⤿ Retur
+                        </button>
+                    ) : (
+                        <button
+                        class="text-amber-600 hover:underline"
+                        onClick={() => handleUnsetReturned(sj)}
+                        title="Batalkan Retur"
+                        >
+                        <RotateCcw size={20} class="inline-block mr-1" /> Batal Retur
+                        </button>
+                    )}
                 </td>
 
                   {/* Kolom Print (selalu ada) */}

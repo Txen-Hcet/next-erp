@@ -5020,6 +5020,186 @@ export async function unsetInvoiceJB(token, id, payload = {}) {
 
 // #startregion RETUR
 
+// Set retur untuk Surat Penerimaan Greige
+export async function setReturGreige(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/retur-purchase-greige-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Server error when returning Surat Penerimaan Greige.");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Undo retur untuk item Surat Penerimaan Greige
+export async function undoReturGreige(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/undo-retur-purchase-greige-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal undo retur Surat Penerimaan Greige");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Set retur untuk Surat Penerimaan Order Celup
+export async function setReturOrderCelup(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/retur-purchase-celup-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Server error when returning Surat Penerimaan Order Celup.");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Undo retur untuk item Surat Penerimaan Order Celup
+export async function undoReturOrderCelup(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/undo-retur-purchase-celup-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal undo retur Surat Penerimaan Order Celup");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Set retur untuk Surat Penerimaan Kain Jadi
+export async function setReturFinish(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/retur-purchase-finish-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Server error when returning Surat Penerimaan Kain Jadi.");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Undo retur untuk item Surat Penerimaan Kain Jadi
+export async function undoReturFinish(token, sjId, itemIds = []) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/undo-retur-purchase-finish-items/${sjId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify({
+          items: itemIds.map((id) => ({ id })),
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal undo retur Surat Penerimaan Kain Jadi");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
 // Set retur untuk Surat Jalan Jual Beli
 export async function setReturnJB(token, sjId, itemIds = []) {
   try {
@@ -5041,7 +5221,7 @@ export async function setReturnJB(token, sjId, itemIds = []) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Server error when returning surat jalan.");
+      throw new Error(data.message || "Server error when returning Surat Penerimaan Jual Beli.");
     }
 
     return data;
@@ -5078,6 +5258,60 @@ export async function undoReturnJBItem(token, sjId, itemIds = []) {
   } catch (error) {
     throw error;
   }
+}
+
+// Set retur untuk Surat Jalan Jual Beli
+export async function setReturSales(token, sjId, rollIds = []) {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_URL}/retur-sales-item-rolls/${sjId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "any-value",
+      },
+      body: JSON.stringify({
+        items: (rollIds || []).map((id) => ({ id })),
+      }),
+    }
+  );
+
+  // parse JSON kalau ada; kalau tidak ada body (204) ya biarin null
+  let data = null;
+  try { data = await response.json(); } catch { /* ignore no-body */ }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Gagal set retur (HTTP ${response.status})`);
+  }
+  return data; // bisa null kalau 204
+}
+
+// Undo retur untuk item Surat Jalan Jual Beli
+export async function undoReturSales(token, sjId, rollIds = []) {
+  const response = await fetch(
+    // jika backend kamu memakai endpoint yg sama, ganti ke `/retur-sales-item-rolls/${sjId}`
+    `${import.meta.env.VITE_API_URL}/undo-retur-sales-item-rolls/${sjId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "any-value",
+      },
+      body: JSON.stringify({
+        items: (rollIds || []).map((id) => ({ id })),
+      }),
+    }
+  );
+
+  let data = null;
+  try { data = await response.json(); } catch { /* ignore no-body */ }
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Gagal undo retur (HTTP ${response.status})`);
+  }
+  return data; // bisa null kalau 204
 }
 
 // #endregion RETUR
