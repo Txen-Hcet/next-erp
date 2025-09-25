@@ -512,7 +512,7 @@ export default function KJDeliveryNoteForm() {
         </div>
       )}
       <h1 class="text-2xl font-bold mb-4">
-        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Surat Penerimaan Order Celup
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Surat Penerimaan Kain Jadi
       </h1>
       <button
         type="button"
