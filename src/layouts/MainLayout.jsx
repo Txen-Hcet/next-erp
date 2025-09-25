@@ -1438,7 +1438,7 @@ export default function MainLayout(props) {
                 class="inline-flex items-center gap-2 rounded px-3 py-2 border border-blue-600 text-blue-700 hover:bg-blue-50"
                 title="Masuk ke modul Finance"
               >
-                Goes to Finance
+                Go to Finance
               </A>
             )}
           </div>
