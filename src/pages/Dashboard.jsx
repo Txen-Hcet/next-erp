@@ -23,8 +23,8 @@ import {
   getJBDeliveryNotes,
 
   // SO
-  getSalesOrders,        // detail SO
-  getAllSalesOrders,     // list SO
+  getSalesOrders, // detail SO
+  getAllSalesOrders, // list SO
 
   // ==== PO PEMBELIAN - LIST ====
   getAllBeliGreigeOrders,
@@ -37,7 +37,6 @@ import {
   getOrderCelupOrders,
   getKainJadiOrders,
   getJualBelis,
-
   getUser,
 } from "../utils/auth";
 
@@ -45,6 +44,7 @@ import {
 import { printPOStatus } from "./reports/poStatusPrint";
 import { printDeliveryNotes } from "./reports/deliveryNotesPrint";
 import { printSummaryReport } from "./reports/summaryPrint";
+const [activeTab, setActiveTab] = createSignal("pembelian");
 
 export default function Dashboard() {
   const user = getUser();
@@ -52,7 +52,20 @@ export default function Dashboard() {
   // ==== FORMATTERS ====
   const formatTanggalIndo = (tanggalString) => {
     const tanggal = new Date(tanggalString);
-    const bulanIndo = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const bulanIndo = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
     const tanggalNum = tanggal.getDate();
     const bulan = bulanIndo[tanggal.getMonth()];
     const tahun = tanggal.getFullYear();
@@ -74,10 +87,14 @@ export default function Dashboard() {
     if (val === undefined || val === null || val === "") return "-";
     const n = Number(String(val).replace(/,/g, ""));
     if (!Number.isFinite(n)) return "-";
-    return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
   };
 
-  const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "");
+  const pick = (...vals) =>
+    vals.find((v) => v !== undefined && v !== null && v !== "");
 
   // ==== MAPPING ENDPOINTS ====
   const SJ_LIST_FETCHER = {
@@ -118,17 +135,37 @@ export default function Dashboard() {
       key: "pembelian",
       title: "Laporan Pembelian",
       blocks: [
-        { key: "greige",    label: "Pembelian Greige",      perm: "view_purchase_greige_surat_jalan"  },
-        { key: "oc",        label: "Pembelian Order Celup", perm: "view_purchase_celup_surat_jalan"   },
-        { key: "kain_jadi", label: "Pembelian Kain Jadi",   perm: "view_purchase_finish_surat_jalan"  },
-        { key: "jual_beli", label: "Jual Beli",             perm: "view_jual_beli_surat_jalan"        },
+        {
+          key: "greige",
+          label: "Pembelian Greige",
+          perm: "view_purchase_greige_surat_jalan",
+        },
+        {
+          key: "oc",
+          label: "Pembelian Order Celup",
+          perm: "view_purchase_celup_surat_jalan",
+        },
+        {
+          key: "kain_jadi",
+          label: "Pembelian Kain Jadi",
+          perm: "view_purchase_finish_surat_jalan",
+        },
+        {
+          key: "jual_beli",
+          label: "Jual Beli",
+          perm: "view_jual_beli_surat_jalan",
+        },
       ],
     },
     {
       key: "penjualan",
       title: "Laporan Penjualan",
       blocks: [
-        { key: "sales", label: "Surat Jalan (Penjualan)", perm: "view_surat_jalan" },
+        {
+          key: "sales",
+          label: "Surat Jalan (Penjualan)",
+          perm: "view_surat_jalan",
+        },
       ],
     },
     {
@@ -136,7 +173,11 @@ export default function Dashboard() {
       title: "Laporan Summary",
       blocks: [
         // tampil jika user punya salah satu izin penjualan/jual beli
-        { key: "summary", label: "Summary Invoice", anyPerm: ["view_surat_jalan", "view_jual_beli_surat_jalan"] },
+        {
+          key: "summary",
+          label: "Summary Invoice",
+          anyPerm: ["view_surat_jalan", "view_jual_beli_surat_jalan"],
+        },
       ],
     },
   ];
@@ -161,7 +202,7 @@ export default function Dashboard() {
       res?.surat_jalan_list,
       res?.orders,
       res?.mainRows,
-      res?.data
+      res?.data,
     ];
     for (const c of cand) if (Array.isArray(c)) return c;
     return [];
@@ -185,21 +226,24 @@ export default function Dashboard() {
   const getTotalsByUnit = (po) => {
     const u = unitName(po);
     const s = po?.summary || {};
-    if (u === "Meter") return {
-      unit: "Meter",
-      total: +(+s.total_meter || 0),
-      masuk: +(+s.total_meter_dalam_proses || 0),
-    };
-    if (u === "Yard") return {
-      unit: "Yard",
-      total: +(+s.total_yard || 0),
-      masuk: +(+s.total_yard_dalam_proses || 0),
-    };
-    if (u === "Kilogram") return {
-      unit: "Kilogram",
-      total: +(+s.total_kilogram || 0),
-      masuk: +(+s.total_kilogram_dalam_proses || 0),
-    };
+    if (u === "Meter")
+      return {
+        unit: "Meter",
+        total: +(+s.total_meter || 0),
+        masuk: +(+s.total_meter_dalam_proses || 0),
+      };
+    if (u === "Yard")
+      return {
+        unit: "Yard",
+        total: +(+s.total_yard || 0),
+        masuk: +(+s.total_yard_dalam_proses || 0),
+      };
+    if (u === "Kilogram")
+      return {
+        unit: "Kilogram",
+        total: +(+s.total_kilogram || 0),
+        masuk: +(+s.total_kilogram_dalam_proses || 0),
+      };
     return { unit: "Meter", total: 0, masuk: 0 };
   };
 
@@ -216,7 +260,8 @@ export default function Dashboard() {
   };
 
   const buildChartSeriesFromPOs = (poRows, isGreige) => {
-    let done = 0, notDone = 0;
+    let done = 0,
+      notDone = 0;
     for (const po of poRows) {
       if (isDoneByRule(po, isGreige)) done++;
       else notDone++;
@@ -224,7 +269,8 @@ export default function Dashboard() {
     return [done, notDone];
   };
 
-  const hasAnyPerm = (arr) => Array.isArray(arr) ? arr.some(p => hasPermission(p)) : false;
+  const hasAnyPerm = (arr) =>
+    Array.isArray(arr) ? arr.some((p) => hasPermission(p)) : false;
 
   // ====== LOAD & ASSEMBLE DATA PER BLOCK ======
   const reloadData = async () => {
@@ -235,15 +281,19 @@ export default function Dashboard() {
       const blocks = [];
       for (const b of sec.blocks) {
         // permission check
-        if (b.anyPerm) { if (!hasAnyPerm(b.anyPerm)) continue; }
-        else { if (!hasPermission(b.perm)) continue; }
+        if (b.anyPerm) {
+          if (!hasAnyPerm(b.anyPerm)) continue;
+        } else {
+          if (!hasPermission(b.perm)) continue;
+        }
 
         const key = b.key; // greige | oc | kain_jadi | jual_beli | sales | summary
 
         // === SUMMARY SECTION ===
         if (sec.key === "summary" && key === "summary") {
           // ambil dua sumber: sales & jual_beli
-          let salesRows = [], jbRows = [];
+          let salesRows = [],
+            jbRows = [];
           try {
             const resSales = await getAllDeliveryNotes(user?.token);
             salesRows = filterByDate(rowsFromResponse(resSales));
@@ -254,17 +304,28 @@ export default function Dashboard() {
           } catch {}
 
           const salesTotal = salesRows.length;
-          const jbTotal    = jbRows.length;
+          const jbTotal = jbRows.length;
 
-          const salesInv   = salesRows.filter(r => +r.delivered_status === 1).length;
-          const jbInv      = jbRows.filter(r => +r.delivered_status === 1).length;
+          const salesInv = salesRows.filter(
+            (r) => +r.delivered_status === 1
+          ).length;
+          const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
 
           blocks.push({
-            key, label: b.label, mode: sec.key,
-            chart: { series: [salesTotal, jbTotal], categories: ["Penjualan", "Jual Beli"] },
+            key,
+            label: b.label,
+            mode: sec.key,
+            chart: {
+              series: [salesTotal, jbTotal],
+              categories: ["Penjualan", "Jual Beli"],
+            },
             summaryCounts: {
-              sales: { total: salesTotal, invoiced: salesInv, pending: salesTotal - salesInv },
-              jb:    { total: jbTotal,    invoiced: jbInv,    pending: jbTotal - jbInv },
+              sales: {
+                total: salesTotal,
+                invoiced: salesInv,
+                pending: salesTotal - salesInv,
+              },
+              jb: { total: jbTotal, invoiced: jbInv, pending: jbTotal - jbInv },
             },
             rowsSales: salesRows,
             rowsJB: jbRows,
@@ -299,14 +360,20 @@ export default function Dashboard() {
         const chartSeries = buildChartSeriesFromPOs(poRows, isGreige);
 
         blocks.push({
-          key, label: b.label, mode: sec.key,
+          key,
+          label: b.label,
+          mode: sec.key,
           sjCount: sjCount,
-          chart: { series: chartSeries, categories: ["Selesai", "Belum Selesai"] },
+          chart: {
+            series: chartSeries,
+            categories: ["Selesai", "Belum Selesai"],
+          },
           poRows,
           rawFetcher: keySJList,
         });
       }
-      if (blocks.length) assembled.push({ key: sec.key, title: sec.title, blocks });
+      if (blocks.length)
+        assembled.push({ key: sec.key, title: sec.title, blocks });
     }
 
     setSectionsData(assembled);
@@ -356,17 +423,27 @@ export default function Dashboard() {
         allowEscapeKey: false,
       });
 
-      if (rangeVal) { setStartDate(rangeVal.start); setEndDate(rangeVal.end); }
-      else { setStartDate(""); setEndDate(""); }
-    } else { setStartDate(""); setEndDate(""); }
+      if (rangeVal) {
+        setStartDate(rangeVal.start);
+        setEndDate(rangeVal.end);
+      } else {
+        setStartDate("");
+        setEndDate("");
+      }
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
   };
 
   onMount(async () => {
-    setStartDate(""); setEndDate("");
+    setStartDate("");
+    setEndDate("");
     await reloadData();
   });
 
-  const totalCardLabel = (mode) => (mode === "penjualan" ? "Total Surat Jalan" : "Total Surat Penerimaan");
+  const totalCardLabel = (mode) =>
+    mode === "penjualan" ? "Total Surat Jalan" : "Total Surat Penerimaan";
 
   // ==== UI ====
   return (
@@ -381,14 +458,21 @@ export default function Dashboard() {
         <div class="flex gap-2">
           <button
             class="px-3 py-2 rounded border"
-            onClick={async () => { await askFilterMode(); await reloadData(); }}
+            onClick={async () => {
+              await askFilterMode();
+              await reloadData();
+            }}
             title="Ubah rentang / mode tanggal"
           >
             Ubah Rentang
           </button>
           <button
             class="px-3 py-2 rounded border"
-            onClick={async () => { setStartDate(""); setEndDate(""); await reloadData(); }}
+            onClick={async () => {
+              setStartDate("");
+              setEndDate("");
+              await reloadData();
+            }}
             title="Reset ke semua tanggal"
           >
             Reset ke Semua
@@ -399,8 +483,39 @@ export default function Dashboard() {
       <Show when={loading()}>
         <div class="p-6 bg-white rounded shadow">Loading…</div>
       </Show>
-
-      <For each={sectionsData()}>
+      <div class="flex gap-2 mb-6 border-b">
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "pembelian"
+              ? "border-b-2 border-blue-600 font-bold"
+              : "text-gray-500"
+          }`}
+          onClick={() => setActiveTab("pembelian")}
+        >
+          Laporan Pembelian
+        </button>
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "penjualan"
+              ? "border-b-2 border-blue-600 font-bold"
+              : "text-gray-500"
+          }`}
+          onClick={() => setActiveTab("penjualan")}
+        >
+          Laporan Penjualan
+        </button>
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "summary"
+              ? "border-b-2 border-blue-600 font-bold"
+              : "text-gray-500"
+          }`}
+          onClick={() => setActiveTab("summary")}
+        >
+          Laporan Summary
+        </button>
+      </div>
+      <For each={sectionsData().filter((s) => s.key === activeTab())}>
         {(section) => (
           <div class="mb-12">
             <h2 class="text-xl font-bold mb-4">{section.title}</h2>
@@ -409,12 +524,22 @@ export default function Dashboard() {
               {(block) => {
                 // ==== RENDER KHUSUS SUMMARY ====
                 if (section.key === "summary" && block.key === "summary") {
-                  const s = block.summaryCounts?.sales ?? { total:0, invoiced:0, pending:0 };
-                  const j = block.summaryCounts?.jb    ?? { total:0, invoiced:0, pending:0 };
+                  const s = block.summaryCounts?.sales ?? {
+                    total: 0,
+                    invoiced: 0,
+                    pending: 0,
+                  };
+                  const j = block.summaryCounts?.jb ?? {
+                    total: 0,
+                    invoiced: 0,
+                    pending: 0,
+                  };
                   return (
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b">
-                        <h3 class="text-lg font-semibold mb-4">{block.label}</h3>
+                        <h3 class="text-lg font-semibold mb-4">
+                          {block.label}
+                        </h3>
                         <ApexChart
                           type="pie"
                           height={320}
@@ -422,7 +547,10 @@ export default function Dashboard() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: { enabled: true, formatter: (v) => `${v.toFixed(1)}%` },
+                            dataLabels: {
+                              enabled: true,
+                              formatter: (v) => `${v.toFixed(1)}%`,
+                            },
                           }}
                         />
                       </div>
@@ -431,20 +559,28 @@ export default function Dashboard() {
                         {/* Kartu Penjualan */}
                         <div class="bg-white p-6 rounded shadow relative border">
                           <p class="text-sm text-gray-500">Total Penjualan</p>
-                          <p class="text-3xl font-bold text-blue-600">{s.total}</p>
+                          <p class="text-3xl font-bold text-blue-600">
+                            {s.total}
+                          </p>
                           <div class="mt-2 text-sm text-gray-600">
-                            <div>Sudah Invoice: <b>{s.invoiced}</b></div>
-                            <div>Belum Invoice: <b>{s.pending}</b></div>
+                            <div>
+                              Sudah Invoice: <b>{s.invoiced}</b>
+                            </div>
+                            <div>
+                              Belum Invoice: <b>{s.pending}</b>
+                            </div>
                           </div>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Print Summary Penjualan"
-                            onClick={() => printSummaryReport({
-                              kind: "sales",
-                              token: user?.token,
-                              startDate: startDate(),
-                              endDate: endDate(),
-                            })}
+                            onClick={() =>
+                              printSummaryReport({
+                                kind: "sales",
+                                token: user?.token,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                              })
+                            }
                           >
                             <Printer size={20} />
                           </button>
@@ -453,20 +589,28 @@ export default function Dashboard() {
                         {/* Kartu Jual Beli */}
                         <div class="bg-white p-6 rounded shadow relative border">
                           <p class="text-sm text-gray-500">Total Jual Beli</p>
-                          <p class="text-3xl font-bold text-blue-600">{j.total}</p>
+                          <p class="text-3xl font-bold text-blue-600">
+                            {j.total}
+                          </p>
                           <div class="mt-2 text-sm text-gray-600">
-                            <div>Sudah Invoice: <b>{j.invoiced}</b></div>
-                            <div>Belum Invoice: <b>{j.pending}</b></div>
+                            <div>
+                              Sudah Ada Invoice: <b>{j.invoiced}</b>
+                            </div>
+                            <div>
+                              Belum Ada Invoice: <b>{j.pending}</b>
+                            </div>
                           </div>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Print Summary Jual Beli"
-                            onClick={() => printSummaryReport({
-                              kind: "jual_beli",
-                              token: user?.token,
-                              startDate: startDate(),
-                              endDate: endDate(),
-                            })}
+                            onClick={() =>
+                              printSummaryReport({
+                                kind: "jual_beli",
+                                token: user?.token,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                              })
+                            }
                           >
                             <Printer size={20} />
                           </button>
@@ -477,7 +621,7 @@ export default function Dashboard() {
                 }
 
                 // ==== RENDER BLOK LAIN (PEMBELIAN / PENJUALAN) ====
-                const [done, notDone] = block.chart.series || [0,0];
+                const [done, notDone] = block.chart.series || [0, 0];
                 const isGreige = block.key === "greige";
                 return (
                   <div class="bg-white rounded shadow mb-8">
@@ -490,7 +634,10 @@ export default function Dashboard() {
                         options={{
                           labels: block.chart.categories,
                           legend: { position: "bottom" },
-                          dataLabels: { enabled: true, formatter: (v) => `${v.toFixed(1)}%` },
+                          dataLabels: {
+                            enabled: true,
+                            formatter: (v) => `${v.toFixed(1)}%`,
+                          },
                         }}
                       />
                     </div>
@@ -498,17 +645,23 @@ export default function Dashboard() {
                     <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Kartu 1: Total SJ/SJ Penjualan */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">{totalCardLabel(section.key)}</p>
-                        <p class="text-3xl font-bold text-blue-600">{block.sjCount}</p>
+                        <p class="text-sm text-gray-500">
+                          {totalCardLabel(section.key)}
+                        </p>
+                        <p class="text-3xl font-bold text-blue-600">
+                          {block.sjCount}
+                        </p>
 
                         <button
                           class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                           title="Cetak laporan"
-                          onClick={() => printDeliveryNotes(block, {
-                            token: user?.token,
-                            startDate: startDate(),
-                            endDate: endDate(),
-                          })}
+                          onClick={() =>
+                            printDeliveryNotes(block, {
+                              token: user?.token,
+                              startDate: startDate(),
+                              endDate: endDate(),
+                            })
+                          }
                         >
                           <Printer size={20} />
                         </button>
@@ -516,24 +669,28 @@ export default function Dashboard() {
 
                       {/* Kartu 2: Total Pesanan Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">Total Pesanan Selesai</p>
+                        <p class="text-sm text-gray-500">
+                          Total Pesanan Selesai
+                        </p>
                         <p class="text-3xl font-bold text-blue-600">{done}</p>
                         <button
                           class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                           title="Cetak daftar PO/ SO yang selesai"
-                          onClick={() => printPOStatus({
-                            blockKey: block.key,
-                            mode: section.key,
-                            status: "done",
-                            poRows: block.poRows,
-                            startDate: startDate(),
-                            endDate: endDate(),
-                            userToken: user?.token,
-                            isGreige,
-                            SJ_LIST_FETCHER,
-                            SJ_DETAIL_FETCHER,
-                            PO_DETAIL_FETCHER,
-                          })}
+                          onClick={() =>
+                            printPOStatus({
+                              blockKey: block.key,
+                              mode: section.key,
+                              status: "done",
+                              poRows: block.poRows,
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              userToken: user?.token,
+                              isGreige,
+                              SJ_LIST_FETCHER,
+                              SJ_DETAIL_FETCHER,
+                              PO_DETAIL_FETCHER,
+                            })
+                          }
                         >
                           <Printer size={20} />
                         </button>
@@ -541,24 +698,30 @@ export default function Dashboard() {
 
                       {/* Kartu 3: Total Pesanan Belum Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">Total Pesanan Belum Selesai</p>
-                        <p class="text-3xl font-bold text-blue-600">{notDone}</p>
+                        <p class="text-sm text-gray-500">
+                          Total Pesanan Belum Selesai
+                        </p>
+                        <p class="text-3xl font-bold text-blue-600">
+                          {notDone}
+                        </p>
                         <button
                           class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                           title="Cetak daftar PO/ SO yang belum selesai"
-                          onClick={() => printPOStatus({
-                            blockKey: block.key,
-                            mode: section.key,
-                            status: "not_done",
-                            poRows: block.poRows,
-                            startDate: startDate(),
-                            endDate: endDate(),
-                            userToken: user?.token,
-                            isGreige,
-                            SJ_LIST_FETCHER,
-                            SJ_DETAIL_FETCHER,
-                            PO_DETAIL_FETCHER,
-                          })}
+                          onClick={() =>
+                            printPOStatus({
+                              blockKey: block.key,
+                              mode: section.key,
+                              status: "not_done",
+                              poRows: block.poRows,
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              userToken: user?.token,
+                              isGreige,
+                              SJ_LIST_FETCHER,
+                              SJ_DETAIL_FETCHER,
+                              PO_DETAIL_FETCHER,
+                            })
+                          }
                         >
                           <Printer size={20} />
                         </button>
