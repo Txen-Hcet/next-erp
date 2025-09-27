@@ -1264,149 +1264,161 @@ export default function MainLayout(props) {
                 </li>
 
                 {/* RETUR (Nested) */}
-                {hasAllPermission([
-                  "return_purchase_greige",
-                  "return_purchase_celup",
-                  "return_purchase_finish",
-                  "return_jual_beli",
-                  "return_sales",
-                ]) && (
-                  <>
-                    <li>
-                      <button
-                        class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
-                        onClick={() => setReturOpen(!isReturOpen())}
+                {(() => {
+                  // --- permissions
+                  const canGreige = hasPermission("return_purchase_greige");
+                  const canCelup  = hasPermission("return_purchase_celup");
+                  const canFinish = hasPermission("return_purchase_finish");
+                  const canJB     = hasPermission("return_jual_beli");
+                  const canSales  = hasPermission("return_sales");
+
+                  const showReturPurchase = canGreige || canCelup || canFinish || canJB;
+                  const showGroup = showReturPurchase || canSales;
+
+                  if (!showGroup) return null;
+
+                  return (
+                    <>
+                      {/* Parent: Retur */}
+                      <li>
+                        <button
+                          class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                          onClick={() => setReturOpen(!isReturOpen())}
+                        >
+                          Retur
+                          <span class="text-xs">{isReturOpen() ? "▲" : "▼"}</span>
+                        </button>
+                      </li>
+
+                      <li
+                        class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                          isReturOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
+                        }`}
                       >
-                        Retur
-                        <span class="text-xs">{isReturOpen() ? "▲" : "▼"}</span>
-                      </button>
-                    </li>
+                        {/* Submenu: Retur Pembelian (any of 4 perms) */}
+                        {showReturPurchase && (
+                          <>
+                            <li>
+                              <button
+                                class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                                onClick={() => setReturPurchaseOpen(!isReturPurchaseOpen())}
+                              >
+                                Retur Pembelian
+                                <span class="text-xs">{isReturPurchaseOpen() ? "▲" : "▼"}</span>
+                              </button>
+                            </li>
 
-                    <li
-                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                        isReturOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
-                      }`}
-                    >
-                      {/* Submenu: Retur Pembelian */}
-                      <ul>
-                        {hasAllPermission([
-                          "return_purchase_greige",
-                          "return_purchase_celup",
-                          "return_purchase_finish",
-                          "return_jual_beli",
-                        ]) && (
-                          <li>
-                            <button
-                              class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                              onClick={() => setReturPurchaseOpen(!isReturPurchaseOpen())}
+                            <li
+                              class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                                isReturPurchaseOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
+                              }`}
                             >
-                              Retur Pembelian
-                              <span class="text-xs">{isReturPurchaseOpen() ? "▲" : "▼"}</span>
-                            </button>
-                          </li>
+                              <ul>
+                                {canGreige && (
+                                  <li>
+                                    <A
+                                      href="/retur-greige"
+                                      class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                                        location.pathname === "/retur-greige" ||
+                                        location.pathname === "/retur-greige/form"
+                                          ? "bg-gray-700 text-white"
+                                          : ""
+                                      }`}
+                                    >
+                                      Retur Pembelian Greige
+                                    </A>
+                                  </li>
+                                )}
+                                {canCelup && (
+                                  <li>
+                                    <A
+                                      href="/retur-ordercelup"
+                                      class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                                        location.pathname === "/retur-ordercelup" ||
+                                        location.pathname === "/retur-ordercelup/form"
+                                          ? "bg-gray-700 text-white"
+                                          : ""
+                                      }`}
+                                    >
+                                      Retur Pembelian Order Celup
+                                    </A>
+                                  </li>
+                                )}
+                                {canFinish && (
+                                  <li>
+                                    <A
+                                      href="/retur-kainjadi"
+                                      class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                                        location.pathname === "/retur-kainjadi" ||
+                                        location.pathname === "/retur-kainjadi/form"
+                                          ? "bg-gray-700 text-white"
+                                          : ""
+                                      }`}
+                                    >
+                                      Retur Pembelian Kain Jadi
+                                    </A>
+                                  </li>
+                                )}
+                                {canJB && (
+                                  <li>
+                                    <A
+                                      href="/retur-jualbeli"
+                                      class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                                        location.pathname === "/retur-jualbeli" ||
+                                        location.pathname === "/retur-jualbeli/form"
+                                          ? "bg-gray-700 text-white"
+                                          : ""
+                                      }`}
+                                    >
+                                      Retur Jual Beli
+                                    </A>
+                                  </li>
+                                )}
+                              </ul>
+                            </li>
+                          </>
                         )}
 
-                        <li
-                          class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                            isReturPurchaseOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
-                          }`}
-                        >
-                          <ul>
+                        {/* Submenu: Retur Penjualan (sales only) */}
+                        {canSales && (
+                          <>
                             <li>
-                              <A
-                                href="/retur-greige"
-                                class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                                  location.pathname === "/retur-greige" ||
-                                  location.pathname === "/retur-greige/form"
-                                    ? "bg-gray-700 text-white"
-                                    : ""
-                                }`}
+                              <button
+                                class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                                onClick={() => setReturSalesOpen(!isReturSalesOpen())}
                               >
-                                Retur Pembelian Greige
-                              </A>
+                                Retur Penjualan
+                                <span class="text-xs">{isReturSalesOpen() ? "▲" : "▼"}</span>
+                              </button>
                             </li>
-                            <li>
-                              <A
-                                href="/retur-ordercelup"
-                                class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                                  location.pathname === "/retur-ordercelup" ||
-                                  location.pathname === "/retur-ordercelup/form"
-                                    ? "bg-gray-700 text-white"
-                                    : ""
-                                }`}
-                              >
-                                Retur Pembelian Order Celup
-                              </A>
-                            </li>
-                            <li>
-                              <A
-                                href="/retur-kainjadi"
-                                class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                                  location.pathname === "/retur-kainjadi" ||
-                                  location.pathname === "/retur-kainjadi/form"
-                                    ? "bg-gray-700 text-white"
-                                    : ""
-                                }`}
-                              >
-                                Retur Pembelian Kain Jadi
-                              </A>
-                            </li>
-                            <li>
-                              <A
-                                href="/retur-jualbeli"
-                                class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                                  location.pathname === "/retur-jualbeli" ||
-                                  location.pathname === "/retur-jualbeli/form"
-                                    ? "bg-gray-700 text-white"
-                                    : ""
-                                }`}
-                              >
-                                Retur Jual Beli
-                              </A>
-                            </li>
-                          </ul>
-                        </li>
-                      </ul>
 
-                      {/* Submenu: Retur Penjualan */}
-                      <ul>
-                        {hasPermission("return_sales") && (
-                          <li>
-                            <button
-                              class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
-                              onClick={() => setReturSalesOpen(!isReturSalesOpen())}
+                            <li
+                              class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                                isReturSalesOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
+                              }`}
                             >
-                              Retur Penjualan
-                              <span class="text-xs">{isReturSalesOpen() ? "▲" : "▼"}</span>
-                            </button>
-                          </li>
-                        )}
-
-                        <li
-                          class={`transition-all duration-300 ease-in-out overflow-hidden ${
-                            isReturSalesOpen() ? "max-h-fit opacity-100" : "max-h-0 opacity-0"
-                          }`}
-                        >
-                          <ul>
-                            <li>
-                              <A
-                                href="/retur-sales"
-                                class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
-                                  location.pathname === "/retur-sales" ||
-                                  location.pathname === "/retur-sales/form"
-                                    ? "bg-gray-700 text-white"
-                                    : ""
-                                }`}
-                              >
-                                Retur Penjualan (Sales)
-                              </A>
+                              <ul>
+                                <li>
+                                  <A
+                                    href="/retur-sales"
+                                    class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                                      location.pathname === "/retur-sales" ||
+                                      location.pathname === "/retur-sales/form"
+                                        ? "bg-gray-700 text-white"
+                                        : ""
+                                    }`}
+                                  >
+                                    Retur Penjualan (Sales)
+                                  </A>
+                                </li>
+                              </ul>
                             </li>
-                          </ul>
-                        </li>
-                      </ul>
-                    </li>
-                  </>
-                )}
+                          </>
+                        )}
+                      </li>
+                    </>
+                  );
+                })()}
               </ul>
             </nav>
 
