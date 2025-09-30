@@ -432,6 +432,13 @@ export default function KJPurchaseOrderForm() {
       lebar_greige: ci.lebar_greige ?? "",
       lebar_finish: ci.lebar_finish ?? "",
 
+      corak_kain:      ci.corak_kain ?? ci.kain?.corak_kain ?? "-",
+      konstruksi_kain: ci.konstruksi_kain ?? ci.kain?.konstruksi_kain ?? "-",
+      meter_total:     meterNum,
+      yard_total:      yardNum,
+      meter_dalam_proses: parseFloat(ci.meter_dalam_proses ?? 0) || 0,
+      yard_dalam_proses:  parseFloat(ci.yard_dalam_proses  ?? 0) || 0,
+
       std_susutValue: ci.std_susut != null ? parseFloat(ci.std_susut) : 0,
       std_susut: ci.std_susut != null ? formatPercent(parseFloat(ci.std_susut)) : "",
 
@@ -869,7 +876,7 @@ export default function KJPurchaseOrderForm() {
           type="button"
           class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 mb-4"
           onClick={addItem}
-          hidden={ isView }
+          hidden={ isView || (isEdit && isStrictColorEdit()) }
         >
           + Tambah Item
         </button>
@@ -933,8 +940,8 @@ export default function KJPurchaseOrderForm() {
                       class="border p-1 rounded w-full"
                       value={item.std_susut ?? ""}
                       onBlur={(e) => handleItemChange(i(), "std_susut", e.target.value)}
-                      disabled={isView}
-                      classList={{ "bg-gray-200": isView }}
+                      disabled={ isView || (isEdit && isStrictColorEdit()) }
+                      classList={{ "bg-gray-200": isView || (isEdit && isStrictColorEdit()) }}
                       // placeholder="0,00 %"
                     />
                   </td>
