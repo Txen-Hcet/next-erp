@@ -73,12 +73,12 @@ export default function PackingListDataDummyPrint() {
     // Tunggu 300ms supaya render komponen print kelar
     setTimeout(() => {
       window.print();
-    }, 2500);
+    }, 300);
 
     // Fallback close jika afterprint gak jalan
     setTimeout(() => {
       window.close();
-    }, 4000);
+    }, 3000);
 
     onCleanup(() => {
       window.removeEventListener("afterprint", closeAfterPrint);
