@@ -7,6 +7,7 @@ export default function PackingListPrint(props) {
 
   // fallback ke localStorage bila props tidak ada
   onMount(() => {
+    document.body.dataset.paper = isContinuous() ? "CONTINUOUS95" : "A4";
     if (!plData()) {
       try {
         const raw = localStorage.getItem("printData");
@@ -18,6 +19,22 @@ export default function PackingListPrint(props) {
   });
 
   const data = createMemo(() => plData() ?? { itemGroups: [], sales_order_items: {} });
+
+  // A4 (default) / continuous 9.5" (rangkap 3)
+  const paperType = createMemo(() => {
+    const q = new URLSearchParams(window.location.search);
+    return (q.get("paper") || "").toUpperCase() === "CONTINUOUS95"
+      ? "CONTINUOUS95"
+      : "A4";
+  });
+  const isContinuous = createMemo(() => paperType() === "CONTINUOUS95");
+
+  // mm untuk halaman & lebar konten aman (antara lubang traktor)
+  const PAGE_MM = createMemo(() =>
+    paperType() === "CONTINUOUS95"
+      ? { w: 241, h: 279, safeL: 12, safeR: 12, safeT: 8, safeB: 10, contentW: 205 }
+      : { w: 210, h: 297, safeL: 10, safeR: 10, safeT: 10, safeB: 10, contentW: 190 }
+  );
 
   /* ===== Helpers ===== */
   const isEkspor = createMemo(() => {
@@ -153,88 +170,110 @@ export default function PackingListPrint(props) {
   return (
     <>
       <style>{`
-        :root { 
-          --safe: 10mm;
+        :root {
+          --page-w: ${PAGE_MM().w}mm;
+          --page-h: ${PAGE_MM().h}mm;
+          --safe-l: ${PAGE_MM().safeL}mm;
+          --safe-r: ${PAGE_MM().safeR}mm;
+          --safe-t: ${PAGE_MM().safeT}mm;
+          --safe-b: ${PAGE_MM().safeB}mm;
+          --content-w: ${PAGE_MM().contentW}mm;
           --logo-size: 16mm;
+          --gap-after-info: ${paperType() === 'CONTINUOUS95' ? '5mm' : '6mm'};
         }
 
-        @page { size: A4 portrait; margin: 0; }
+        @page { size: ${PAGE_MM().w}mm ${PAGE_MM().h}mm; margin: 0; }
+
         html, body {
-          margin: 0; 
-          padding: 0; 
-          height: 100%; 
-          width: 100%;
+          margin: 0; padding: 0; height: 100%; width: 100%;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-          font-family: Arial, sans-serif;
-          display: flex; 
-          justify-content: center;
+          font-family: ${paperType() === 'CONTINUOUS95' ? "'Courier New', monospace" : "Arial, sans-serif"};
         }
-        .page { 
-          width: 210mm; 
-          height: 285mm; 
-          padding: 0; 
+
+        .page { width: var(--page-w); height: var(--page-h); display:flex; }
+        .safe  { width:100%; height:100%;
+                padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); }
+
+        /* kunci lebar tabel agar tidak shrink */
+        table { width: var(--content-w); margin: 0 auto; border-collapse: collapse; page-break-inside:auto; }
+
+        th, td {
+          border: 1.2pt solid #000; padding: 1px 2px;
+          font-size: ${paperType() === 'CONTINUOUS95' ? '12px' : '11px'};
+          font-weight: ${paperType() === 'CONTINUOUS95' ? 600 : 500};
+        }
+        th { text-align:center; }
+
+        .no-border { border: none !important; }
+        .table-fixed { table-layout: fixed; }
+        .stretch-row td { border:0 !important; height:20px; padding:1px 2px; }
+
+        .content{
+          width: var(--content-w);
+          margin: 0 auto;
           box-sizing: border-box;
-          position: relative; 
-          display: flex; 
-          flex-direction: column; 
-          align-items: center; 
         }
-        .safe { 
-          width: 100%; 
-          height: 100%; 
-          padding: var(--safe); 
-          box-sizing: border-box;
-          display: flex; 
-          flex-direction: column; 
-          gap: 8px; 
-        }
+
+        /* HEADER selalu center */
         .header-center{
-          width:100%;
-          display:flex;
-          flex-direction:column;
-          align-items:center;
-          justify-content:center;
-          text-align:center;
-          gap:4px;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          gap: 4px;
           margin: 0 0 4px 0;
         }
         .header-center .title{
           margin: 4px 0 2px 0;
-          font-weight:700;
-          text-transform:uppercase;
-          font-size:18px;
-          line-height:1.1;
-        }  
-        table { 
-          border-collapse: collapse; 
-          width: 100%; 
-          page-break-inside: auto; 
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 18px;
+          line-height: 1.1;
         }
-        th, td { 
-          border: 1px solid #000; 
-          padding: 1px 2px; 
-          font-size: 11px; 
+
+        .info-table{
+          width: 100%;
+          border: none;
+          table-layout: fixed;
+          margin-bottom: var(--gap-after-info);
         }
-        th { 
-          text-align: center; 
+        .info-table td{
+          border: none !important;
+          padding: 0 2px;
+          font-size: 11px;
         }
-        .no-border { 
-          border: none !important; 
+
+        /* ======= Styling angka: dipisah A4 vs Continuous ======= */
+        .num, .roll-cell { text-align: right; }
+
+        /* CONTINUOUS: lebih pekat & rapat */
+        body[data-paper="CONTINUOUS95"] .num,
+        body[data-paper="CONTINUOUS95"] .roll-cell {
+          font-family: 'Courier New', monospace;
+          font-weight: 700;
+          -webkit-text-stroke: 0.18px;   /* pekat di print */
+          letter-spacing: 0;
+          padding: 0 1px;
+          color: #000;
         }
-        .table-fixed { 
-          table-layout: fixed; 
+
+        /* A4: pakai font dokumen biasa, tidak abu, tidak terlalu rapat */
+        body[data-paper="A4"] .num,
+        body[data-paper="A4"] .roll-cell {
+          font-family: inherit;
+          font-weight: 600;
+          -webkit-text-stroke: 0;
+          letter-spacing: 0;
+          padding: 1px 2px;
+          color: #000;                   /* pastikan hitam */
         }
-        td.num { 
-          text-align: right; 
-          white-space: nowrap; 
-        }
-        .stretch-row td {
-          border: 0 !important;            /* tak ada garis di dalam area kosong */
-          /* biar tetap rapi */
-          padding: 1px 2px; 
-          height: 20px; /* atau pakai h-5 seperti sebelumnya */
-        }
+
+        /* Table compact: HANYA untuk continuous 10 kolom (dipasang via className) */
+        .table-compact td, .table-compact th { padding: 0 2px; }
+
         @media print {
           .page { page-break-after: always; }
           .page:last-child { page-break-after: auto; }
@@ -242,6 +281,7 @@ export default function PackingListPrint(props) {
           tfoot { display: table-footer-group; }
         }
       `}</style>
+
 
       <For each={pagesWithOffsets()}>
         {(p, idx) => {
@@ -261,6 +301,7 @@ export default function PackingListPrint(props) {
               maxCol={MAX_COL()}
               totals={grandTotals()}
               isPPN={Number(data()?.sales_order_items?.ppn_percent) > 0}
+              isContinuous={isContinuous()}
             />
           );
         }}
@@ -271,7 +312,7 @@ export default function PackingListPrint(props) {
 
 /* ===== Halaman ===== */
 function PrintPage(props) {
-  const { data, items, pageNo, pageCount, isLast, todayStr, createdShort, unitKey, maxCol, totals, isPPN } = props;
+  const { data, items, pageNo, pageCount, isLast, todayStr, createdShort, unitKey, maxCol, totals, isPPN, isContinuous } = props;
 
   // Auto-stretch row kosong agar footer/halaman rapi
   const { extraRows, bind, recalc } = createStretch({ fudge: 56 });
@@ -285,190 +326,221 @@ function PrintPage(props) {
   createEffect(() => { maxCol; requestAnimationFrame(recalc); });
   createEffect(() => { isPPN ? 1 : 0; requestAnimationFrame(recalc); });
 
-  // ====== COLGROUP dinamis agar tidak kepotong kanan ======
-  // Fixed width (persen) untuk kolom non-roll
-  const W_NO = 3, W_BAL = 5, W_COL = 8, W_ITEM = 9, W_LOT = 5, W_TTL = 8; // TTL dipakai 3x
-  const fixedPct = W_NO + W_BAL + W_COL + W_ITEM + W_LOT + (W_TTL * 3);     // = 53%
-  const rollPct = Math.max(0, 100 - fixedPct);
-  const eachRollPct = rollPct / maxCol;
+  const ColGroup = () => {
+    // default 5 kolom
+    let W_NO  = 3,  W_BAL = 5,  W_COL = 8,  W_ITEM = 9,  W_LOT = 5;
+    let W_TTL = isContinuous ? 9.5 : 8;
 
-  const ColGroup = () => (
-    <colgroup>
-      <col style={`width:${W_NO}%`} />
-      <col style={`width:${W_BAL}%`} />
-      <col style={`width:${W_COL}%`} />
-      <col style={`width:${W_ITEM}%`} />
-      <col style={`width:${W_LOT}%`} />
-      <For each={Array.from({ length: maxCol })}>
-        {() => <col style={`width:${eachRollPct}%`} />}
-      </For>
-      <col style={`width:${W_TTL}%`} />
-      <col style={`width:${W_TTL}%`} />
-      <col style={`width:${W_TTL}%`} />
-    </colgroup>
-  );
+    if (maxCol === 10) {
+      if (isContinuous) {
+        // Continuous 10 kolom (rangkap 3) — ini yang tadi sudah OK
+        W_NO = 2.8; W_BAL = 4.0; W_COL = 6.5; W_ITEM = 8; W_LOT = 4;
+        W_TTL = 7.5;              // TTL cukup
+      } else {
+        // A4 10 kolom — TTL dibikin lebar, non-roll dikompres moderat
+        W_NO = 3; W_BAL = 4.5; W_COL = 7; W_ITEM = 8; W_LOT = 4;
+        W_TTL = 9; 
+      }
+    }
+
+    const fixedPct = W_NO + W_BAL + W_COL + W_ITEM + W_LOT + (W_TTL * 3);
+    const rollPct  = Math.max(0, 100 - fixedPct);
+    const eachRoll = rollPct / maxCol;
+
+    return (
+      <colgroup>
+        <col style={`width:${W_NO}%`} />
+        <col style={`width:${W_BAL}%`} />
+        <col style={`width:${W_COL}%`} />
+        <col style={`width:${W_ITEM}%`} />
+        <col style={`width:${W_LOT}%`} />
+        <For each={Array.from({ length: maxCol })}>
+          {() => <col style={`width:${eachRoll}%`} />}
+        </For>
+        <col style={`width:${W_TTL}%`} />
+        <col style={`width:${W_TTL}%`} />
+        <col style={`width:${W_TTL}%`} />
+      </colgroup>
+    );
+  };
   // ========================================================
 
   return (
     <div ref={bind("pageRef")} className="page">
       <div className="safe">
-        {/* Row measurer: jumlah kolom dinamis */}
+        {/* Row measurer untuk hitung tinggi baris sesuai jumlah kolom */}
         <table style="position:absolute; top:-10000px; left:-10000px; visibility:hidden;">
           <tbody>
             <tr ref={bind("measureRowRef")}>
-              {/* No, Bal, Col, Item, Lot */}
               <td class="p-1 text-center h-5"></td>
               <td class="p-1 text-center"></td>
               <td class="p-1"></td>
               <td class="p-1"></td>
               <td class="p-1"></td>
-              {/* N kolom roll */}
-              <For each={Array.from({ length: maxCol })}>{() => <td class="p-1 text-right"></td>}</For>
-              {/* TTL */}
-              <td class="p-1 text-right"></td>
-              <td class="p-1 text-right"></td>
-              <td class="p-1 text-right"></td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* HEADER — logo + judul di TENGAH */}
-        <div className="header-center">
-          <div
-            style={{
-              height: isPPN ? "var(--logo-size)" : "0",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}
-          >
-            <img
-              src={logoNavel}
-              alt="Logo"
-              style={{
-                height: "var(--logo-size)",
-                display: isPPN ? "block" : "none"
-              }}
-              onLoad={recalc}
-            />
-          </div>
-          <div className="title">PACKING LIST</div>
-        </div>
-
-        {/* Info blok atas */}
-        <table className="no-border" style={{ border: "none", width: "100%" }}>
-          <tbody>
-            <tr>
-              <td className="no-border"><b>No PL:</b> {data?.no_pl || "-"}</td>
-              <td className="no-border" style={{ textAlign: "right" }}><b>No SO:</b> {data?.sales_order_items?.no_so || "-"}</td>
-            </tr>
-            <tr>
-              <td className="no-border"><b>Customer:</b> {data?.sales_order_items?.customer_name || "-"}</td>
-              <td className="no-border" style={{ textAlign: "right" }}><b>Tanggal Pembuatan:</b> {createdShort}</td>
-            </tr>
-            <tr>
-              <td className="no-border"><b>Keterangan:</b> <span style={{ whiteSpace: "pre-line" }}>{data?.keterangan || "-"}</span></td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* TABEL UTAMA */}
-        <table ref={bind("tableRef")} className="border border-black table-fixed">
-          <ColGroup />
-          <thead ref={bind("theadRef")} className="bg-gray-200">
-            <tr>
-              <th rowSpan={2}>No</th>
-              <th rowSpan={2}>Bal</th>
-              <th rowSpan={2}>Col</th>
-              <th rowSpan={2}>Item</th>
-              <th rowSpan={2}>Lot</th>
               <For each={Array.from({ length: maxCol })}>
-                {(_, i) => <th>{i() + 1}</th>}
+                {() => <td class="p-1 text-right"></td>}
               </For>
-              <th rowSpan={2}>TTL/PCS</th>
-              <th rowSpan={2}>TTL/MTR</th>
-              <th rowSpan={2}>TTL/YARD</th>
+              <td class="p-1 text-right"></td>
+              <td class="p-1 text-right"></td>
+              <td class="p-1 text-right"></td>
             </tr>
-            <tr></tr>
-          </thead>
-
-          <tbody ref={bind("tbodyRef")}>
-            <For each={items}>
-              {(row) => (
-                <Show
-                  when={row.type === "row"}
-                  fallback={
-                    // SUBTOTAL
-                    <tr>
-                      <td colSpan={5} className="text-center"><b>SUB TOTAL</b></td>
-                      <For each={Array.from({ length: maxCol })}>{() => <td></td>}</For>
-                      <td className="text-right"><b>{fmt2Blank(row.gPcs)}</b></td>
-                      <td className="text-right"><b>{fmt2Blank(row.gMtr)}</b></td>
-                      <td className="text-right"><b>{fmt2Blank(row.gYrd)}</b></td>
-                    </tr>
-                  }
-                >
-                  <tr>
-                    <td className="text-center">{row.isFirst ? (row.gi + 1) : ""}</td>
-                    <td className="text-center">{row.bal ?? ""}</td>
-                    <td className="text-center">{row.isFirst ? (row.colorDesc ?? "") : ""}</td>
-                    <td className="text-center">{row.isFirst ? (row.itemName ?? "-") : ""}</td>
-                    <td className="text-center">{row.lot ?? ""}</td>
-
-                    {/* kolom roll dinamis */}
-                    <For each={Array.from({ length: maxCol })}>
-                      {(_, ci) => (
-                        <td className="text-right">
-                          {fmt2Blank(row.rowRolls[ci()]?.[unitKey])}
-                        </td>
-                      )}
-                    </For>
-
-                    <td className="text-right">{fmt2Blank(row.pcsRow)}</td>
-                    <td className="text-right">{fmt2Blank(row.mRow)}</td>
-                    <td className="text-right">{fmt2Blank(row.yRow)}</td>
-                  </tr>
-                </Show>
-              )}
-            </For>
-
-            {/* ROW KOSONG DINAMIS */}
-            <For each={Array.from({ length: extraRows() })}>
-              {() => (
-                <tr className="stretch-row">
-                  <td className="p-1 text-center h-5"></td>
-                  <td className="p-1 text-center"></td>
-                  <td className="p-1 text-center"></td>
-                  <td className="p-1"></td>
-                  <td className="p-1 text-center"></td>
-                  <For each={Array.from({ length: maxCol })}>
-                    {() => <td className="p-1 text-right"></td>}
-                  </For>
-                  <td className="p-1 text-right"></td>
-                  <td className="p-1 text-right"></td>
-                  <td className="p-1 text-right"></td>
-                </tr>
-              )}
-            </For>
           </tbody>
-
-          <tfoot ref={bind("tfootRef")}>
-            <Show when={isLast}>
-              <tr>
-                <td colSpan={5} className="text-center"><b>TOTAL</b></td>
-                <For each={Array.from({ length: maxCol })}>{() => <td></td>}</For>
-                <td className="text-right"><b>{fmt2Blank(totals.pcs)}</b></td>
-                <td className="text-right"><b>{fmt2Blank(totals.m)}</b></td>
-                <td className="text-right"><b>{fmt2Blank(totals.y)}</b></td>
-              </tr>
-            </Show>
-            <tr>
-              <td colSpan={5 + maxCol + 3} className="no-border text-right" style={{ borderTop: "1px solid #000" }}>
-                <i>Halaman {pageNo} dari {pageCount}</i>
-              </td>
-            </tr>
-          </tfoot>
         </table>
+
+        {/* ====== REL KONTEN YANG DIPUSATKAN ====== */}
+        <div className="content">
+
+          {/* HEADER — logo + judul di TENGAH */}
+          <div className="header-center">
+            <div
+              style={{
+                height: isPPN ? "var(--logo-size)" : "0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <img
+                src={logoNavel}
+                alt="Logo"
+                style={{
+                  height: "var(--logo-size)",
+                  display: isPPN ? "block" : "none"
+                }}
+                onLoad={recalc}
+              />
+            </div>
+            <div className="title">PACKING LIST</div>
+          </div>
+
+          {/* Info blok atas */}
+          <table className="info-table">
+            <tbody>
+              <tr>
+                <td><b>No PL:</b> {data?.no_pl || "-"}</td>
+                <td style={{ textAlign: "right" }}>
+                  <b>No SO:</b> {data?.sales_order_items?.no_so || "-"}
+                </td>
+              </tr>
+              <tr>
+                <td><b>Customer:</b> {data?.sales_order_items?.customer_name || "-"}</td>
+                <td style={{ textAlign: "right" }}>
+                  <b>Tanggal Pembuatan:</b> {createdShort}
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2}>
+                  <b>Keterangan:</b>{" "}
+                  <span style={{ whiteSpace: "pre-line" }}>
+                    {data?.keterangan || "-"}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* TABEL UTAMA */}
+          <table
+            ref={bind("tableRef")}
+            className={`border border-black table-fixed ${isContinuous && maxCol === 10 ? "table-compact" : ""}`}
+          >
+            <ColGroup />
+            <thead ref={bind("theadRef")} className="bg-gray-200">
+              <tr>
+                <th rowSpan={2}>No</th>
+                <th rowSpan={2}>Bal</th>
+                <th rowSpan={2}>Col</th>
+                <th rowSpan={2}>Item</th>
+                <th rowSpan={2}>Lot</th>
+                <For each={Array.from({ length: maxCol })}>
+                  {(_, i) => <th>{i() + 1}</th>}
+                </For>
+                <th rowSpan={2}>TTL/PCS</th>
+                <th rowSpan={2}>TTL/MTR</th>
+                <th rowSpan={2}>TTL/YARD</th>
+              </tr>
+              <tr></tr>
+            </thead>
+
+            <tbody ref={bind("tbodyRef")}>
+              <For each={items}>
+                {(row) => (
+                  <Show
+                    when={row.type === "row"}
+                    fallback={
+                      // SUBTOTAL
+                      <tr>
+                        <td colSpan={5} className="text-center"><b>SUB TOTAL</b></td>
+                        <For each={Array.from({ length: maxCol })}>{() => <td></td>}</For>
+                        <td className="text-right"><b>{fmt2Blank(row.gPcs)}</b></td>
+                        <td className="text-right"><b>{fmt2Blank(row.gMtr)}</b></td>
+                        <td className="text-right"><b>{fmt2Blank(row.gYrd)}</b></td>
+                      </tr>
+                    }
+                  >
+                    <tr>
+                      <td className="text-center">{row.isFirst ? (row.gi + 1) : ""}</td>
+                      <td className="text-center">{row.bal ?? ""}</td>
+                      <td className="text-center">{row.isFirst ? (row.colorDesc ?? "") : ""}</td>
+                      <td className="text-center">{row.isFirst ? (row.itemName ?? "-") : ""}</td>
+                      <td className="text-center">{row.lot ?? ""}</td>
+
+                      {/* kolom roll dinamis */}
+                      <For each={Array.from({ length: maxCol })}>
+                        {(_, ci) => (
+                          <td className="num roll-cell">
+                            {fmt2Blank(row.rowRolls[ci()]?.[unitKey])}
+                          </td>
+                        )}
+                      </For>
+
+                      <td className="text-right">{fmt2Blank(row.pcsRow)}</td>
+                      <td className="text-right">{fmt2Blank(row.mRow)}</td>
+                      <td className="text-right">{fmt2Blank(row.yRow)}</td>
+                    </tr>
+                  </Show>
+                )}
+              </For>
+
+              {/* ROW KOSONG DINAMIS */}
+              <For each={Array.from({ length: extraRows() })}>
+                {() => (
+                  <tr className="stretch-row">
+                    <td className="p-1 text-center h-5"></td>
+                    <td className="p-1 text-center"></td>
+                    <td className="p-1 text-center"></td>
+                    <td className="p-1"></td>
+                    <td className="p-1 text-center"></td>
+                    <For each={Array.from({ length: maxCol })}>
+                      {() => <td className="p-1 text-right"></td>}
+                    </For>
+                    <td className="p-1 text-right"></td>
+                    <td className="p-1 text-right"></td>
+                    <td className="p-1 text-right"></td>
+                  </tr>
+                )}
+              </For>
+            </tbody>
+
+            <tfoot ref={bind("tfootRef")}>
+              <Show when={isLast}>
+                <tr>
+                  <td colSpan={5} className="text-center"><b>TOTAL</b></td>
+                  <For each={Array.from({ length: maxCol })}>{() => <td></td>}</For>
+                  <td className="text-right"><b>{fmt2Blank(totals.pcs)}</b></td>
+                  <td className="text-right"><b>{fmt2Blank(totals.m)}</b></td>
+                  <td className="text-right"><b>{fmt2Blank(totals.y)}</b></td>
+                </tr>
+              </Show>
+              <tr>
+                <td colSpan={5 + maxCol + 3} className="no-border text-right" style={{ borderTop: "1px solid #000" }}>
+                  <i>Halaman {pageNo} dari {pageCount}</i>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {/* ====== AKHIR REL KONTEN ====== */}
       </div>
     </div>
   );

@@ -727,9 +727,14 @@ export default function PackingListForm() {
       }, []);
   };
 
-  function handlePrint() {
+  function handlePrintA4() {
     localStorage.setItem("printData", JSON.stringify(form()));
-    window.open("/print/packinglist", "_blank");
+    window.open("/print/packinglist?paper=A4", "_blank");
+  }
+
+  function handlePrintContinuous() {
+    localStorage.setItem("printData", JSON.stringify(form()));
+    window.open("/print/packinglist?paper=CONTINUOUS95", "_blank");
   }
 
   // ====== KOLOM DINAMIS: colgroup + table-fixed (UPDATED) ======
@@ -773,17 +778,29 @@ export default function PackingListForm() {
         </div>
       )}
       <h1 class="text-2xl font-bold mb-4">
-        {isEdit ? "Edit" : "Tambah"} Packing List
+        {isView ? "Detail" : (isEdit ? "Edit" : "Tambah")} Packing List
       </h1>
-      <button
-        type="button"
-        class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
-        onClick={handlePrint}
-        hidden={!isEdit}
-      >
-        <Printer size={20} />
-        Print
-      </button>
+      <div class="flex gap-2 mb-4" hidden={!isEdit}>
+        <button
+          type="button"
+          class="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+          onClick={handlePrintA4}
+          title="Cetak ke HVS A4"
+        >
+          <Printer size={20} />
+          <span>Print</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded hover:bg-emerald-700"
+          onClick={handlePrintContinuous}
+          title={'Cetak ke Continuous 9.5" (rangkap 3)'}   /* <- pakai string literal JS */
+        >
+          <Printer size={20} />
+          <span>Print Dot Matrix (Rangkap 3)</span>          
+        </button>
+      </div>
 
       <form class="space-y-4" onSubmit={handleSubmit}>
         <div class="grid grid-cols-3 gap-4">

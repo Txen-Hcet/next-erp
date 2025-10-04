@@ -7,6 +7,14 @@ export default function PackingOrderPrint(props) {
   const unit = createMemo(() => root().satuan_unit || root().satuan_unit_name || "Meter");
   const isPPN = createMemo(() => Number(root().ppn ?? root().ppn_percent) > 0);
 
+  // ==== DETEKSI DOT-MATRIX/CONTINUOUS ====
+  const isContinuous = createMemo(() => {
+    const q = new URLSearchParams(window.location.search);
+    const paper = (q.get("paper") || "").toUpperCase();
+    const dm = (q.get("dm") || "").toLowerCase();
+    return paper === "CONTINUOUS95" || dm === "1" || dm === "true";
+  });
+
   /* ========= Helpers ========= */
   function formatTanggal(s) {
     if (!s) return "-";
@@ -44,7 +52,7 @@ export default function PackingOrderPrint(props) {
         (pl.items || []).map((it) => {
           const validRolls = (it.rolls || []).filter((r) => hasQty(r.meter, r.yard));
           const lotDisplay = (it.lot && String(it.lot).trim()) ? String(it.lot) : pickLotsFromRolls(validRolls);
-          const balDisplay = (it.no_bal && String(it.no_bal).trim()) ? String(it.no_bal) : pickBalsFromRolls(validRolls)
+          const balDisplay = (it.no_bal && String(it.no_bal).trim()) ? String(it.no_bal) : pickBalsFromRolls(validRolls);
 
           return {
             kode: it.corak_kain ?? "-",
@@ -105,12 +113,11 @@ export default function PackingOrderPrint(props) {
     return [];
   });
 
-  const totalPCS = createMemo(() => displayRows().reduce((s, it) => s + (parseFloat(String(it.rolls_count ?? "0")) || 0), 0));
+  const totalPCS   = createMemo(() => displayRows().reduce((s, it) => s + (parseFloat(String(it.rolls_count ?? "0")) || 0), 0));
   const totalMeter = createMemo(() => displayRows().reduce((s, it) => s + (parseFloat(String(it.meter_total ?? "0")) || 0), 0));
-  const totalYard = createMemo(() => displayRows().reduce((s, it) => s + (parseFloat(String(it.yard_total ?? "0")) || 0), 0));
+  const totalYard  = createMemo(() => displayRows().reduce((s, it) => s + (parseFloat(String(it.yard_total ?? "0")) || 0), 0));
 
   /* ========= Pagination ========= */
-  // Lebih pendek (landscape), baris per halaman lebih sedikit
   const ROWS_FIRST_PAGE = 9;
   const ROWS_OTHER_PAGES = 9;
   const pagesWithOffsets = createMemo(() => splitIntoPagesWithOffsets(displayRows(), ROWS_FIRST_PAGE, ROWS_OTHER_PAGES));
@@ -119,12 +126,6 @@ export default function PackingOrderPrint(props) {
     <>
       <style>{`
         :root { --safe: 8mm; }
-
-        /* Landscape Statement: 8.5in x 5.5in */
-        // @page { 
-        //   size: 8.5in 5.5in; 
-        //   margin: 0; 
-        // }
 
         /* Portrait Letter */
         @page {
@@ -145,14 +146,8 @@ export default function PackingOrderPrint(props) {
         }
 
         .page {
-          // Landscape
-          // width: 8.5in;
-          // height: 5.40in;           
-
-          // Portrait Letter
           width: 8.5in;
-          height: 5.4in; 
-
+          height: 5.4in;
           position: relative;
           box-sizing: border-box;
           display: flex;
@@ -171,30 +166,53 @@ export default function PackingOrderPrint(props) {
           align-items: stretch;
         }
 
-        .grid-header {
-          display: grid;
-          grid-template-columns: 1.2fr 2.2fr; /* kiri: box judul, kanan: panel info */
-          gap: 8px;
-          align-items: stretch;
-        }
-
-        .title-box {
-          border: 1px solid #000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 6px 8px;
-          min-height: 54px;
-        }
-
-        .info-stack { display: grid; grid-template-rows: auto auto; gap: 6px; }
-
-        .thin { border: 1px solid #000; }
-
         table { border-collapse: collapse; page-break-inside: auto; width: 100%; }
         tr { page-break-inside: avoid; }
         td, th { line-height: 1.25; }
         tbody td { min-height: 1.25rem; }
+
+        /* ==== A4 (non-continuous): perkecil teks & perbesar area tanda tangan ==== */
+        .a4 td, .a4 th { font-size: 12px; line-height: 1.2; }         /* turun sedikit */
+        .a4 .a4-info td { font-size: 12px; }
+        .a4 .a4-customer td { font-size: 12px; }
+        .a4 .a4-label { font-weight: 700; }
+        .a4 .sign-block {                                           /* area tanda tangan lebih tinggi */
+          font-size: 12px;
+          padding-top: 28px;
+          padding-bottom: 28px;
+        }
+
+        /* ====== DOT-MATRIX / CONTINUOUS ====== */
+        @media print {
+          .dm, .dm * {
+            font-family: "Courier New", monospace !important;
+            color: #000 !important;
+            -webkit-font-smoothing: auto;
+            text-rendering: geometricPrecision;
+            font-weight: 600;
+          }
+          .dm td, .dm th {
+            font-size: 12px;
+            padding: 2px 3px;
+            border-color: #000 !important;
+            background: transparent !important;
+          }
+          .dm .info-box td, .dm .info-box th {
+            font-weight: 600 !important;
+            -webkit-text-stroke: 0 !important;
+            letter-spacing: 0;
+          }
+          .dm .items-table tbody td {
+            font-weight: 800 !important;
+            -webkit-text-stroke: 0.25px !important;
+            letter-spacing: -0.05px;
+          }
+          .dm .items-table thead th,
+          .dm .items-table tfoot td {
+            font-weight: 650 !important;
+            -webkit-text-stroke: 0.12px !important;
+          }
+        }
 
         @media print {
           .page { page-break-after: always; }
@@ -220,6 +238,7 @@ export default function PackingOrderPrint(props) {
               formatters={{ formatTanggal, formatAngka }}
               unit={unit()}
               logoNavel={logoNavel}
+              isContinuous={isContinuous()}
             />
           );
         }}
@@ -228,12 +247,11 @@ export default function PackingOrderPrint(props) {
   );
 }
 
-/* ========= Single Page (Landscape) ========= */
+/* ========= Single Page ========= */
 function PrintPage(props) {
-  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, unit, logoNavel } = props;
+  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, logoNavel, isContinuous } = props;
   const { formatTanggal, formatAngka } = formatters;
 
-  // Landscape -> header lebih padat, table lebih pendek; tambah fudge sedikit
   const { extraRows, bind, recalc } = createStretch({ fudge: 24 });
 
   createEffect(() => {
@@ -244,10 +262,13 @@ function PrintPage(props) {
     if (document.fonts?.ready) document.fonts.ready.then(go); else go();
   });
 
+  // helper: apakah A4?
+  const a4Class = !isContinuous ? "a4" : "";
+
   return (
-    <div ref={bind("pageRef")} className="page">
+    <div ref={bind("pageRef")} className={`page ${a4Class}`}>
       <div className="safe">
-        {/* Measurer (9 kolom: termasuk Bal hidden) */}
+        {/* Measurer */}
         <table style="position:absolute; top:-10000px; left:-10000px; visibility:hidden;">
           <tbody>
             <tr ref={bind("measureRowRef")}>
@@ -264,68 +285,70 @@ function PrintPage(props) {
           </tbody>
         </table>
 
-        {/* HEADER TENGAH */}
+        {/* HEADER */}
         <div className="w-full flex flex-col items-center justify-center gap-1 text-center">
           <img
             className="w-20 block"
             src={logoNavel}
             alt=""
             onLoad={recalc}
-            style={{ display: isPPN ? "block" : "none" }} // tetap support hidden saat non-PPN
+            style={{ display: isPPN ? "block" : "none" }}
           />
-          <h1 className="text-lg uppercase font-bold">Surat Jalan</h1>
+          <h1 className={`${isContinuous ? "dm" : ""} text-lg uppercase font-bold`}>Surat Jalan</h1>
         </div>
 
         {/* Header dua kolom */}
-        <div className="w-full grid gap-2 text-[11px] grid-cols-[50%_50%]">
+        <div className="w-full grid gap-2 grid-cols-[50%_50%]">
           {/* Kiri: Kepada Yth */}
-          <table className="border-2 border-black table-fixed">
+          <table className={`border-2 border-black table-fixed ${isContinuous ? "dm info-box" : "a4-customer"}`}>
             <tbody>
               <tr>
-                <td className="px-2 pt-1 max-w-[280px] break-words whitespace-pre-wrap" colSpan={2}>
+                <td className={`px-2 pt-1 max-w-[280px] break-words whitespace-pre-wrap ${isContinuous ? "" : "a4-label"}`} colSpan={2}>
                   Kepada Yth:
                 </td>
               </tr>
               <tr>
                 <td className="px-2 max-w-[280px] break-words whitespace-pre-wrap" colSpan={2}>
-                  {data.customer_name}
+                  <span className={isContinuous ? "" : "font-semibold"}>{data.customer_name}</span>
                 </td>
               </tr>
             </tbody>
           </table>
 
-          {/* Kanan: Info – dibikin lebih lebar + kolom fix */}
-          <table className="border-2 border-black table-fixed w-full text-[10px] leading-tight">
+          {/* Kanan: Info */}
+          <table className={`border-2 border-black table-fixed w-full leading-tight ${isContinuous ? "dm info-box" : "a4-info"}`}>
             <colgroup>
-              <col style="width:15%" />
-              <col style="width:6%" />
+              <col style="width:18%" />
+              <col style="width:5%" />
               <col style="width:60%" />
             </colgroup>
             <tbody>
               <tr>
-                <td className="font-bold px-2 py-1 whitespace-nowrap">No. SJ</td>
-                <td className="text-center whitespace-nowrap">:</td>
-                <td className="px-2 py-1 break-words">{data.no_sj || data.sequence_number}</td>
-              </tr>
-              <tr>
-                <td className="font-bold px-2 py-1 whitespace-nowrap">Tanggal</td>
+                <td className={`px-2 py-1 whitespace-nowrap ${isContinuous ? "" : "a4-label"}`}>No. SJ</td>
                 <td className="text-center whitespace-nowrap">:</td>
                 <td className="px-2 py-1 break-words">
-                  {formatTanggal(data.tanggal_surat_jalan || data.created_at)}
+                  <span className={isContinuous ? "" : "font-semibold"}>{data.no_sj || data.sequence_number}</span>
                 </td>
               </tr>
               <tr>
-                <td className="font-bold px-2 py-1 whitespace-nowrap">No. SO</td>
+                <td className={`px-2 py-1 whitespace-nowrap ${isContinuous ? "" : "a4-label"}`}>Tanggal</td>
+                <td className="text-center whitespace-nowrap">:</td>
+                <td className="px-2 py-1 break-words">
+                  <span className={isContinuous ? "" : "font-semibold"}>{formatTanggal(data.tanggal_surat_jalan || data.created_at)}</span>
+                </td>
+              </tr>
+              <tr>
+                <td className={`px-2 py-1 whitespace-nowrap ${isContinuous ? "" : "a4-label"}`}>No. SO</td>
                 <td className="text-center whitespace-nowrap">:</td>
                 <td className="px-2 py-1 break-words">{data.no_so}</td>
               </tr>
               <tr>
-                <td className="font-bold px-2 py-1 whitespace-nowrap">No. Mobil</td>
+                <td className={`px-2 py-1 whitespace-nowrap ${isContinuous ? "" : "a4-label"}`}>No. Mobil</td>
                 <td className="text-center whitespace-nowrap">:</td>
                 <td className="px-2 py-1 break-words">{data.no_mobil}</td>
               </tr>
               <tr>
-                <td className="font-bold px-2 py-1 whitespace-nowrap">Sopir</td>
+                <td className={`px-2 py-1 whitespace-nowrap ${isContinuous ? "" : "a4-label"}`}>Sopir</td>
                 <td className="text-center whitespace-nowrap">:</td>
                 <td className="px-2 py-1 break-words">{data.sopir}</td>
               </tr>
@@ -333,94 +356,12 @@ function PrintPage(props) {
           </table>
         </div>
 
-      {/* OLD HEADER LANDSCAPE*
-      <div className="safe">
-        <div className="grid-header text-[11px]">
-          {/* Kiri: box judul + logo (logo hanya tampil saat PPN) 
-          <div
-            className="title-box"
-            style={{ "min-height": isPPN ? "88px" : "60px" }} // lebih tinggi saat logo tampil
-          >
-            <div className="flex flex-col items-center justify-center">
-              <img
-                src={logoNavel}
-                alt=""
-                className="h-10 mb-1"
-                onLoad={recalc}
-                style={{ display: isPPN ? "block" : "none" }}
-              />
-              <div className="text-base uppercase font-bold tracking-wide">
-                Surat Jalan
-              </div>
-            </div>
-          </div>
-
-          {/* Kanan: panel info + Kepada 
-          <div className="info-stack">
-            {/* Panel info (tetap baris-baris seperti sebelumnya agar aman) 
-            <table className="thin table-fixed">
-              <tbody>
-                <tr>
-                  <td className="font-bold px-2 w-[20%] whitespace-nowrap">Nomor</td>
-                  <td className="w-[4%] text-center">:</td>
-                  <td className="px-2 break-words w-[30%]">{data.no_sj || data.sequence_number}</td>
-
-                  <td className="font-bold px-2 w-[18%] whitespace-nowrap">Tanggal</td>
-                  <td className="w-[4%] text-center">:</td>
-                  <td className="px-2 break-words">{formatTanggal(data.tanggal_surat_jalan || data.created_at)}</td>
-                </tr>
-                <tr>
-                  <td className="font-bold px-2 whitespace-nowrap">No. SO</td>
-                  <td className="text-center">:</td>
-                  <td className="px-2 break-words">{data.no_so}</td>
-
-                  <td className="font-bold px-2 whitespace-nowrap">No. Mobil</td>
-                  <td className="text-center">:</td>
-                  <td className="px-2 break-words">{data.no_mobil}</td>
-                </tr>
-                <tr>
-                  <td className="font-bold px-2 whitespace-nowrap">Sopir</td>
-                  <td className="text-center">:</td>
-                  <td className="px-2 break-words" colSpan={3}>{data.sopir}</td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-
-            {/* Kepada Yth *
-            <table className="thin table-fixed">
-              <tbody>
-                <tr>
-                  <td className="px-2 py-1 w-[24%] whitespace-nowrap">Kepada Yth</td>
-                  <td className="px-2 py-1 break-words">{data.customer_name}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-         OLD HEADER LANDSCAPE */}
-
-        {/* Measurer: cocokkan jumlah kolom body (9 kolom; Bal tetap hidden) */}
-        <table style="position:absolute;top:-10000px;left:-10000px;visibility:hidden;">
-          <tbody>
-            <tr ref={bind("measureRowRef")} className="text-[11px]">
-              <td className="p-1 text-center h-5"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-center"></td>
-              <td className="p-1 text-right"></td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* TABEL ITEM (tetap sama) */}
-        <table ref={bind("tableRef")} className="w-full table-fixed border border-black text-[11px] border-collapse mt-1">
-          <thead ref={bind("theadRef")} className="bg-gray-200">
+        {/* TABEL ITEM */}
+        <table
+          ref={bind("tableRef")}
+          className={`w-full table-fixed border border-black border-collapse mt-1 ${isContinuous ? "dm items-table" : ""}`}
+        >
+          <thead ref={bind("theadRef")}>
             <tr>
               <th className="border border-black p-1 w-[5%]" rowSpan={2}>No</th>
               <th className="border border-black p-1 w-[7%]" rowSpan={2}>Bal</th>
@@ -432,10 +373,7 @@ function PrintPage(props) {
               <th className="border border-black p-1 w-[8%]" rowSpan={2}>TTL/PCS</th>
               <th className="border border-black p-1 w-[20%] text-center" colSpan={2}>Quantity</th>
             </tr>
-              <tr>
-              {/* spacer untuk kolom sebelum quantity */}
-              
-              {/* sub header quantity */}
+            <tr>
               <th className="border border-black p-1 w-[10%]">Meter</th>
               <th className="border border-black p-1 w-[10%]">Yard</th>
             </tr>
@@ -445,21 +383,21 @@ function PrintPage(props) {
             <For each={items}>
               {(it, i) => (
                 <tr>
-                  <td className="p-1 text-center break-words">{startIndex + i() + 1}</td>
-                  <td className="p-1 text-center break-words">{it.no_bal}</td>
-                  <td className="p-1 break-words text-center">{it.kode}</td>
-                  <td className="p-1 text-center break-words">{it.lot}</td>
-                  <td className="p-1 break-words text-center">{it.warna}</td>
-                  <td className="p-1 text-center break-words"><span>{it.lebar}"</span></td>
-                  <td className="p-1 text-center break-words">{it.grade}</td>
-                  <td className="p-1 text-center break-words">{it.rolls_count}</td> 
-                  <td className="p-1 text-center break-words">{formatAngka(it.meter_total)}</td>
-                  <td className="p-1 text-center break-words">{formatAngka(it.yard_total)}</td>
+                  <td className="p-1 text-center">{startIndex + i() + 1}</td>
+                  <td className="p-1 text-center">{it.no_bal}</td>
+                  <td className="p-1 text-center">{it.kode}</td>
+                  <td className="p-1 text-center">{it.lot}</td>
+                  <td className="p-1 text-center">{it.warna}</td>
+                  <td className="p-1 text-center"><span>{it.lebar}"</span></td>
+                  <td className="p-1 text-center">{it.grade}</td>
+                  <td className="p-1 text-center">{it.rolls_count}</td>
+                  <td className="p-1 text-center">{formatAngka(it.meter_total)}</td>
+                  <td className="p-1 text-center">{formatAngka(it.yard_total)}</td>
                 </tr>
               )}
             </For>
 
-            {/* Baris kosong untuk stretch */}
+            {/* Stretcher */}
             <For each={Array.from({ length: extraRows() })}>
               {() => (
                 <tr>
@@ -477,19 +415,13 @@ function PrintPage(props) {
             </For>
           </tbody>
 
-          <tfoot ref={bind("tfootRef")} className="text-[11px]">
+          <tfoot ref={bind("tfootRef")}>
             <Show when={isLast}>
               <tr>
                 <td colSpan={7} className="border border-black text-right font-bold px-2 py-1">TOTAL</td>
-                <td className="border border-black px-2 py-1 text-center font-bold">
-                  {formatAngka(totals.totalPCS, 0)}
-                </td>
-                <td className="border border-black px-2 py-1 text-center font-bold">
-                  {formatAngka(totals.totalMeter)}
-                </td>
-                <td className="border border-black px-2 py-1 text-center font-bold">
-                  {formatAngka(totals.totalYard)}
-                </td>
+                <td className="border border-black px-2 py-1 text-center">{formatAngka(totals.totalPCS, 0)}</td>
+                <td className="border border-black px-2 py-1 text-center">{formatAngka(totals.totalMeter)}</td>
+                <td className="border border-black px-2 py-1 text-center">{formatAngka(totals.totalYard)}</td>
               </tr>
               <tr>
                 <td colSpan={10} className="border border-black p-2 align-top">
@@ -499,7 +431,13 @@ function PrintPage(props) {
               </tr>
               <tr>
                 <td colSpan={10} className="border border-black">
-                  <div className="w-full flex justify-between text-[11px] py-4 px-2">
+                  <div
+                    className={
+                      isContinuous
+                        ? "w-full flex justify-between text-[11px] py-4 px-2"
+                        : "w-full flex justify-between sign-block px-3"
+                    }
+                  >
                     <div className="text-center w-1/4">Yang Menerima<br/><br/><br/>( ...................... )</div>
                     <div className="text-center w-1/4">Menyetujui<br/><br/><br/>( ...................... )</div>
                     <div className="text-center w-1/4">Yang Membuat<br/><br/><br/>( ...................... )</div>

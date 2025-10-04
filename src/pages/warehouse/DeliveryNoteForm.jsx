@@ -29,6 +29,11 @@ export default function DeliveryNoteForm() {
   const [salesOrders, setSalesOrders] = createSignal([]);
   const [deliveryNoteData, setDeliveryNoteData] = createSignal(null);
 
+  const [printMode, setPrintMode] = createSignal(localStorage.getItem("sj_print_mode") || "a4"); // "a4" | "continuous"
+  const [dotMatrix, setDotMatrix] = createSignal(
+    localStorage.getItem("sj_print_dm") === "1" || localStorage.getItem("sj_print_mode") === "continuous"
+  );
+
   // maps yang dipakai SAAT EDIT
   let sjItemIdByPlItemId = new Map();     // pl_item_id -> sj_item_id
   let sjRollIdByPliRollId = new Map();    // pli_roll_id -> sj_roll_id
@@ -581,18 +586,29 @@ export default function DeliveryNoteForm() {
     }
   };
 
-  function handlePrint() {
+  function openPrint({ continuous = false } = {}) {
     if (!deliveryNoteData()) {
       Swal.fire("Gagal", "Data untuk mencetak tidak tersedia. Pastikan Anda dalam mode Edit/View.", "error");
       return;
     }
+
     const dataToPrint = { ...deliveryNoteData() };
-
-    //console.log("Data print SJ: ", JSON.stringify(dataToPrint, null, 2));
-
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/suratjalan#${encodedData}`, "_blank");
+
+    // build query untuk halaman print
+    const qs = [];
+    if (continuous) {
+      // kertas continuous 9.5" + mode dot-matrix (tebal)
+      qs.push("paper=CONTINUOUS95", "dm=1");
+    }
+    const query = qs.length ? `?${qs.join("&")}` : "";
+
+    window.open(`/print/suratjalan${query}#${encodedData}`, "_blank");
   }
+
+  // versi ringkas yang dipanggil tombol:
+  const handlePrintA4 = () => openPrint({ continuous: false });
+  const handlePrintDM  = () => openPrint({ continuous: true });
 
   /* ---------------- UI ---------------- */
 
@@ -602,15 +618,27 @@ export default function DeliveryNoteForm() {
         {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Surat Jalan Packing List
       </h1>
 
-      <button
-        type="button"
-        class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
-        onClick={handlePrint}
-        hidden={!isEdit}
-      >
-        <Printer size={20} />
-        Print
-      </button>
+      <div class="flex gap-2 mb-4" hidden={!isEdit}>
+        <button
+          type="button"
+          class="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+          onClick={handlePrintA4}
+          title="Cetak ke A4 / printer biasa"
+        >
+          <Printer size={18} />
+          Print
+        </button>
+
+        <button
+          type="button"
+          class="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded hover:bg-emerald-700"
+          onClick={handlePrintDM}
+          title='Cetak Continuous 9.5" untuk Epson LX-300+ II'
+        >
+          <Printer size={18} />
+          Print Dot Matrix (Rangkap 3)
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} class="space-y-4">
         <SearchableSalesOrderSelect
