@@ -9,6 +9,7 @@ import {
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
+import { getLotsLabelTruncated } from "../../../helpers/lot-helpers";
 
 export default function KJDeliveryNoteList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
@@ -68,25 +69,11 @@ export default function KJDeliveryNoteList() {
     }
   };
 
-  // const handleGetAllDeliveryNotes = async (tok) => {
-  //   try {
-  //     const response = await getAllKJDeliveryNotes(tok);
-
-  //     if (response && Array.isArray(response.suratJalans)) {
-  //       const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
-  //       setPackingOrders(sortedData);
-  //     } else {
-  //       setPackingOrders([]);
-  //     }
-  //   } catch (error) {
-  //     console.error("Gagal mengambil data Surat Penerimaan Kain Jadi:", error);
-  //     setPackingOrders([]);
-  //   }
-  // };
-
   const handleGetAllDeliveryNotes = async (tok) => {
     try {
       const result = await getAllKJDeliveryNotes(tok);
+
+      //console.log("Data All SP KJ: ", JSON.stringify(result, null, 2));
 
       if (result && Array.isArray(result.suratJalans)) {
         const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
@@ -192,7 +179,9 @@ export default function KJDeliveryNoteList() {
                   <th class="py-2 px-4">ID</th>
                   <th class="py-2 px-2">No Surat Penerimaan</th>
                   <th class="py-2 px-2">No Purchase Order</th>
+                  <th class="py-2 px-2">No Surat Jalan Supplier</th>
                   <th class="py-2 px-2">Tanggal</th>
+                  <th class="py-2 px-2">No Lot</th>
                   <th class="py-2 px-2 text-center">
                     <div>Qty by System</div>
                     <span class="text-xs text-gray-500">
@@ -211,7 +200,18 @@ export default function KJDeliveryNoteList() {
                     </td>
                     <td class="py-2 px-4">{sj.no_sj}</td>
                     <td class="py-2 px-4">{sj.no_po}</td>
+                    <td class="py-2 px-4">{sj.no_sj_supplier}</td>
                     <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
+                    <td class="py-2 px-4">
+                      {(() => {
+                        const { text, tooltip } = getLotsLabelTruncated(sj, 3);
+                        return (
+                          <span class="cursor-help" title={tooltip || undefined}>
+                            {text}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td
                       className={`py-2 px-4 text-center ${
                         qtyCounterbySystem(sj, sj.satuan_unit_name) === "SELESAI"
