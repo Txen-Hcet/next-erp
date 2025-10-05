@@ -217,7 +217,7 @@ export default function SuratJalanList() {
                 </td>
                 <td class="py-2 px-4">{sc.no_sj}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
-                <td class="py-2 px-4">{sc.first_no_pl}</td>
+                <td class="py-2 px-4">{sc.no_pl}</td>
                 <td class="py-2 px-4">{sc.customer_name}</td>
                 <td class="py-2 px-4">{sc.satuan_unit}</td>
                 <td class="py-2 px-4">{sc.jenis_so_name}</td>
