@@ -111,6 +111,12 @@ import ReturKainJadiList from "./pages/retur/ReturKainJadiList";
 import ReturJualBeliList from "./pages/retur/ReturJualBeliList";
 import ReturSalesList from "./pages/retur/ReturSalesList";
 
+import ReturGreigeForm from "./pages/retur/ReturGreigeForm";
+import ReturOrderCelupForm from "./pages/retur/ReturOrderCelupForm";
+import ReturKainJadiForm from "./pages/retur/ReturKainJadiForm";
+import ReturJualBeliForm from "./pages/retur/ReturJualBeliForm";
+import ReturSalesForm from "./pages/retur/ReturSalesForm";
+
 // RETUR PRINT
 import ReturGreigePrint from "./utils/retur/ReturGreigeDummyPrint";
 import ReturOrderCelupPrint from "./utils/retur/ReturOrderCelupDummyPrint";
@@ -343,6 +349,12 @@ function App() {
       <Route path="/retur-kainjadi" component={ReturKainJadiList} />
       <Route path="/retur-jualbeli" component={ReturJualBeliList} />
       <Route path="/retur-sales" component={ReturSalesList} />
+
+      <Route path="/retur-greige/form" component={ReturGreigeForm}/>
+      <Route path="/retur-ordercelup/form" component={ReturOrderCelupForm}/>
+      <Route path="/retur-kainjadi/form" component={ReturKainJadiForm}/>
+      <Route path="/retur-jualbeli/form" component={ReturJualBeliForm}/>
+      <Route path="/retur-sales/form" component={ReturSalesForm}/>
       {/* RETUR */}
 
       {/* PRINT RETUR */}
