@@ -1,305 +1,80 @@
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllOCDeliveryNotes,
-  getOCDeliveryNotes,
+  getAllCelupReturs,
   getUser,
-  setReturOrderCelup,
-  undoReturOrderCelup,
+  softDeleteCelupRetur,
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash, Eye, Printer, RotateCcw, CheckCircle, XCircle } from "lucide-solid";
+import { Eye, Edit, Trash } from "lucide-solid";
 
 export default function ReturOrderCelupList() {
-  const [packingOrders, setPackingOrders] = createSignal([]);
+  const [returs, setReturs] = createSignal([]);
   const navigate = useNavigate();
   const tokUser = getUser();
+
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
-  const totalPages = createMemo(() => Math.max(1, Math.ceil(packingOrders().length / pageSize)));
+  const totalPages = createMemo(() =>
+    Math.max(1, Math.ceil((returs().length || 0) / pageSize))
+  );
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return packingOrders().slice(startIndex, startIndex + pageSize);
+    return returs().slice(startIndex, startIndex + pageSize);
   };
 
   const handleGetAllData = async (tok) => {
     try {
-      const result = await getAllOCDeliveryNotes(tok);
-      
-      //console.log("Data All SP OC: ", JSON.stringify(result, null, 2));
+      const result = await getAllCelupReturs(tok);
+      const list = Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result?.returs)
+        ? result.returs
+        : [];
 
-      if (result && Array.isArray(result.suratJalans)) {
-        const sortedData = result.suratJalans.sort((a, b) => b.id - a.id);
-        setPackingOrders(sortedData);
-      } else if (result.status === 403) {
-        await Swal.fire({
-          title: "Tidak Ada Akses",
-          text: "Anda tidak memiliki izin untuk melihat Retur Pembelian Order Celup",
-          icon: "warning",
-          confirmButtonColor: "#6496df",
-        });
-        navigate("/dashboard");
-      } else {
-        Swal.fire({
-          title: "Gagal",
-          text: result.message || "Gagal mengambil data Retur Pembelian Order Celup",
-          icon: "error",
-          showConfirmButton: false,
-          timer: 1000,
-          timerProgressBar: true,
-        });
-        setPackingOrders([]);
-      }
+      const sorted = list.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+      setReturs(sorted);
+
+      const newTotal = Math.max(1, Math.ceil(sorted.length / pageSize));
+      if (currentPage() > newTotal) setCurrentPage(newTotal);
     } catch (error) {
-      console.error("Gagal mengambil data Retur Pembelian Order Celup:", error);
-      setPackingOrders([]);
-    }
-  };
-
-  const qtyCounterbySystem = (sj, satuanUnit) => {
-    let total = 0;
-    let terkirim = 0;
-
-    switch (satuanUnit) {
-      case "Meter":
-        total = parseFloat(sj.summary?.total_meter || 0);
-        terkirim = parseFloat(sj.summary?.total_meter_dalam_proses || 0);
-        break;
-      case "Yard":
-        total = parseFloat(sj.summary?.total_yard || 0);
-        terkirim = parseFloat(sj.summary?.total_yard_dalam_proses || 0);
-        break;
-      default:
-        return "-";
-    }
-
-    const sisa = total - terkirim;
-    if (sisa <= 0) return "SELESAI";
-    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
-  };
-
-  const totalCounter = (sj) => {
-    const unitName = String(sj.satuan_unit_name || sj.satuan_unit || "").toLowerCase();
-    const fmt = (n) => (Number(n) || 0).toLocaleString("id-ID");
-
-    if (unitName === "meter") {
-      const meter = sj.summary?.total_meter ?? 0;
-      return `${fmt(meter)}`;
-    }
-    if (unitName === "yard") {
-      const yard = sj.summary?.total_yard ?? 0;
-      return `${fmt(yard)}`;
-    }
-    // fallback kalau unit kosong/tidak dikenal
-    const meter = sj.summary?.total_meter ?? 0;
-    return `${fmt(meter)}`;
-  };   
-
-  // ========= Handler Retur =========
-  const handleSetReturned = async (sj) => {
-    if (sj.returned_at) {
-      Swal.fire({
-        title: "Sudah Retur",
-        text: "Data ini sudah diretur.",
-        icon: "info",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-      return;
-    }
-
-    const konfirm = await Swal.fire({
-      title: "Konfirmasi Retur",
-      text: `Jadikan Retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok akan dikembalikan.`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: "Ya, Retur",
-      cancelButtonText: "Batal",
-      confirmButtonColor: "#2563eb",
-    });
-    if (!konfirm.isConfirmed) return;
-
-    try {
-      if (!sj.items || sj.items.length === 0) {
-        await Swal.fire({
-          title: "Tidak ada item",
-          text: "Surat penerimaan ini tidak memiliki item untuk diretur.",
-          icon: "info",
-          timer: 1400,
-          showConfirmButton: false,
-        });
-        return;
-      }
-
-        const itemIds = sj.items
-            .map((it) => it.pcsj_item_id ?? it.id)
-            .filter((id) => id != null)
-            .map((id) => Number(id));
-      await setReturOrderCelup(tokUser?.token, sj.id, itemIds);
-
-      setPackingOrders((prev) =>
-        prev.map((x) =>
-          x.id === sj.id
-            ? {
-                ...x,
-                returned_at: new Date().toISOString().slice(0, 19).replace("T", " "),
-                returned_by: tokUser?.id || 0,
-              }
-            : x
-        )
-      );
-
-      Swal.fire({
-        title: "Berhasil",
-        text: "Retur berhasil diset.",
-        icon: "success",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-    } catch (e) {
-      console.error(e);
+      console.error("Gagal mengambil data Retur Order Celup:", error);
       Swal.fire({
         title: "Gagal",
-        text: e?.message || "Gagal set retur.",
+        text: error?.message || "Gagal mengambil data Retur Order Celup",
         icon: "error",
+        showConfirmButton: false,
+        timer: 1200,
+        timerProgressBar: true,
       });
+      setReturs([]);
     }
   };
 
-
-  const handleUnsetReturned = async (sj) => {
-    if (!sj.returned_at) {
-      Swal.fire({
-        title: "Belum Retur",
-        text: "Data ini belum diretur.",
-        icon: "info",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-      return;
-    }
-
-    const konfirm = await Swal.fire({
-      title: "Batalkan Retur?",
-      text: `Batalkan status retur untuk ${sj.no_sj} dengan ID ${sj.id}? Stok akan dikoreksi kembali.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Ya, Batalkan",
-      cancelButtonText: "Batal",
-      confirmButtonColor: "#d97706",
-    });
-    if (!konfirm.isConfirmed) return;
-
-    try {
-      if (!sj.items || sj.items.length === 0) {
-        await Swal.fire({
-          title: "Tidak ada item",
-          text: "Surat penerimaan ini tidak memiliki item untuk di-undo retur.",
-          icon: "info",
-          timer: 1400,
-          showConfirmButton: false,
-        });
-        return;
-      }
-
-      const itemIds = sj.items
-        .map((it) => it.pcsj_item_id ?? it.id)
-        .filter((id) => id != null)
-        .map((id) => Number(id));
-      await undoReturOrderCelup(tokUser?.token, sj.id, itemIds);
-
-      setPackingOrders((prev) =>
-        prev.map((x) => (x.id === sj.id ? { ...x, returned_at: null, returned_by: null } : x))
-      );
-
-      Swal.fire({
-        title: "Dibatalkan",
-        text: "Status retur dibatalkan.",
-        icon: "success",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-    } catch (e) {
-      console.error(e);
-      Swal.fire({
-        title: "Gagal",
-        text: e?.message || "Gagal membatalkan retur.",
-        icon: "error",
-      });
-    }
+  const fmtNum = (n) => (Number(n) || 0).toLocaleString("id-ID");
+  const totalCounter = (row) => {
+    const unit = String(row?.satuan_unit_name || row?.satuan_unit || "").toLowerCase();
+    if (unit === "meter") return fmtNum(row?.summary?.total_meter ?? 0);
+    if (unit === "yard")  return fmtNum(row?.summary?.total_yard ?? 0);
+    return fmtNum(row?.summary?.total_meter ?? 0);
   };
 
-  const handlePrintRetur = async (sj) => {
-    if (!sj.returned_at) {
-      Swal.fire({
-        title: "Belum Retur",
-        text: "Set retur dulu sebelum mencetak dokumen retur.",
-        icon: "info",
-        timer: 1200,
-        showConfirmButton: false,
-      });
-      return;
-    }
+  const lotLabel = (row, maxShow = 3) => {
+    const lots = (row?.items || [])
+      .map((it) => it?.lot)
+      .filter((v) => v !== null && v !== undefined);
+    const uniq = [...new Set(lots)];
+    if (uniq.length === 0) return { text: "-", tooltip: "" };
 
-    try {
-      // Ambil detail SJ JB by id (supaya print lengkap)
-      const detail = await getOCDeliveryNotes(sj.id, tokUser?.token);
-      const suratJalan = detail?.suratJalan;
-      if (!suratJalan) {
-        Swal.fire("Gagal", "Data retur tidak ditemukan.", "error");
-        return;
-      }
-
-      // Susun payload minimum yg dipakai print (ikut field yg dipakai komponen print kamu)
-      const printData = {
-        // header
-        no_sj: suratJalan.no_sj,
-        no_sj_supplier: suratJalan.no_sj_supplier,
-        created_at: suratJalan.created_at,
-        tanggal_kirim: suratJalan.tanggal_kirim,
-        no_po: suratJalan.no_po,
-        supplier_name: suratJalan.supplier_name,
-        supplier_alamat: suratJalan.supplier_alamat,
-        supplier_kirim_alamat: suratJalan.supplier_kirim_alamat,
-        telepon: suratJalan.supllier_no_telp ?? suratJalan.supplier_no_telp ?? "0",
-        satuan_unit_name: suratJalan.satuan_unit_name,
-        keterangan: suratJalan.keterangan ?? "-",
-        ppn_percent: suratJalan.ppn_percent ?? "0",
-
-        // items (gunakan struktur yang dipakai tabel print)
-        items: (suratJalan.items || []).map((it) => ({
-          corak_kain: it.corak_kain,
-          konstruksi_kain: it.konstruksi_kain,
-          deskripsi_warna: it.deskripsi_warna ?? "-",  // mungkin tidak ada di list; backend detail biasanya ada
-          lebar_greige: it.lebar_greige ?? 0,
-          lebar_finish: it.lebar_finish ?? 0,
-          gulung: it.gulung ?? 0,
-          lot: it.lot ?? 0,
-          meter_total: it.meter_total ?? 0,
-          yard_total: it.yard_total ?? 0,
-          harga: it.harga ?? 0,
-        })),
-
-        // summary untuk total
-        summary: {
-          total_meter: suratJalan.summary?.total_meter ?? 0,
-          total_yard: suratJalan.summary?.total_yard ?? 0,
-          subtotal: suratJalan.summary?.subtotal ?? 0,
-        },
-      };
-
-      // Kirim via hash (aman dari 431)
-      //console.log("Data SP Greige untuk Print: ", JSON.stringify(printData, null, 2));
-
-      const encoded = encodeURIComponent(JSON.stringify(printData));
-      window.open(`/print/retur-ordercelup#${encoded}`, "_blank");
-    } catch (e) {
-      console.error(e);
-      Swal.fire("Gagal", e?.message || "Tidak bisa memuat data print.", "error");
-    }
+    const shown = uniq.slice(0, maxShow).join(", ");
+    const hiddenCount = Math.max(0, uniq.length - maxShow);
+    const text = hiddenCount > 0 ? `${shown} +${hiddenCount}` : shown;
+    const tooltip = uniq.join(", ");
+    return { text, tooltip };
   };
 
   createEffect(() => {
@@ -313,49 +88,62 @@ export default function ReturOrderCelupList() {
       "Januari","Februari","Maret","April","Mei","Juni",
       "Juli","Agustus","September","Oktober","November","Desember",
     ];
-    const tanggalNum = tanggal.getDate();
-    const bulan = bulanIndo[tanggal.getMonth()];
-    const tahun = tanggal.getFullYear();
-    return `${tanggalNum} ${bulan} ${tahun}`;
+    return `${tanggal.getDate()} ${bulanIndo[tanggal.getMonth()]} ${tanggal.getFullYear()}`;
   }
 
-  const renderStatusRetur = (sj) => {
-    const isReturned = !!sj.returned_at;
+  const handleView = (row) => {
+    navigate(`/retur-ordercelup/form?id=${row.id}&view=true`);
+  };
 
-    return (
-      <span
-        class={`inline-flex items-center justify-center gap-1 w-full ${
-          isReturned ? "text-green-600" : "text-red-600"
-        }`}
-        title={
-          isReturned
-            ? `Sudah retur${sj.returned_at ? ` • ${formatTanggalIndo(sj.returned_at)}` : ""}`
-            : "Belum retur"
-        }
-      >
-        {isReturned ? (
-          <>
-            <CheckCircle size={18} />
-          </>
-        ) : (
-          <>
-            <XCircle size={18} />
-          </>
-        )}
-      </span>
-    );
+  const handleEdit = (row) => {
+    navigate(`/retur-ordercelup/form?id=${row.id}`);
+  };
+
+  const handleDelete = async (row) => {
+    const confirm = await Swal.fire({
+      title: "Hapus Retur?",
+      text: `Kamu yakin mau menghapus Retur Order Celup dengan \nID: ${row.id}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, hapus",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#e3342f",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await softDeleteCelupRetur(tokUser?.token, row.id);
+      await Swal.fire({
+        icon: "success",
+        title: "Terhapus",
+        text: `Data Retur Order Celup dengan ID ${row.id} berhasil dihapus.`,
+        showConfirmButton: false,
+        timer: 900,
+        timerProgressBar: true,
+      });
+      handleGetAllData(tokUser?.token);
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Gagal Menghapus",
+        text: err?.message || "Terjadi kesalahan saat menghapus retur.",
+        showConfirmButton: false,
+        timer: 1300,
+        timerProgressBar: true,
+      });
+    }
   };
 
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Retur Surat Penerimaan Order Celup</h1>
+        <h1 class="text-2xl font-bold">Retur Order Celup</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/jualbeli-deliverynote/form")}
-          hidden
+          onClick={() => navigate("/retur-ordercelup/form")}
         >
-          + Tambah Surat Penerimaan
+          Tambah Retur Order Celup
         </button>
       </div>
 
@@ -364,68 +152,66 @@ export default function ReturOrderCelupList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
+              <th class="py-2 px-2">No Retur</th>
               <th class="py-2 px-2">No Surat Penerimaan</th>
               <th class="py-2 px-2">Tanggal</th>
+              <th class="py-2 px-2">Lot</th>
               <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Total</th>
               <th class="py-2 px-2">Satuan Unit</th>
-              <th class="py-2 px-2">Status Retur</th>
               <th class="py-2 px-4">Aksi</th>
-              <th class="py-2 px-4">Print</th>
             </tr>
           </thead>
 
           <tbody>
-            {paginatedData().map((sj, index) => {
-              const canPrint = !!sj.returned_at;
-
+            {paginatedData().map((row, index) => {
+              const { text: lotTxt, tooltip } = lotLabel(row, 3);
               return (
-                <tr class="border-b" key={sj.id}>
-                  <td class="py-2 px-4">{(currentPage() - 1) * pageSize + (index + 1)}</td>
-                  <td class="py-2 px-4">{sj.no_sj}</td>
-                  <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
-                  <td class="py-2 px-4">{sj.supplier_name}</td>
-                  <td class="py-2 px-4">{totalCounter(sj)}</td>
-                  <td class="py-2 px-4">{sj.satuan_unit_name}</td>
+                <tr class="border-b" key={row.id}>
+                  <td class="py-2 px-4">
+                    {(currentPage() - 1) * pageSize + (index + 1)}
+                  </td>
+                  <td class="py-2 px-4">{row.no_retur}</td>
+                  <td class="py-2 px-4">{row.no_sj}</td>
+                  <td class="py-2 px-4">{formatTanggalIndo(row.created_at)}</td>
+                  <td class="py-2 px-4">
+                    <span class="cursor-help" title={tooltip || undefined}>
+                      {lotTxt}
+                    </span>
+                  </td>
+                  <td class="py-2 px-4">{row.supplier_name}</td>
+                  <td class="py-2 px-4">{totalCounter(row)}</td>
+                  <td class="py-2 px-4">{row.satuan_unit_name}</td>
 
-                  {/* Status retur (ikon) */}
-                  <td class="py-2 px-4">{renderStatusRetur(sj)}</td>
-
-                  {/* Aksi (tanpa print) */}
-                <td class="py-2 px-4 space-x-2">
-                    {!sj.returned_at ? (
-                        <button
-                        class="text-emerald-600 hover:underline"
-                        onClick={() => handleSetReturned(sj)}
-                        title="Set Retur"
-                        >
-                        ⤿ Retur
-                        </button>
-                    ) : (
-                        <button
-                        class="text-amber-600 hover:underline"
-                        onClick={() => handleUnsetReturned(sj)}
-                        title="Batalkan Retur"
-                        >
-                        <RotateCcw size={20} class="inline-block mr-1" /> Batal Retur
-                        </button>
-                    )}
-                </td>
-
-                  {/* Kolom Print (selalu ada) */}
-                  <td class="py-2 px-4 text-center">
+                  <td class="py-2 px-4">
                     <button
-                      class={`mx-auto ${
-                        canPrint
-                          ? "text-green-600 hover:underline"
-                          : "text-gray-400 cursor-not-allowed"
-                      }`}
-                      onClick={() => canPrint && handlePrintRetur(sj)}
-                      disabled={!canPrint}
-                      title={canPrint ? "Print Retur" : "Belum retur — tidak bisa print"}
+                      class="text-yellow-600 hover:underline mr-2"
+                      onClick={() => handleView(row)}
+                      title="View"
                     >
-                      <Printer size={22} />
+                      <Eye size={25} />
                     </button>
+
+                    <Show when={hasPermission("edit_purchase_celup_retur")}>
+                      <button
+                        class="text-blue-600 hover:underline mr-2"
+                        onClick={() => handleEdit(row)}
+                        title="Edit"
+                      >
+                        <Edit size={25} />
+                      </button>
+                    </Show>
+
+                    <Show when={hasPermission("delete_purchase_celup_retur")}>
+                      <button
+                        class="text-red-600 hover:underline"
+                        onClick={() => handleDelete(row)}
+                        title="Delete"
+                      >
+                        <Trash size={25} />
+                      </button>
+                    </Show>
+
                   </td>
                 </tr>
               );
