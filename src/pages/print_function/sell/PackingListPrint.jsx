@@ -328,7 +328,7 @@ function PrintPage(props) {
 
   const ColGroup = () => {
     // default 5 kolom
-    let W_NO  = 3,  W_BAL = 5,  W_COL = 8,  W_ITEM = 9,  W_LOT = 5;
+    let W_NO  = 3,  W_BAL = 5,  W_COL = 9,  W_ITEM = 8,  W_LOT = 5;
     let W_TTL = isContinuous ? 9.5 : 8;
 
     if (maxCol === 10) {
