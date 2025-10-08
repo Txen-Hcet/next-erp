@@ -262,8 +262,8 @@ export default function SalesInvoiceList() {
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-2 text-center">Total</th>
               <th class="py-2 px-2 text-center">Status Invoice</th>
-              
               <th class="py-2 px-4 text-center">Print Invoice</th>
+              <th class="py-2 px-4 text-center">Batal Invoice</th>
             </tr>
           </thead>
           <tbody>
@@ -284,29 +284,46 @@ export default function SalesInvoiceList() {
                     ? `${formatNumber(sc.summary.total_yard)} yd`
                     : `${formatNumber(sc.summary.total_kilogram)} kg`}
                 </td>
+                {/* Status Invoice: tampilkan badge "Belum Print" / "Sudah Print" */}
                 <td class="py-2 px-4 text-center">
                   {sc.delivered_status ? (
-                    <CheckCircle class="text-green-600 inline" size={20} />
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 text-purple-700 font-semibold">
+                      Sudah Print
+                    </span>
                   ) : (
-                    <XCircle class="text-red-600 inline" size={20} />
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 font-semibold">
+                      Belum Print
+                    </span>
                   )}
                 </td>
                 
+                {/* Print Invoice */}
                 <td class="py-2 px-4 space-x-2 text-center">
                   <button
                     class={sc.delivered_status ? "text-yellow-600 hover:underline" : "text-green-600 hover:underline"}
                     onClick={() => handlePrint(sc)}
+                    title="Cetak / tandai sudah print"
                   >
                     <Printer size={25} />
                   </button>
-                  {hasPermission("unprint_invoice") && sc.delivered_status === 1 && (
+                </td>
+                {/* Batal Invoice (misah) */}
+                {hasPermission("unprint_invoice") && (
+                  <td class="py-2 px-4 text-center">
                     <button
-                      class="text-red-600 hover:underline"
+                      class={
+                        sc.delivered_status
+                          ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                          : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
+                      }
+                      disabled={!sc.delivered_status}
                       onClick={() => handleUnsetInvoice(sc)}
+                      title={sc.delivered_status ? "Batalkan invoice" : "Tidak bisa batalkan sebelum dicetak"}
                     >
-                      <X size={25} />
+                      <X size={16} />
                     </button>
-                  )}
+                  </td>
+                )}
                   {/* <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/deliverynote/form?id=${sc.id}`)}
@@ -321,7 +338,6 @@ export default function SalesInvoiceList() {
                   >
                     <Trash size={25} />
                   </button> */}
-                </td>
               </tr>
             ))}
           </tbody>

@@ -11,7 +11,7 @@ import {
   hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Trash, Eye, Printer, CheckCircle, XCircle, X } from "lucide-solid";
+import { Printer, CheckCircle, XCircle, X } from "lucide-solid";
 
 export default function JBInvoiceList() {
   const [packingOrders, setPackingOrders] = createSignal([]);
@@ -20,7 +20,7 @@ export default function JBInvoiceList() {
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
-const formatNumber = (num, decimals = 2) => {
+  const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined) return "0";
     const numValue = Number(num);
     if (isNaN(numValue)) return "0";
@@ -63,7 +63,7 @@ const formatNumber = (num, decimals = 2) => {
           confirmButtonColor: "#6496df",
         });
 
-        // Optional: update UI setelah hapus
+        // update UI setelah hapus
         setPackingOrders(packingOrders().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
@@ -73,7 +73,6 @@ const formatNumber = (num, decimals = 2) => {
             error.message ||
             `Gagal menghapus data surat penerimaan jual beli dengan ID ${id}`,
           icon: "error",
-
           showConfirmButton: false,
           timer: 1000,
           timerProgressBar: true,
@@ -81,23 +80,6 @@ const formatNumber = (num, decimals = 2) => {
       }
     }
   };
-
-  // const handleGetAllDeliveryNotes = async (tok) => {
-  //   try {
-  //     const response = await getAllJBDeliveryNotes(tok);
-  //     //console.log("Get all data sj-jb: ", JSON.stringify(response, null, 2));
-
-  //     if (response && Array.isArray(response.suratJalans)) {
-  //       const sortedData = response.suratJalans.sort((a, b) => b.id - a.id);
-  //       setPackingOrders(sortedData);
-  //     } else {
-  //       setPackingOrders([]);
-  //     }
-  //   } catch (error) {
-  //     console.error("Gagal mengambil data Surat Penerimaan Jual Beli:", error);
-  //     setPackingOrders([]);
-  //   }
-  // };
 
   const handleGetAllDeliveryNotes = async (tok) => {
     try {
@@ -135,7 +117,7 @@ const formatNumber = (num, decimals = 2) => {
     try {
       let updatedSc = { ...sc };
 
-      // Update delivered staus
+      // Update delivered status
       if (!sc.delivered_status) {
         await setInvoiceJB(tokUser?.token, sc.id, { delivered_status: 1 });
         updatedSc = { ...sc, delivered_status: 1 };
@@ -153,12 +135,8 @@ const formatNumber = (num, decimals = 2) => {
         return;
       }
 
-      // Kirim data ke print
-      //console.log("Data print: ", JSON.stringify(detail, null, 2));
       const encodedData = encodeURIComponent(JSON.stringify(detail));
-      //window.open(`/print/jualbeli-invoice?data=${encodedData}`, "_blank");
       window.open(`/print/jualbeli-invoice#${encodedData}`, "_blank");
-
     } catch (err) {
       console.error(err);
       Swal.fire("Error", err.message || "Gagal memproses print", "error");
@@ -212,7 +190,6 @@ const formatNumber = (num, decimals = 2) => {
 
     const sisa = total - terkirim;
 
-    // Kalau udah habis
     if (sisa <= 0) {
       return "SELESAI";
     }
@@ -281,6 +258,7 @@ const formatNumber = (num, decimals = 2) => {
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-4">Status Invoice</th>
               <th class="py-2 px-4">Print Invoice</th>
+              <th class="py-2 px-4">Batal Invoice</th>
             </tr>
           </thead>
           <tbody>
@@ -303,33 +281,53 @@ const formatNumber = (num, decimals = 2) => {
                   {qtyCounterbySystem(sj, sj.satuan_unit_name)}
                 </td>
                 <td class="py-2 px-4">{sj.satuan_unit_name}</td>
+
+                {/* Status Invoice: tampilkan badge "Belum Print" / "Sudah Print" */}
                 <td class="py-2 px-4 text-center">
                   {sj.delivered_status ? (
-                    <CheckCircle class="text-green-600 inline" size={20} />
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 text-purple-700 font-semibold">
+                      Sudah Print
+                    </span>
                   ) : (
-                    <XCircle class="text-red-600 inline" size={20} />
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 font-semibold">
+                      Belum Print
+                    </span>
                   )}
                 </td>
-                <td class="py-2 px-4 space-x-2">
+
+                {/* Print Invoice */}
+                <td class="py-2 px-4 space-x-2 text-center">
                   <button
                     class={sj.delivered_status ? "text-yellow-600 hover:underline" : "text-green-600 hover:underline"}
                     onClick={() => handlePrint(sj)}
+                    title="Cetak / tandai sudah print"
                   >
                     <Printer size={25} />
                   </button>
-                  {hasPermission("unprint_invoice_jual_beli") && sj.delivered_status === 1 && (
-                    <button
-                      class="text-red-600 hover:underline"
-                      onClick={() => handleUnsetInvoice(sj)}
-                    >
-                      <X size={25} />
-                    </button>
-                  )}
                 </td>
+
+                {/* Batal Invoice (misah) */}
+                {hasPermission("unprint_invoice_jual_beli") && (
+                  <td class="py-2 px-4 text-center">
+                    <button
+                      class={
+                        sj.delivered_status
+                          ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                          : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
+                      }
+                      disabled={!sj.delivered_status}
+                      onClick={() => handleUnsetInvoice(sj)}
+                      title={sj.delivered_status ? "Batalkan invoice" : "Tidak bisa batalkan sebelum dicetak"}
+                    >
+                      <X size={16} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+
         <div class="w-full mt-8 flex justify-between space-x-2">
           <button
             class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
