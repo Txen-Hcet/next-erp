@@ -80,6 +80,7 @@ export default function JBPurchaseContractForm() {
     termin: "",
     ppn_percent: "0.00",
     keterangan: "",
+    instruksi_kain: "",
     no_seq: 0,
     items: [],
   });
@@ -210,6 +211,7 @@ export default function JBPurchaseContractForm() {
         termin: data.termin ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
+        instruksi_kain: data.instruksi_kain,
         tanggal: data.created_at
           ? new Date(data.created_at).toISOString().substring(0, 10)
           : prev.tanggal,
@@ -344,6 +346,7 @@ export default function JBPurchaseContractForm() {
               termin: Number(form().termin),
               ppn_percent: parseFloat(form().ppn_percent),
               keterangan: form().keterangan,
+              instruksi_kain: form().instruksi_kain,
               // EDIT strict: backend tetap menerima field lain apa adanya,
               // tapi UI sudah mengunci sehingga yang berubah hanya warna.
               items: payloadItems,
@@ -357,6 +360,7 @@ export default function JBPurchaseContractForm() {
               termin: Number(form().termin),
               ppn_percent: parseFloat(form().ppn_percent),
               keterangan: form().keterangan,
+              instruksi_kain: form().instruksi_kain,
               items: payloadItems,
             };
 
@@ -371,6 +375,7 @@ export default function JBPurchaseContractForm() {
           termin: Number(form().termin),
           ppn_percent: parseFloat(form().ppn_percent),
           keterangan: form().keterangan,
+          instruksi_kain: form().instruksi_kain,
           items: payloadItems,
         };
         await createJualBeli(user?.token, payload);
@@ -573,15 +578,28 @@ export default function JBPurchaseContractForm() {
           </div>
         </div>
 
-        <div>
-          <label class="block mb-1 font-medium">Keterangan</label>
-          <textarea
-            class="w-full border p-2 rounded"
-            value={form().keterangan}
-            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            disabled={!canEditAllFields()}
-            classList={{ "bg-gray-200": !canEditAllFields() }}
-          ></textarea>
+        <div class="grid grid-cols-2 gap-4">                  
+          <div>
+            <label class="block mb-1 font-medium">Keterangan</label>
+            <textarea
+              class="w-full border p-2 rounded"
+              value={form().keterangan}
+              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+              disabled={!canEditAllFields()}
+              classList={{ "bg-gray-200": !canEditAllFields() }}
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">Instruksi Kain</label>
+            <textarea
+              class="w-full border p-2 rounded"
+              value={form().instruksi_kain}
+              onInput={(e) => setForm({ ...form(), instruksi_kain: e.target.value })}
+              disabled={!canEditAllFields()}
+              classList={{ "bg-gray-200": !canEditAllFields() }}
+            ></textarea>
+          </div>
         </div>
 
         <Show when={isView && form().items && form().items.length > 0}>

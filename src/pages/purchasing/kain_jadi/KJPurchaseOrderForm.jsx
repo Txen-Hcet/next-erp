@@ -69,6 +69,7 @@ export default function KJPurchaseOrderForm() {
 
   const canEditKeteranganWarna = () => !isView && (!isEdit || !isStrictColorEdit());
   const canEditKeterangan       = () => !isView && (!isEdit || !isStrictColorEdit());
+  const canEditInstruksiKain = () => !isView && (!isEdit || !isStrictColorEdit());
   const canEditQty              = () => !isView && (!isEdit || !isStrictColorEdit());
 
   const [form, setForm] = createSignal({
@@ -81,6 +82,7 @@ export default function KJPurchaseOrderForm() {
     termin: "",
     ppn: "",
     keterangan: "",
+    instruksi_kain: "",
     items: [],
   });
 
@@ -234,6 +236,7 @@ export default function KJPurchaseOrderForm() {
         termin: data.termin ?? "",
         ppn: data.ppn_percent ?? "",
         keterangan: data.keterangan ?? "",
+        instruksi_kain: data.instruksi_kain ?? "",
         tanggal: data.created_at 
           ? new Date(data.created_at).toISOString().substring(0, 10) // ⬅️ ambil created_at dari API
           : prev.tanggal,
@@ -373,6 +376,7 @@ export default function KJPurchaseOrderForm() {
       termin: termin ?? prev.termin,
       ppn: ppn_percent ?? prev.ppn,
       keterangan: prev.keterangan || "",
+      instruksi_kain: prev.instruksi_kain || "",
       items: mappedItems,
       sequence_number: prev.sequence_number || lastSeq?.no_sequence + 1 || "",
     }));
@@ -597,6 +601,7 @@ export default function KJPurchaseOrderForm() {
               no_po: form().sequence_number,
               pc_id: Number(form().pc_id),
               keterangan: form().keterangan,
+              instruksi_kain: form().instruksi_kain,
               items: form().items.map((i) => ({
                 pc_item_id: i.pc_item_id,
                 warna_id: i.warna_id,
@@ -610,6 +615,7 @@ export default function KJPurchaseOrderForm() {
               no_po: form().sequence_number,
               pc_id: Number(form().pc_id),
               keterangan: form().keterangan,
+              instruksi_kain: form().instruksi_kain,
               items: form().items.map((i) => ({
                 pc_item_id: i.pc_item_id,
                 warna_id: i.warna_id,
@@ -630,6 +636,7 @@ export default function KJPurchaseOrderForm() {
           termin: Number(form().termin),
           ppn: parseFloat(form().ppn) || 0,
           keterangan: form().keterangan,
+          instruksi_kain: form().instruksi_kain,
           sequence_number: Number(form().no_seq),
           no_po: form().sequence_number,
           items: form().items.map((i) => ({
@@ -826,15 +833,28 @@ export default function KJPurchaseOrderForm() {
           </div>
         </div>
 
-        <div>
-          <label class="block mb-1 font-medium">Keterangan</label>
-          <textarea
-            class="w-full border p-2 rounded"
-            value={form().keterangan}
-            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
-            disabled={!canEditKeterangan()}
-            classList={{ "bg-gray-200": !canEditKeterangan() }}
-          ></textarea>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block mb-1 font-medium">Keterangan</label>
+            <textarea
+              class="w-full border p-2 rounded"
+              value={form().keterangan}
+              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+              disabled={!canEditKeterangan()}
+              classList={{ "bg-gray-200": !canEditKeterangan() }}
+            ></textarea>
+          </div>
+
+            <div>
+            <label class="block mb-1 font-medium">Instruksi Kain</label>
+            <textarea
+              class="w-full border p-2 rounded"
+              value={form().instruksi_kain}
+              onInput={(e) => setForm({ ...form(), instruksi_kain: e.target.value })}
+              disabled={!canEditInstruksiKain()}
+              classList={{ "bg-gray-200": !canEditInstruksiKain() }}
+            ></textarea>
+          </div>
         </div>
 
         <Show when={form().items && form().items.length > 0}>
