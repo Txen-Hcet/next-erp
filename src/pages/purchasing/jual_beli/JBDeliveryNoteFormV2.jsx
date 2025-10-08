@@ -260,7 +260,7 @@ export default function JBDeliveryNoteForm() {
 
     // Hanya jalankan logika untuk mode "Tambah Baru"
     const res = await getJualBelis(selectedPO.id, user?.token);
-    console.log("Data SP JB ", JSON.stringify(res, null, 2));    
+    //console.log("Data SP JB ", JSON.stringify(res, null, 2));    
     const selectedPOData = res?.mainRow; 
 
     const poTypeLetter = selectedPO.no_jb.split("/")[1];
