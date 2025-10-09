@@ -307,22 +307,27 @@ export default function JBInvoiceList() {
                 </td>
 
                 {/* Batal Invoice (misah) */}
-                {hasPermission("unprint_invoice_jual_beli") && (
-                  <td class="py-2 px-4 text-center">
-                    <button
-                      class={
-                        sj.delivered_status
-                          ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                          : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
-                      }
-                      disabled={!sj.delivered_status}
-                      onClick={() => handleUnsetInvoice(sj)}
-                      title={sj.delivered_status ? "Batalkan invoice" : "Tidak bisa batalkan sebelum dicetak"}
-                    >
-                      <X size={16} />
-                    </button>
-                  </td>
-                )}
+                <td class="py-2 px-4 text-center">
+                  <button
+                    class={
+                      hasPermission("unprint_invoice_jual_beli") && sj.delivered_status
+                        ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
+                    }
+                    // Tombol nonaktif jika TIDAK punya izin ATAU belum di-print
+                    disabled={!hasPermission("unprint_invoice_jual_beli") || !sj.delivered_status}
+                    onClick={() => handleUnsetInvoice(sc)}
+                    title={
+                      !hasPermission("unprint_invoice_jual_beli")
+                        ? "Anda tidak memiliki izin"
+                        : sj.delivered_status
+                        ? "Batalkan invoice"
+                        : "Tidak bisa batalkan sebelum dicetak"
+                    }
+                  >
+                    <X size={16} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

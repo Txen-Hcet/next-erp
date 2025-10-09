@@ -308,22 +308,27 @@ export default function SalesInvoiceList() {
                   </button>
                 </td>
                 {/* Batal Invoice (misah) */}
-                {hasPermission("unprint_invoice") && (
-                  <td class="py-2 px-4 text-center">
-                    <button
-                      class={
-                        sc.delivered_status
-                          ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                          : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
-                      }
-                      disabled={!sc.delivered_status}
-                      onClick={() => handleUnsetInvoice(sc)}
-                      title={sc.delivered_status ? "Batalkan invoice" : "Tidak bisa batalkan sebelum dicetak"}
-                    >
-                      <X size={16} />
-                    </button>
-                  </td>
-                )}
+                <td class="py-2 px-4 text-center">
+                  <button
+                    class={
+                      hasPermission("unprint_invoice") && sc.delivered_status
+                        ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
+                    }
+                    // Tombol nonaktif jika TIDAK punya izin ATAU belum di-print
+                    disabled={!hasPermission("unprint_invoice") || !sc.delivered_status}
+                    onClick={() => handleUnsetInvoice(sc)}
+                    title={
+                      !hasPermission("unprint_invoice")
+                        ? "Anda tidak memiliki izin"
+                        : sc.delivered_status
+                        ? "Batalkan invoice"
+                        : "Tidak bisa batalkan sebelum dicetak"
+                    }
+                  >
+                    <X size={16} />
+                  </button>
+                </td>
                   {/* <button
                     class="text-blue-600 hover:underline"
                     onClick={() => navigate(`/deliverynote/form?id=${sc.id}`)}
