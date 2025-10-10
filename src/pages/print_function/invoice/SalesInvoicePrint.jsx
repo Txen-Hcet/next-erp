@@ -131,7 +131,8 @@ export default function SalesInvoicePrint(props) {
           width: 100%;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-          font-family: sans-serif;
+          font-family: "Century Gothic", monospace !important;
+          font-weight: 700;
           display: flex;
           justify-content: center;
         }
@@ -158,6 +159,11 @@ export default function SalesInvoicePrint(props) {
         table { page-break-inside: auto; border-collapse: collapse; }
         tr { page-break-inside: avoid; }
         @media print {
+          html, body {
+              font-family: "Century Gothic"; monospace !important;
+              font-weight: 700 !important;
+              font-size: 11pt !important;
+            }
           .page { page-break-after: always; }
           .page:last-child { page-break-after: auto; }
         }
