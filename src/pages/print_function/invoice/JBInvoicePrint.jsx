@@ -84,7 +84,7 @@ export default function JBInvoicePrint(props) {
           width: 100%;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-          font-family: "Century Gothic"; monospace !important;
+          font-family: "Calibri"; monospace !important;
           font-weight: 700;
           display: flex;
           justify-content: center;
@@ -114,7 +114,7 @@ export default function JBInvoicePrint(props) {
         tr     { page-break-inside: avoid; }
         @media print {
           html, body {
-            font-family: "Century Gothic"; monospace !important;
+            font-family: "Calibri"; monospace !important;
             font-weight: 500 !important;
             font-size: 11pt !important;
           }
