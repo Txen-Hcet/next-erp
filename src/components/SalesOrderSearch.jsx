@@ -10,34 +10,62 @@ function formatSimpleDate(dateString) {
   return `${day}-${month}-${year}`;
 }
 
-const qtyCounterbySystem = (pl, satuanUnit) => {
+// Kalkulasi untuk Packing List (berdasarkan kuantitas dalam proses)
+const qtyCounterbySystem = (so, satuanUnitName) => {
   let total = 0;
   let terkirim = 0;
 
-  switch (satuanUnit) {
-    case "Meter": // Meter
-      total = parseFloat(pl.summary?.total_meter || 0);
-      terkirim = parseFloat(pl.summary?.total_meter_dalam_proses || 0);
+  switch (satuanUnitName) {
+    case "Meter":
+      total = parseFloat(so.summary?.total_meter || 0);
+      terkirim = parseFloat(so.summary?.total_meter_dalam_proses || 0);
       break;
-    case "Yard": // Yard
-      total = parseFloat(pl.summary?.total_yard || 0);
-      terkirim = parseFloat(pl.summary?.total_yard_dalam_proses || 0);
+    case "Yard":
+      total = parseFloat(so.summary?.total_yard || 0);
+      terkirim = parseFloat(so.summary?.total_yard_dalam_proses || 0);
       break;
-    case "Kilogram": // Kilogram
-      total = parseFloat(pl.summary?.total_kilogram || 0);
-      terkirim = parseFloat(pl.summary?.total_kilogram_dalam_proses || 0);
+    case "Kilogram":
+      total = parseFloat(so.summary?.total_kilogram || 0);
+      terkirim = parseFloat(so.summary?.total_kilogram_dalam_proses || 0);
       break;
     default:
       return "-";
   }
 
   const sisa = total - terkirim;
-
-  // Kalau udah habis
   if (sisa <= 0) {
     return "SELESAI";
   }
+  return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
+};
 
+// Kalkulasi untuk Surat Jalan (berdasarkan kuantitas yang sudah terkirim)
+const qtyCounterReal = (so, satuanUnitId) => {
+  let total = 0;
+  let terkirim = 0;
+
+  switch (satuanUnitId) {
+    case 1: // Meter
+      total = parseFloat(so.summary?.total_meter || 0);
+      terkirim = parseFloat(so.summary?.total_meter_dalam_surat_jalan || 0);
+      break;
+    case 2: // Yard
+      total = parseFloat(so.summary?.total_yard || 0);
+      terkirim = parseFloat(so.summary?.total_yard_dalam_surat_jalan || 0);
+      break;
+    case 3: // Kilogram
+      total = parseFloat(so.summary?.total_kilogram || 0);
+      terkirim = parseFloat(so.summary?.total_kilogram_dalam_surat_jalan || 0);
+      break;
+    default:
+      return "-";
+  }
+
+  const sisa = total - terkirim;
+  if (sisa <= 0) {
+    // Diubah dari JSX menjadi string agar bisa dibandingkan
+    return "SELESAI"; 
+  }
   return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
 };
 
@@ -47,6 +75,8 @@ export default function SalesOrderDropdownSearch({
   setForm,
   onChange,
   disabled = false,
+  // 1. Tambahkan prop baru, dengan default 'packingList'
+  filterType = 'packingList', 
 }) {
   const [isOpen, setIsOpen] = createSignal(false);
   const [search, setSearch] = createSignal("");
@@ -58,26 +88,27 @@ export default function SalesOrderDropdownSearch({
     onCleanup(cleanup);
   });
 
-  // const filteredSalesOrders = createMemo(() => {
-  //   const q = search().toLowerCase();
-  //   return salesOrders().filter((so) => {
-  //     const no_so = (so.no_so || "").toLowerCase();
-  //     const customer = (so.customer_name || "").toLowerCase();
-  //     return no_so.includes(q) || customer.includes(q);
-  //   });
-  // });
-
+  // 2. Logika filter diperbarui untuk menggunakan prop filterType
   const filteredSalesOrders = createMemo(() => {
     const q = search().toLowerCase();
     return salesOrders().filter((so) => {
       const no_so = (so.no_so || "").toLowerCase();
       const customer = (so.customer_name || "").toLowerCase();
+      
+      let status;
 
-      // cek status
-      const status = qtyCounterbySystem(so, so.satuan_unit_name);
+      // Pilih fungsi kalkulasi berdasarkan filterType
+      if (filterType === 'suratJalan') {
+        // Gunakan qtyCounterReal dengan satuan_unit_id
+        status = qtyCounterReal(so, so.satuan_unit_id);
+      } else { 
+        // Default ke qtyCounterbySystem untuk packingList dengan satuan_unit_name
+        status = qtyCounterbySystem(so, so.satuan_unit_name);
+      }
+
       const statusStr = typeof status === "string" ? status : "SELESAI";
 
-      // hanya tampilkan kalau cocok pencarian DAN bukan SELESAI
+      // Hanya tampilkan SO yang cocok pencarian DAN belum selesai
       return (no_so.includes(q) || customer.includes(q)) && statusStr !== "SELESAI";
     });
   });

@@ -820,6 +820,7 @@ export default function PackingListForm() {
               salesOrders={salesOrderList}
               form={form}
               setForm={setForm}
+              filterType="packingList"
               onChange={handleSalesOrderChange}
               disabled={isView || isEdit}
             />

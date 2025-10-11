@@ -645,6 +645,7 @@ export default function DeliveryNoteForm() {
           salesOrders={salesOrders}
           form={form}
           setForm={setForm}
+          filterType="suratJalan"
           disabled={isView || isEdit}
           classList={{ "bg-gray-200": isView || isEdit }}
           onChange={(so) => {
