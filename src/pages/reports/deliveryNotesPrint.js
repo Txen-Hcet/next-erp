@@ -1,16 +1,14 @@
-// src/pages/reports/deliveryNotesPrint.js
 import {
   getBGDeliveryNotes,
   getOCDeliveryNotes,
   getKJDeliveryNotes,
   getJBDeliveryNotes,
   getSalesOrders,
-} from "../../utils/auth"; // sesuaikan kalau path berbeda
+} from "../../utils/auth";
 
-// ====== PUBLIC API (panggil ini dari Dashboard) ======
 export async function printDeliveryNotes(block, { token, startDate = "", endDate = "" } = {}) {
-  // helper yg sama seperti di Dashboard awal
   const formatTanggalIndo = (tanggalString) => {
+    if (!tanggalString) return "-";
     const tanggal = new Date(tanggalString);
     const bulanIndo = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
     const tanggalNum = tanggal.getDate();
@@ -46,6 +44,15 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
     if (!Number.isFinite(n)) return "-";
     return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
   };
+
+  // Tambahkan formatter untuk Rupiah
+  const fmtRp = (val) => {
+    if (val === undefined || val === null || val === "") return "-";
+    const n = Number(String(val).replace(/,/g, ""));
+    if (!Number.isFinite(n)) return "-";
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  };
+
   const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "");
 
   const rowsFromResponse = (res) =>
@@ -86,6 +93,10 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
   const openPrintWindow = (title, rows, mode, showGrade, blockKey) => {
     const sorted = [...rows].sort((a,b) => (normalizeDate(a.created_at) ?? 0) - (normalizeDate(b.created_at) ?? 0));
     const w = window.open("", "", "height=700,width=980");
+
+    const isGreige = blockKey === 'greige';
+    const isKainJadi = blockKey === 'kain_jadi';
+
     const style = `
       <style>
         @page { size: A4; margin: 8mm; }
@@ -94,54 +105,147 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
         .paper{ width:100%; max-width:calc(210mm - 8mm); }
         h1{ margin:0 0 8mm 0 }
         table{ border-collapse:collapse; width:100%; table-layout:fixed; margin:0 auto; }
-        th,td{ border:1px solid #000; padding:3px 4px; font-size:10px; word-wrap:break-word; }
+        th,td{ border:1px solid #000; padding:3px 4px; font-size:10px; word-wrap:break-word; vertical-align:middle }
         th{ background:#DADBDD; text-align:left }
-        thead th:nth-child(1){width:3%; text-align:center}
-        thead th:nth-child(2){width:9%; text-align:center}
-        thead th:nth-child(3){width:13%; text-align:center}
-        thead th:nth-child(4){width:14%; text-align:center}
-        thead th:nth-child(5){width:15%; text-align:center}
-        thead th:nth-child(6){width:9%; text-align:center}
-        ${showGrade ? `thead th:nth-child(7){width:6%; text-align:center}` : ""}
-        thead th:nth-child(${showGrade ? 8 : 7}){width:15%; text-align:center}
-        thead th:nth-child(${showGrade ? 9 : 8}){width:12%; text-align:center}
-        thead th:nth-child(${showGrade ? 10 : 9}){width:12%; text-align:center}
-        thead th:nth-child(${showGrade ? 11 : 10}){width:12%; text-align:center}
-        thead th:nth-child(6), tbody td:nth-child(6){ text-align:center; }
-        ${showGrade ? `thead th:nth-child(7), tbody td:nth-child(7){ text-align:center; }` : ``}
-        ${showGrade ? `thead th:nth-child(8), tbody td:nth-child(8){ text-align:center; }`
-                    : `thead th:nth-child(7), tbody td:nth-child(7){ text-align:center; }`}
-        tbody td:nth-child(${showGrade ? 9 : 8}),
-        tbody td:nth-child(${showGrade ? 10 : 9}),
-        tbody td:nth-child(${showGrade ? 11 : 10}){ text-align:center; }
-      </style>`;
+
+        /* class-based widths */
+        .col-no { width:3%; }
+        .col-tgl { width:9%; }
+        .col-no-sj { width:12%; }
+        .col-ref { width:12%; }
+        .col-relasi { width:11%; }
+        .col-warna { width:7%; text-align:center; }
+        .col-grade { width:6%; text-align:center; }
+        .col-kain { width:8%; text-align:center; }
+        .col-meter { width:8%; text-align:center; }
+        .col-yard { width:8%; text-align:center; }
+        .col-harga { width:10%; text-align:right; }
+        .col-harga-greige { width:12%; text-align:right; }
+        .col-harga-maklun { width:12%; text-align:right; }
+        .col-total { width:20%; text-align:right; }
+
+        /* pastikan header tetap diulang, tapi footer tidak diulang tiap halaman */
+        thead { display: table-header-group; }
+        tfoot { display: table-row-group; } 
+
+        /* hindari total terpecah; styling rapi untuk row total */
+        .grand-total-row { page-break-inside: avoid; }
+        .grand-total-cell { font-weight:700; padding:6px 8px; }
+      </style>
+    `;
+
     const header = `<h1>${title}</h1>
       <div>Periode: ${currentFilterLabel()}</div>
       <div>Tanggal cetak: ${new Date().toLocaleString()}</div><br/>`;
     const relasiHeader = mode === "penjualan" ? "Customer" : "Supplier";
     const refLabel = refLabelFor(mode, blockKey);
-    const thead = `<tr>
-        <th>No</th><th>Tgl</th><th>No SJ</th><th>${refLabel}</th><th>${relasiHeader}</th><th>Warna</th>
-        ${showGrade ? `<th>Grade</th>` : ``}
-        <th>Kain</th><th>Total Meter</th><th>Total Yard</th><th>Total Kg</th></tr>`;
-    const tbody = sorted.map((r,i)=>`
-      <tr>
-        <td>${i+1}</td>
-        <td>${formatTanggalIndo(r.created_at ?? "-")}</td>
-        <td>${r.no_sj ?? "-"}</td>
-        <td>${refValueFor(r, mode, blockKey)}</td>
-        <td>${r.supplier_name ?? r.customer_name ?? "-"}</td>
-        <td>${r.kode_warna ?? r.warna_kode ?? r.warna ?? "-"}</td>
-        ${showGrade ? `<td>${r.grade_name ?? "-"}</td>` : ``}
-        <td>${r.corak_kain ?? "-"}</td>
-        <td>${fmt2(pick(r.meter_total,  r.summary?.total_meter))}</td>
-        <td>${fmt2(pick(r.yard_total,   r.summary?.total_yard))}</td>
-        <td>${fmt2(pick(r.total_kilogram, r.summary?.total_kilogram))}</td>
-      </tr>`).join("");
-    const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+
+    // thead dinamis
+    const theadPieces = [
+      `<th class="col-no">No</th>`,
+      `<th class="col-tgl">Tgl</th>`,
+      `<th class="col-no-sj">No SJ</th>`,
+      `<th class="col-ref">${refLabel}</th>`,
+      `<th class="col-relasi">${relasiHeader}</th>`,
+    ];
+    if (!isGreige) theadPieces.push(`<th class="col-warna">Warna</th>`);
+    if (showGrade) theadPieces.push(`<th class="col-grade">Grade</th>`);
+    theadPieces.push(`<th class="col-kain">Kain</th>`);
+    theadPieces.push(`<th class="col-meter">Total Meter</th>`);
+    theadPieces.push(`<th class="col-yard">Total Yard</th>`);
+
+    if (isKainJadi) {
+      theadPieces.push(`<th class="col-harga-greige">Harga Greige</th>`);
+      theadPieces.push(`<th class="col-harga-maklun">Harga Maklun</th>`);
+    } else {
+      theadPieces.push(`<th class="col-harga">Harga</th>`);
+    }
+    theadPieces.push(`<th class="col-total">Total</th>`);
+
+    const thead = `<tr>${theadPieces.join("")}</tr>`;
+
+    // helper numeric parsing (aman untuk string berformat)
+    const parseNumeric = (v) => {
+      if (v === undefined || v === null || v === "") return 0;
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+      // hapus semua kecuali digit, minus, dan titik desimal
+      const s = String(v).replace(/[^\d\.\-]/g, "");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    // build tbody dan kumpulkan numeric totals
+    const totals = [];
+    const tbody = sorted.map((r,i) => {
+      const meterVal = fmt2(pick(r.meter_total, r.summary?.total_meter));
+      const yardVal  = fmt2(pick(r.yard_total,  r.summary?.total_yard));
+
+      const hargaNormal = (() => {
+        const fromRow = r.harga ?? r.summary?.harga ?? null;
+        if (fromRow) return fromRow;
+        if (Array.isArray(r.items) && r.items.length > 0) return r.items[0].harga ?? null;
+        return null;
+      })();
+
+      const hargaGreige = pick(
+        r.harga_greige,
+        r.summary?.harga_greige,
+        Array.isArray(r.items) && r.items.length ? r.items[0].harga_greige : undefined
+      );
+      const hargaMaklun = pick(
+        r.harga_maklun,
+        r.summary?.harga_maklun,
+        Array.isArray(r.items) && r.items.length ? r.items[0].harga_maklun : undefined
+      );
+
+      const numericTotal = parseNumeric(pick(r.summary?.total_akhir, r.summary?.subtotal));
+      totals.push(numericTotal);
+
+      const totalVal = fmtRp(pick(r.summary?.total_akhir, r.summary?.subtotal));
+
+      return `
+        <tr>
+          <td class="col-no">${i+1}</td>
+          <td class="col-tgl">${formatTanggalIndo(r.created_at ?? "-")}</td>
+          <td class="col-no-sj">${r.no_sj ?? "-"}</td>
+          <td class="col-ref">${refValueFor(r, mode, blockKey)}</td>
+          <td class="col-relasi">${r.supplier_name ?? r.customer_name ?? "-"}</td>
+          ${!isGreige ? `<td class="col-warna">${r.kode_warna ?? r.warna_kode ?? r.warna ?? "-"}</td>` : ''}
+          ${showGrade ? `<td class="col-grade">${r.grade_name ?? "-"}</td>` : ''}
+          <td class="col-kain">${r.corak_kain ?? "-"}</td>
+          <td class="col-meter">${meterVal}</td>
+          <td class="col-yard">${yardVal}</td>
+          ${isKainJadi
+            ? `<td class="col-harga-greige">${fmtRp(hargaGreige)}</td><td class="col-harga-maklun">${fmtRp(hargaMaklun)}</td>`
+            : `<td class="col-harga">${fmtRp(hargaNormal)}</td>`
+          }
+          <td class="col-total">${totalVal}</td>
+        </tr>
+      `;
+    }).join("");
+
+    // hitung grand total
+    const grandTotalNumeric = totals.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    const grandTotalFormatted = fmtRp(grandTotalNumeric);
+
+    // buat tfoot (footer di dalam tabel) — namun CSS memastikan tidak diulang tiap halaman
+    const colspanForLabel = Math.max(1, theadPieces.length - 1);
+    const tfoot = `
+      <tfoot>
+        <tr class="grand-total-row">
+          <td colspan="${colspanForLabel}" style="text-align:right;" class="grand-total-cell">TOTAL AKHIR</td>
+          <td class="col-total grand-total-cell" style="text-align:right;">${grandTotalFormatted}</td>
+        </tr>
+      </tfoot>
+    `;
+
+    const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody>${tfoot}</table>`;
     const bodyHtml = `<div class="paper">${header}${table}</div>`;
+
     w.document.write(`<html><head><title>${title}</title>${style}</head><body>${bodyHtml}</body></html>`);
-    w.document.close(); w.focus(); w.print();
+    w.document.close();
+    w.focus();
+    w.print();
   };
 
   // ========= LOGIKA UTAMA (SAMA DENGAN DASHBOARD AWAL) =========
@@ -162,8 +266,15 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
         const items = sj?.items ?? [];
         const warna = uniqueJoin(items.map(it => it.kode_warna ?? it.warna_kode ?? it.warna ?? null));
         const kain  = uniqueJoin(items.map(it => it.corak_kain ?? null));
+        // harga umum (dipakai untuk non-kain_jadi)
+        const harga = items.length > 0 ? items[0].harga : undefined;
+        // untuk kain_jadi, mungkin ada harga_greige/harga_maklun pada item/summary
+        const harga_greige = items.length > 0 ? (items[0].harga_greige ?? undefined) : undefined;
+        const harga_maklun = items.length > 0 ? (items[0].harga_maklun ?? undefined) : undefined;
+
         enriched.push({
           ...row,
+          summary: sj?.summary ?? row.summary,
           supplier_name: sj?.supplier_name ?? row.supplier_name,
           customer_name: sj?.customer_name ?? row.customer_name,
           no_po: sj?.no_po ?? row.no_po,
@@ -171,6 +282,10 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
           no_jb: sj?.no_jb ?? row.no_jb,
           kode_warna: warna || row.kode_warna || row.warna_kode || row.warna || "-",
           corak_kain: kain  || row.corak_kain || "-",
+          harga: harga, // harga normal
+          harga_greige: harga_greige ?? row.harga_greige ?? sj?.summary?.harga_greige,
+          harga_maklun: harga_maklun ?? row.harga_maklun ?? sj?.summary?.harga_maklun,
+          items: items,
         });
       } catch {
         enriched.push(row);
@@ -198,13 +313,17 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
         const warna = uniqueJoin(items.map((it) => it.kode_warna ?? null));
         const grade = uniqueJoin(items.map((it) => it.grade_name ?? null));
         const kain  = uniqueJoin(items.map((it) => it.corak_kain ?? null));
+        const harga = items.length > 0 ? items[0].harga : undefined;
         enriched.push({
           ...row,
+          summary: so?.summary ?? row.summary,
           no_so: so?.no_so ?? row.no_so,
           customer_name: so?.customer_name ?? row.customer_name,
           kode_warna: warna || row.kode_warna || "-",
           grade_name: grade || row.grade_name || "-",
           corak_kain: kain || row.corak_kain || "-",
+          harga: harga,
+          items: items,
         });
       } catch {
         enriched.push(row);
