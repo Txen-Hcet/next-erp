@@ -75,7 +75,7 @@ export default function KJPurchaseContractList() {
     //console.log("All PC KJ: ", JSON.stringify(result, null, 2));
 
     if (result.status === 200) {
-      const sortedData = result.contracts.sort((a, b) => a.id - b.id);
+      const sortedData = result.contracts.sort((a, b) => b.id - a.id);
       setBeliGreiges(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

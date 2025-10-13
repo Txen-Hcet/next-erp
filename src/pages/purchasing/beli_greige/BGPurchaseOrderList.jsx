@@ -89,7 +89,7 @@ export default function BGPurchaseOrderList() {
     //console.log("Data All PO Greige: ", JSON.stringify(result, null, 2));
 
     if (result.status === 200) {
-      const sortedData = result.orders.sort((a, b) => a.id - b.id);
+      const sortedData = result.orders.sort((a, b) => b.id - a.id);
       setPackingOrders(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

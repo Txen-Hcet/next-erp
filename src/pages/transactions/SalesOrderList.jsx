@@ -80,7 +80,7 @@ export default function SalesOrderList() {
     const result = await getAllSalesOrders(tok);
 
     if (result.status === 200) {
-      const sortedData = result.orders.sort((a, b) => a.id - b.id);
+      const sortedData = result.orders.sort((a, b) => b.id - a.id);
       setSalesOrders(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

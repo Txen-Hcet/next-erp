@@ -86,7 +86,7 @@ export default function SalesContractList() {
 
     if (getDataSalesContracts.status === 200) {
       const sortedData = getDataSalesContracts.contracts.sort(
-        (a, b) => a.id - b.id
+        (a, b) => b.id - a.id
       );
       setSalesContracts(sortedData);
     }

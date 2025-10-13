@@ -84,7 +84,7 @@ export default function OCPurchaseContractList() {
     const result = await getAllOrderCelups(tok);
 
     if (result.status === 200) {
-      const sortedData = result.contracts.sort((a, b) => a.id - b.id);
+      const sortedData = result.contracts.sort((a, b) => b.id - a.id);
       setOrderCelups(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

@@ -87,7 +87,7 @@ export default function BGPurchaseContractList() {
     //console.log("Data All PC BG: ", JSON.stringify(result, null, 2));
 
     if (result.status === 200) {
-      const sortedData = result.contracts.sort((a, b) => a.id - b.id);
+      const sortedData = result.contracts.sort((a, b) => b.id - a.id);
       setBeliGreiges(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

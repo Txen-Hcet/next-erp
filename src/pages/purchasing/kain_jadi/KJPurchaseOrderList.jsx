@@ -80,7 +80,7 @@ export default function KJPurchaseOrderList() {
     const result = await getAllKainJadiOrders(tok);
 
     if (result.status === 200) {
-      const sortedData = result.orders.sort((a, b) => a.id - b.id);
+      const sortedData = result.orders.sort((a, b) => b.id - a.id);
       setPackingOrders(sortedData);
     } else if (result.status === 403) {
       Swal.fire({

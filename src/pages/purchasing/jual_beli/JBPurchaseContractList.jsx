@@ -87,7 +87,7 @@ export default function JBPurchaseContractList() {
     const result = await getAllJualBelis(tok);
 
     if (result.status === 200) {
-      const sortedData = result.mainRows.sort((a, b) => a.id - b.id);
+      const sortedData = result.mainRows.sort((a, b) => b.id - a.id);
       setBeliGreiges(sortedData);
     } else if (result.status === 403) {
       await Swal.fire({

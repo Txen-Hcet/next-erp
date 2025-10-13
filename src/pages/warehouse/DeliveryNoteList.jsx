@@ -117,7 +117,7 @@ export default function SuratJalanList() {
 
       if (result.status === 200) {
         const suratJalanList = result.surat_jalan_list || [];
-        const sortedData = suratJalanList.sort((a, b) => a.id - b.id);
+        const sortedData = suratJalanList.sort((a, b) => b.id - a.id);
         setSuratJalan(sortedData);
       } else if (result.status === 403) {
         await Swal.fire({
