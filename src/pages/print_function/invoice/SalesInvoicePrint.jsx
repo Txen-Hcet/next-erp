@@ -131,8 +131,8 @@ export default function SalesInvoicePrint(props) {
           width: 100%;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
-          font-family: "Calibri", monospace !important;
-          font-weight: 700;
+          font-family: "Epson Roman", monospace !important;
+          font-weight: 600;
           display: flex;
           justify-content: center;
         }
@@ -160,8 +160,8 @@ export default function SalesInvoicePrint(props) {
         tr { page-break-inside: avoid; }
         @media print {
           html, body {
-              font-family: "Calibri"; monospace !important;
-              font-weight: 700 !important;
+              font-family: "Epson Roman"; monospace !important;
+              font-weight: 600 !important;
               font-size: 11pt !important;
             }
           .page { page-break-after: always; }
@@ -305,17 +305,17 @@ createEffect(() => {
               <th className="border border-black p-1 w-[4%]"  rowSpan={2}>No</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Jenis Kain</th>
               <th hidden className="border border-black p-1 w-[10%]" rowSpan={2}>Jenis Kain</th>
-              <th className="border border-black p-1 w-[10%]" rowSpan={2}>Warna</th>
+              <th className="border border-black p-1 w-[8%]" rowSpan={2}>Warna</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar</th>
-              <th className="border border-black p-1 w-[8%]"  rowSpan={2}>Grade</th>
-              <th className="border border-black p-1 w-[24%] text-center" colSpan={3}>Quantity</th>
-              <th className="border border-black p-1 w-[12%]">Harga</th>
+              <th className="border border-black p-1 w-[6%]"  rowSpan={2}>Grade</th>
+              <th className="border border-black p-1 w-[28%] text-center" colSpan={3}>Quantity</th>
+              <th className="border border-black p-1 w-[13%]">Harga</th>
               <th className="border border-black p-1 w-[16%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
               <th className="border border-black p-1 w-[5%]">Roll</th>
-              <th className="border border-black p-1 w-[8%]">Meter</th>
-              <th className="border border-black p-1 w-[8%]">Yard</th>
+              <th className="border border-black p-1 w-[14%]">Meter</th>
+              <th className="border border-black p-1 w-[14%]">Yard</th>
               <th className="border border-black p-1">
                 {/* {`(Roll / ${data.satuan_unit_name || 'Meter'})`} */}
                 {data.satuan_unit_name || 'Meter'}
