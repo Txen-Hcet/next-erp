@@ -285,9 +285,9 @@ createEffect(() => {
           {/* LEFT */}
           <table className="w-[55%] border-2 border-black text-[15px] table-fixed">
             <tbody>
-              <tr><td className="px-2 pt-1 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>Kepada Yth:</td></tr>
-              <tr><td className="px-2 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>{customerName}</td></tr>
-              <tr><td className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap" colSpan={2}>{customerAddr}</td></tr>
+              <tr><td className="px-2 pt-1 py-1 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>Kepada Yth:</td></tr>
+              <tr><td className="px-2 py-1 max-w-[300px] break-words whitespace-pre-wrap" colSpan={2}>{customerName}</td></tr>
+              <tr><td className="px-2 py-1 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap" colSpan={2}>{customerAddr}</td></tr>
               <tr><td className="px-2 py-1 whitespace-nowrap">Telp: {customerTelp}</td></tr>
             </tbody>
           </table>
@@ -295,11 +295,11 @@ createEffect(() => {
           {/* RIGHT */}
           <table className="w-[55%] border-2 border-black table-fixed text-sm">
             <tbody>
-              <tr><td className="font-bold px-2 py-1 w-[30%] whitespace-nowrap">No. SJ</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{data?.no_sj ?? "-"}</td></tr>
-              <tr><td className="font-bold px-2 py-1 w-[30%] whitespace-nowrap">Tanggal</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{formatTanggal(data?.created_at)}</td></tr>
-              <tr><td className="font-bold px-2 py-1 w-[30%] whitespace-nowrap">No. SO</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{data?.no_so ?? "-"}</td></tr>
-              <tr><td className="font-bold px-2 py-1 w-[30%] whitespace-nowrap">Payment</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{paymentText}</td></tr>
-              <tr><td className="font-bold px-2 py-1 w-[30%] whitespace-nowrap">Jatuh Tempo</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{formatTanggal(data?.validity_contract)}</td></tr>
+              <tr><td className="font-semibold px-2 py-1 w-[30%] whitespace-nowrap">No. SJ</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{data?.no_sj ?? "-"}</td></tr>
+              <tr><td className="font-semibold px-2 py-1 w-[30%] whitespace-nowrap">Tanggal</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{formatTanggal(data?.created_at)}</td></tr>
+              <tr><td className="font-semibold px-2 py-1 w-[30%] whitespace-nowrap">No. SO</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{data?.no_so ?? "-"}</td></tr>
+              <tr><td className="font-semibold px-2 py-1 w-[30%] whitespace-nowrap">Payment</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{paymentText}</td></tr>
+              <tr><td className="font-semibold px-2 py-1 w-[30%] whitespace-nowrap">Jatuh Tempo</td><td className="w-[5%] py-1 text-center">:</td><td className="px-2 py-1 break-words w-[65%]">{formatTanggal(data?.validity_contract)}</td></tr>
             </tbody>
           </table>
         </div>
@@ -387,9 +387,9 @@ createEffect(() => {
                 {/* 6 kolom kiri (No, Jenis, Hidden, Warna, Lebar, Grade) */}
                 <td colSpan={5} className="border border-black font-bold text-right px-2 py-1">Total:</td>
                 {/* 3 kolom quantity */}
-                <td className="border border-black px-2 py-1 text-center font-bold">{totals.totalRolls}</td>
-                <td className="border border-black px-2 py-1 text-center font-bold">{formatAngka(totals.totalMeter)}</td>
-                <td className="border border-black px-2 py-1 text-center font-bold">{formatAngka(totals.totalYard)}</td>
+                <td className="border border-black px-2 py-1 text-center font-semibold">{totals.totalRolls}</td>
+                <td className="border border-black px-2 py-1 text-center font-semibold">{formatAngka(totals.totalMeter)}</td>
+                <td className="border border-black px-2 py-1 text-center font-semibold">{formatAngka(totals.totalYard)}</td>
                 {/* 2 kolom nominal */}
                 <td className="border border-black px-2 py-1 text-right font-bold">
                   {isPPN ? 'Sub Total' : 'Grand Total'}
@@ -401,22 +401,22 @@ createEffect(() => {
               <Show when={isPPN}>
                 <tr>
                   <td colSpan={8} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-bold">DPP</td>
+                  <td className="px-2 py-1 text-right font-semibold">DPP</td>
                   <td className="px-2 py-1 text-right">{formatRupiah(totals.dpp)}</td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-bold">Nilai Lain</td>
+                  <td className="px-2 py-1 text-right font-semibold">Nilai Lain</td>
                   <td className="px-2 py-1 text-right">{formatRupiah(totals.nilaiLain)}</td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-bold">PPN</td>
+                  <td className="px-2 py-1 text-right font-semibold">PPN</td>
                   <td className="px-2 py-1 text-right">{formatRupiah(totals.ppn)}</td>
                 </tr>
                 <tr>
                   <td colSpan={8} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-bold">Jumlah Total</td>
+                  <td className="px-2 py-1 text-right font-semibold">Jumlah Total</td>
                   <td className="px-2 py-1 text-right">{formatRupiah(totals.grand)}</td>
                 </tr>
               </Show>
@@ -428,7 +428,7 @@ createEffect(() => {
               </tr>
               <tr>
                 <td colSpan={10} className="border border-black">
-                  <div className="w-full flex justify-between text-[12px] py-5 px-2">
+                  <div className="w-full flex justify-between text-[13px] py-5 px-2">
                     <div className="text-center w-1/3 pb-3">
                       Yang Menerima
                       <br /><br /><br /><br />( ...................... )
