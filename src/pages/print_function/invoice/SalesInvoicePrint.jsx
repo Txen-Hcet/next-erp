@@ -167,7 +167,7 @@ export default function SalesInvoicePrint(props) {
             -webkit-font-smoothing: none !important;
           }
           html, body, .invoice-print-text {
-            font-family: "Arial", monospace !important;
+            font-family: "Monticello Fraction", monospace !important;
             font-weight: 400 !important;
             font-size: 12pt !important;
           }
