@@ -5,11 +5,11 @@ export default function SalesInvoiceDummyPrint() {
   const [data, setData] = createSignal(null);
 
   onMount(() => {
+    let parsedData = null;
     try {
-      // Payload dikirim via hash: /print/deliverynote-invoice#<ENCODED_JSON>
       const raw = window.location.hash.slice(1);
-      const parsed = JSON.parse(decodeURIComponent(raw));
-      setData(parsed);
+      parsedData = JSON.parse(decodeURIComponent(raw));
+      setData(parsedData);
     } catch (e) {
       console.error("Gagal parse data print:", e);
       alert("Data print tidak valid.");
@@ -17,25 +17,26 @@ export default function SalesInvoiceDummyPrint() {
       return;
     }
 
-    const closeAfterPrint = () => window.close();
-    window.addEventListener("afterprint", closeAfterPrint);
+    if (!parsedData._pdfMode && !parsedData._previewMode) {
+      const closeAfterPrint = () => window.close();
+      window.addEventListener("afterprint", closeAfterPrint);
 
-    // Tunggu render settle (2x rAF), lalu print
-    setTimeout(() => {
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => window.print())
-      );
-    }, 0);
+      // Tunggu render, lalu print
+      setTimeout(() => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => window.print())
+        );
+      }, 500); 
 
-    // Fallback auto-close
-    setTimeout(() => window.close(), 3000);
+      // Fallback auto-close
+      setTimeout(() => window.close(), 5000);
 
-    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
+      onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
+    }
   });
 
   return (
     <div class="p-6 print:p-0">
-      {/* parsed bisa root atau {order:...}; komponen di bawah sudah handle keduanya */}
       <SalesInvoicePrint data={data()} />
     </div>
   );

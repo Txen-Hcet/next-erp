@@ -2,25 +2,29 @@ import { onMount, onCleanup, createSignal } from "solid-js";
 import JBInvoicePrint from "../../../pages/print_function/invoice/JBInvoicePrint";
 
 export default function JBInvoiceDummyPrint() {
-  // CHANGED: pakai signal supaya reaktif saat data masuk
-  const [data, setData] = createSignal({ items: [], summary: {} });
+  const [data, setData] = createSignal(null);
 
   onMount(() => {
+    let parsedData = null; 
+
     try {
       const raw = window.location.hash.slice(1);
-      const parsed = JSON.parse(decodeURIComponent(raw));
+      if (!raw) throw new Error("Data hash tidak ditemukan.");
 
-      // FIX: ratakan struktur supaya punya field root: items & summary
-      const normalized = parsed.suratJalan
+      parsedData = JSON.parse(decodeURIComponent(raw));
+
+      const normalized = parsedData.suratJalan
         ? {
-            ...parsed.suratJalan,
-            items: parsed.items ?? parsed.suratJalan.items ?? [],
-            summary: parsed.summary ?? parsed.suratJalan.summary ?? {},
+            ...parsedData.suratJalan,
+            _previewMode: parsedData._previewMode,
+            _pdfMode: parsedData._pdfMode,
+            items: parsedData.items ?? parsedData.suratJalan.items ?? [],
+            summary: parsedData.summary ?? parsedData.suratJalan.summary ?? {},
           }
         : {
-            ...parsed,
-            items: parsed.items ?? [],
-            summary: parsed.summary ?? {},
+            ...parsedData,
+            items: parsedData.items ?? [],
+            summary: parsedData.summary ?? {},
           };
 
       setData(normalized);
@@ -31,16 +35,26 @@ export default function JBInvoiceDummyPrint() {
       return;
     }
 
-    const closeAfterPrint = () => window.close();
-    window.addEventListener("afterprint", closeAfterPrint);
-    setTimeout(() => window.print(), 300);
-    setTimeout(() => window.close(), 3000);
-    onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
+    if (!parsedData._previewMode && !parsedData._pdfMode) {
+      const closeAfterPrint = () => window.close();
+      window.addEventListener("afterprint", closeAfterPrint);
+      
+      setTimeout(() => {
+        requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+      }, 500);
+
+      const fallbackClose = setTimeout(() => window.close(), 5000);
+
+      onCleanup(() => {
+        window.removeEventListener("afterprint", closeAfterPrint);
+        clearTimeout(fallbackClose);
+      });
+    }
   });
 
   return (
     <div class="p-6 print:p-0">
-      <JBInvoicePrint data={data()} /> {/* CHANGED: kirim signal value */}
+      {data() && <JBInvoicePrint data={data()} />}
     </div>
   );
 }
