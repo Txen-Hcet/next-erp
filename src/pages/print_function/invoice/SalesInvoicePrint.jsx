@@ -167,9 +167,9 @@ export default function SalesInvoicePrint(props) {
           }
           
           html, body, * {
-            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
-            font-weight: 400 !important;
-            font-size: 11pt !important;
+            font-family: sans-serif !important;
+            font-weight: 500 !important;
+            font-size: 12pt !important;
             letter-spacing: normal !important;
             line-height: 1.5 !important;
           }
@@ -184,7 +184,7 @@ export default function SalesInvoicePrint(props) {
           }
           
           .font-semibold {
-            font-weight: 600 !important;
+            font-weight: 700 !important;
           }
         }
       `}</style>
