@@ -162,21 +162,44 @@ export default function SalesInvoicePrint(props) {
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            /* Optimasi rendering untuk kecepatan, matikan penghalusan font */
             text-rendering: optimizeSpeed !important; 
             font-smooth: never !important;
             -webkit-font-smoothing: none !important;
+            color: #000 !important; /* Pastikan warna hitam pekat */
           }
           html, body, .invoice-print-text {
-            font-family: "Monticello Fraction", monospace !important;
-            font-weight: 400 !important;
-            font-size: 12pt !important;
+            /* Gunakan font monospace yang umum dan tebal seperti Consolas atau Courier New */
+            font-family: "Consolas", "Courier New", "Courier", monospace !important;
+            
+            /* KUNCI UTAMA UNTUK HSD:
+              Gunakan font-weight 700 (bold) atau bahkan 900 (black) agar garis
+              font menjadi sangat tebal. Ini memberi "target" yang lebih besar
+              untuk pin printer di mode HSD.
+            */
+            font-weight: 900 !important;
+            
+            /* Sedikit perbesar ukuran font agar lebih mudah dibaca */
+            font-size: 11pt !important;
+            
+            /* Normalisasi spasi antar huruf */
+            letter-spacing: normal !important;
           }
-          .page { page-break-after: always; }
-          .page:last-child { page-break-after: auto; }
+          .page { 
+            page-break-after: always; 
+          }
+          .page:last-child { 
+            page-break-after: auto; 
+          }
 
+          /* Atur padding agar tidak terlalu renggang di mode cetak */
           .items-table td, .items-table th {
-              padding: 4px 6px !important;
-              line-height: 1.2 !important;
+              padding: 3px 4px !important;
+              line-height: 1.3 !important;
+          }
+          /* Pastikan elemen yang sengaja di-bold tetap sangat tebal */
+          .font-bold {
+              font-weight: 900 !important;
           }
         }
       `}</style>
