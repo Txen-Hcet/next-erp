@@ -211,7 +211,7 @@ export default function JBPurchaseContractForm() {
         termin: data.termin ?? "",
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
-        instruksi_kain: data.instruksi_kain,
+        instruksi_kain: data.instruksi_kain ?? "",
         tanggal: data.created_at
           ? new Date(data.created_at).toISOString().substring(0, 10)
           : prev.tanggal,
@@ -363,6 +363,7 @@ export default function JBPurchaseContractForm() {
               instruksi_kain: form().instruksi_kain,
               items: payloadItems,
             };
+        //console.log("Update JB Payload:", JSON.stringify(payload, null, 2));
 
         await updateDataJualBeli(user?.token, params.id, payload);
       } else {
