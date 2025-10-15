@@ -151,7 +151,7 @@ export async function printSummaryReport({ kind, token, startDate = "", endDate 
     th, td { 
         border: 1px solid #000; 
         padding: 3px 4px; 
-        font-size: 8px; 
+        font-size: 9px; 
         word-wrap: break-word; 
     }
 
