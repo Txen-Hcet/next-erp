@@ -294,7 +294,7 @@ function PrintPage(props) {
             <tr>
               <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Jenis Kain</th>
-              <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th>
+              {/* <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Jenis Kain</th> */}
               <th className="border border-black p-1 w-[14%]" rowSpan={2}>Warna</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Kain</th>
               <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>
@@ -317,7 +317,7 @@ function PrintPage(props) {
                 {/* nomor lanjut: startIndex + nomor di halaman + 1 */}
                 <td className="p-1 text-center break-words">{startIndex + i() + 1}</td>
                   <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
-                  <td hidden className="p-1 break-words">{item.konstruksi_kain}</td>
+                  {/* <td hidden className="p-1 break-words">{item.konstruksi_kain}</td> */}
                   <td className="p-1 text-center break-words">{item.deskripsi_warna || "-"}</td>
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_kain)}"</td>
                   <td colspan={2} className="p-1 text-center break-words">
@@ -396,10 +396,18 @@ function PrintPage(props) {
                 </td>
               </tr>
               <tr>
-                <td colSpan={8} className="border border-black p-2 align-top">
+                <td colSpan={5} className="border border-black p-2 align-top">
                   <div className="font-bold mb-1">NOTE:</div>
                   <div className="whitespace-pre-wrap break-words italic">
                     {data.keterangan ?? "-"}
+                  </div>
+                </td>
+
+                {/* Kolom baru untuk Instruksi Kain */}
+                <td colSpan={3} className="border border-black p-2 align-top">
+                  <div className="font-bold mb-1">INSTRUKSI KAIN:</div>
+                  <div className="whitespace-pre-wrap break-words italic">
+                    {data.instruksi_kain ?? "-"}
                   </div>
                 </td>
               </tr>

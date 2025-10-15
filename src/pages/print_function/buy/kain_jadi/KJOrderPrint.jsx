@@ -389,10 +389,18 @@ function PrintPage(props) {
                 </td>
               </tr>
               <tr>
-                <td colSpan={8} className="border border-black p-2 align-top">
+                <td colSpan={4} className="border border-black p-2 align-top">
                   <div className="font-bold mb-1">NOTE:</div>
                   <div className="whitespace-pre-wrap break-words italic">
                     {data.keterangan ?? "-"}
+                  </div>
+                </td>
+
+                {/* Kolom baru untuk Instruksi Kain */}
+                <td colSpan={4} className="border border-black p-2 align-top">
+                  <div className="font-bold mb-1">INSTRUKSI KAIN:</div>
+                  <div className="whitespace-pre-wrap break-words italic">
+                    {data.instruksi_kain ?? "-"}
                   </div>
                 </td>
               </tr>
