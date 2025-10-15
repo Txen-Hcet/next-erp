@@ -48,6 +48,17 @@ export default function SalesOrderPrint(props) {
   const totalMeter  = createMemo(() => parseFloat(data().summary?.total_meter || 0));
   const totalYard   = createMemo(() => parseFloat(data().summary?.total_yard  || 0));
   const totalKilogram   = createMemo(() => parseFloat(data().summary?.total_kilogram  || 0));
+
+  const totalMeterLebih = createMemo(() => 
+    (data().items || []).reduce((sum, item) => sum + (parseFloat(item.meter_lebih) || 0), 0)
+  );
+  const totalYardLebih = createMemo(() => 
+    (data().items || []).reduce((sum, item) => sum + (parseFloat(item.yard_lebih) || 0), 0)
+  );
+  const totalKilogramLebih = createMemo(() => 
+    (data().items || []).reduce((sum, item) => sum + (parseFloat(item.kilogram_lebih) || 0), 0)
+  );
+
   const subTotal    = createMemo(() => Number(data().summary?.subtotal) || 0);
   const dpp         = createMemo(() => subTotal() / 1.11);
   const nilaiLain   = createMemo(() => dpp() * (11 / 12));
@@ -63,6 +74,10 @@ export default function SalesOrderPrint(props) {
     totalMeter: totalMeter(),
     totalYard: totalYard(),
     totalKilogram: totalKilogram(),
+
+    totalMeterLebih: totalMeterLebih(),
+    totalYardLebih: totalYardLebih(),
+    totalKilogramLebih: totalKilogramLebih(),
   }));
 
   // ===== Pagination =====
@@ -284,11 +299,15 @@ function PrintPage(props) {
                 <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>
                   Quantity
                 </th>
+                <th hidden className="border border-black p-1 w-[12%] text-center" colSpan={2}>Kain Lebih</th>
                 <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
                 <th hidden className="border border-black p-1 w-[20%]" rowSpan={2}>Total</th>
               </tr>
               <tr>
-                <th colspan={2} className="border border-black p-1 w-[24%]">
+                <th colspan={2} className="border border-black p-1">
+                  {`(${data.satuan_unit || 'Meter'})`}
+                </th>
+                <th hidden colSpan={2} className="border border-black p-1">
                   {`(${data.satuan_unit || 'Meter'})`}
                 </th>
               </tr>
@@ -306,13 +325,20 @@ function PrintPage(props) {
                     <td className="p-1 text-center break-words">{item.deskripsi_warna || "-"}</td>
                     <td className="p-1 text-center break-words">{item.keterangan_warna || "-"}</td>
                     <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar)}"</td>
-                    <td className="p-1 text-center break-words">{item.gramasi}</td>
+                    <td className="p-1 text-center break-words">{item.gramasi || "-"}</td>
                     <td colSpan={2} className="p-1 text-center break-words">
                       {data.satuan_unit === "Meter"
                         ? formatAngka(item.meter_total || 0)
                         : data.satuan_unit === "Yard"
                         ? formatAngka(item.yard_total || 0)
                         : formatAngka(item.kilogram_total || 0)}
+                    </td>
+                    <td hidden colSpan={2} className="p-1 text-center break-words">
+                      {data.satuan_unit === "Meter"
+                        ? formatAngka(item.meter_lebih || 0)
+                        : data.satuan_unit === "Yard"
+                        ? formatAngka(item.yard_lebih || 0)
+                        : formatAngka(item.kilogram_lebih || 0)}
                     </td>
                     <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
                     <td hidden className="p-1 text-right break-words">
@@ -361,6 +387,13 @@ function PrintPage(props) {
                         ? formatAngka(totals.totalYard || 0)
                         : formatAngka(totals.totalKilogram || 0)}
                 </td>
+                <td hidden colSpan={2} className="border border-black px-2 py-1 text-center font-bold">
+                  {data.satuan_unit === "Meter"
+                    ? formatAngka(totals.totalMeterLebih || 0)
+                    : data.satuan_unit === "Yard"
+                    ? formatAngka(totals.totalYardLebih || 0)
+                    : formatAngka(totals.totalKilogramLebih || 0)}
+                </td>
                 <td hidden className="border border-black px-2 py-1 text-right font-bold">
                   Sub Total
                 </td>
@@ -405,14 +438,14 @@ function PrintPage(props) {
               <tr>
                 <td colSpan={9} className="border border-black">
                   <div className="w-full flex justify-end text-[12px] py-5 px-2">
-                    <div className="text-center w-1/3">
+                    <div className="text-center w-1/2">
                       Customer
                       <br />
                       <br />
                       <br />
                       <br />( ...................... )
                     </div>
-                    <div className="text-center w-1/3">
+                    <div className="text-center w-1/2">
                       Marketing
                       <br />
                       <br />
