@@ -84,9 +84,9 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   const columnConfig = [
     { header: 'No', key: 'no', width: 5, style: { alignment: { horizontal: 'center' } } },
     { header: 'Tgl', key: 'tanggal', width: 12, style: { alignment: { horizontal: 'center' } } },
-    { header: 'No. SJ', key: 'no_sj', width: 25, style: { alignment: { horizontal: 'center' } } },
-    { header: 'No. Ref', key: 'no_ref', width: 25, style: { alignment: { horizontal: 'center' } } },
-    { header: isSales ? 'Customer' : 'Supplier', key: 'relasi', width: 27, style: { alignment: { horizontal: 'center' } } },
+    { header: 'No. SJ', key: 'no_sj', width: 27, style: { alignment: { horizontal: 'center' } } },
+    { header: 'No. Ref', key: 'no_ref', width: 28, style: { alignment: { horizontal: 'center' } } },
+    { header: isSales ? 'Customer' : 'Supplier', key: 'relasi', width: 30, style: { alignment: { horizontal: 'center' } } },
   ];
   if (!isGreige) columnConfig.push({ header: 'Warna', key: 'warna', width: 15, style: { alignment: { horizontal: 'center' } } });
   if (isSales) columnConfig.push({ header: 'Grade', key: 'grade', width: 10, style: { alignment: { horizontal: 'center' } } });
@@ -121,6 +121,10 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   worksheet.getCell('A2').value = filterLabel === 's/d' ? 'Periode: Semua Data' : `Periode: ${filterLabel}`;
   worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
 
+  const borderStyle = { top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'} };
+  worksheet.getCell('A1').border = borderStyle;
+  worksheet.getCell('A2').border = borderStyle;
+
   worksheet.addRow([]);
 
   const headerRowValues = columnConfig.map(c => c.header);
@@ -128,6 +132,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   headerRow.eachCell((cell) => {
     cell.font = { bold: true };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = borderStyle;
   });
 
   let grandTotal = 0;
@@ -175,6 +180,9 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
       });
 
       const added = worksheet.addRow(rowToAdd);
+      added.eachCell((cell) => {
+        cell.border = borderStyle;
+      });
       addedRowNums.push(added.number);
 
       const meterColIdx = columnConfig.findIndex(c => c.key === 'meter') + 1;
@@ -210,6 +218,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
         worksheet.mergeCells(first, colIdx, last, colIdx);
         const cell = worksheet.getCell(first, colIdx);
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = borderStyle;
       });
     }
   });
@@ -222,6 +231,11 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   totalLabelCell.value = 'TOTAL AKHIR';
   totalLabelCell.font = { bold: true };
   totalLabelCell.alignment = { horizontal: 'right' };
+
+  for (let i = 1; i <= columnConfig.length; i++) {
+    totalRow.getCell(i).border = borderStyle;
+  }
+
   const totalValueCell = totalRow.getCell(columnConfig.length);
   totalValueCell.value = grandTotal;
   totalValueCell.font = { bold: true };

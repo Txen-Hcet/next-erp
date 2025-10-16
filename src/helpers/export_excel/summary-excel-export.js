@@ -56,6 +56,10 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
   worksheet.getCell('A2').value = `Periode: ${filterLabel}`;
   worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
 
+  const borderStyle = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+  worksheet.getCell('A1').border = borderStyle;
+  worksheet.getCell('A2').border = borderStyle;
+
   worksheet.addRow([]);
 
   const renderGroup = (groupTitle, groupData, startNo) => {
@@ -63,13 +67,16 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
 
     const titleRow = worksheet.addRow([groupTitle]);
     worksheet.mergeCells(titleRow.number, 1, titleRow.number, columnConfig.length);
-    titleRow.getCell(1).font = { bold: true };
-    titleRow.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+    const titleCell = titleRow.getCell(1);
+    titleCell.font = { bold: true };
+    titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    titleCell.border = borderStyle;
 
     const headerRow = worksheet.addRow(columnConfig.map(c => c.header));
     headerRow.eachCell((cell) => {
       cell.font = { bold: true };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = borderStyle;
     });
 
     let no = startNo;
@@ -99,6 +106,7 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
 
         const added = worksheet.addRow(rowValues);
 
+        // Apply number formats (columns already have styles, but set explicitly on cells too)
         const meterIdx = columnConfig.findIndex(c => c.key === 'meter') + 1;
         const yardIdx = columnConfig.findIndex(c => c.key === 'yard') + 1;
         const kgIdx = columnConfig.findIndex(c => c.key === 'kg') + 1;
@@ -125,6 +133,11 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
           const c = added.getCell(totalIdx);
           c.numFmt = '"Rp "#,##0.00';
         }
+
+        // Apply border to the row
+        added.eachCell((cell) => {
+          cell.border = borderStyle;
+        });
       });
 
       const endRowNumber = worksheet.rowCount;
@@ -141,18 +154,21 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
           const cell = worksheet.getCell(firstRow, noCol);
           cell.value = no;
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = borderStyle;
         }
         if (customerCol > 0) {
           worksheet.mergeCells(firstRow, customerCol, lastRow, customerCol);
           const cell = worksheet.getCell(firstRow, customerCol);
           cell.value = mainData.customer_name ?? '';
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = borderStyle;
         }
         if (!isSales && supplierCol > 0) {
           worksheet.mergeCells(firstRow, supplierCol, lastRow, supplierCol);
           const cell = worksheet.getCell(firstRow, supplierCol);
           cell.value = mainData.supplier_name ?? '';
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.border = borderStyle;
         }
       }
     });
@@ -172,6 +188,7 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
     const totalRow = worksheet.addRow(totalRowVals);
     totalRow.eachCell((cell) => {
       cell.font = { bold: true };
+      cell.border = borderStyle;
     });
 
     worksheet.addRow([]);
@@ -181,6 +198,7 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
   let startNo = 0;
   startNo = renderGroup('Sudah Terbit Invoice', processedData.invoiced || [], startNo);
   startNo = renderGroup('Belum Terbit Invoice', processedData.pending || [], startNo);
+
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

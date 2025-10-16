@@ -36,7 +36,7 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
   let columns = [
     { header: 'No', key: 'no', width: 5, style: { alignment: { horizontal: 'center' } } },
     { header: 'No. PO', key: 'ref', width: 27, style: { alignment: { horizontal: 'center' } } },
-    { header: relasiHeader, key: 'relasi', width: 25, style: { alignment: { horizontal: 'center' } } },
+    { header: relasiHeader, key: 'relasi', width: 30, style: { alignment: { horizontal: 'center' } } },
     { header: 'Tanggal', key: 'tanggal', width: 15, style: { alignment: { horizontal: 'center' } } },
     { header: 'Corak', key: 'corak', width: 20, style: { alignment: { horizontal: 'center' } } },
   ];
@@ -80,12 +80,17 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
   periodCell.value = periodText;
   periodCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
+  const borderStyle = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+  titleCell.border = borderStyle;
+  periodCell.border = borderStyle;
+
   worksheet.addRow([]);
 
   const headerRow = worksheet.addRow(columns.map(col => col.header));
   headerRow.eachCell((cell) => {
     cell.font = { bold: true };
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = borderStyle;
   });
 
   let grandTotal = 0;
@@ -112,6 +117,9 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
       }
 
       const addedRow = worksheet.addRow(rowData);
+      addedRow.eachCell((cell) => {
+        cell.border = borderStyle;
+      });
 
       ['totalPO', 'masukPO', 'sisaPO'].forEach(key => {
         try {
@@ -129,6 +137,7 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
           worksheet.mergeCells(startRow, colNum, endRow, colNum);
           const cell = worksheet.getCell(startRow, colNum);
           cell.alignment = { ...cell.alignment, vertical: 'middle', horizontal: 'center' };
+          cell.border = borderStyle;
           if(key === 'ref' || key === 'relasi') {
             cell.alignment = { ...cell.alignment, horizontal: 'center' };
           }
@@ -146,6 +155,10 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
   totalLabelCell.value = 'TOTAL AKHIR';
   totalLabelCell.font = { bold: true };
   totalLabelCell.alignment = { horizontal: 'right' };
+
+  for (let i = 1; i <= columns.length; i++) {
+    totalRow.getCell(i).border = borderStyle;
+  }
 
   const totalValueCell = totalRow.getCell(columns.length);
   totalValueCell.value = grandTotal;
