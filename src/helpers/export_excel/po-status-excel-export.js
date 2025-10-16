@@ -1,113 +1,166 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import Swal from 'sweetalert2';
 import { processPOStatusData } from '../../helpers/process/poStatusProcessor';
 
-// Helper ini khusus untuk Excel agar menghasilkan angka, bukan string
-const formatNumExcel = (n) => parseFloat((+n || 0).toFixed(2));
+function excelColLetter(colNumber) {
+  let letters = '';
+  while (colNumber > 0) {
+    const mod = (colNumber - 1) % 26;
+    letters = String.fromCharCode(65 + mod) + letters;
+    colNumber = Math.floor((colNumber - 1) / 26);
+  }
+  return letters;
+}
 
 export async function exportPOStatusToExcel({ block, status, filterLabel, token, poRows, isGreige, PO_DETAIL_FETCHER }) {
+  const processedData = await processPOStatusData({
+    poRows,
+    status,
+    block: { ...block },
+    token,
+    PO_DETAIL_FETCHER
+  });
+
   const title = `Rekap ${block.label} - ${status === 'done' ? 'Selesai' : 'Belum Selesai'}`;
-  const isSales = block.mode === 'penjualan';
   const isKainJadi = block.key === 'kain_jadi';
-  
-  const processedData = await processPOStatusData({ poRows, status, block, token, PO_DETAIL_FETCHER });
+  const relasiHeader = block.mode === 'penjualan' ? 'Customer' : 'Supplier';
 
   if (processedData.length === 0) {
     Swal.fire("Info", `Tidak ada data untuk diekspor dengan status "${status === 'done' ? 'Selesai' : 'Belum Selesai'}".`, "info");
     return;
   }
 
-  const columnConfig = [
-    { header: 'No', width: 5 },
-    { header: isSales ? "No. SO" : (block.key === 'jual_beli' ? 'No. JB' : "No. PO"), width: 22 },
-    { header: `Nama ${isSales ? "Customer" : "Supplier"}`, width: 25 },
-    { header: 'Tanggal', width: 12 },
-    { header: 'Corak Kain', width: 20 },
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Laporan PO Status');
+
+  let columns = [
+    { header: 'No', key: 'no', width: 5, style: { alignment: { horizontal: 'center' } } },
+    { header: 'No. PO', key: 'ref', width: 27, style: { alignment: { horizontal: 'center' } } },
+    { header: relasiHeader, key: 'relasi', width: 25, style: { alignment: { horizontal: 'center' } } },
+    { header: 'Tanggal', key: 'tanggal', width: 15, style: { alignment: { horizontal: 'center' } } },
+    { header: 'Corak', key: 'corak', width: 20, style: { alignment: { horizontal: 'center' } } },
   ];
+
   if (!isGreige) {
-    columnConfig.push({ header: 'Warna', width: 18 }, { header: 'Ket. Warna', width: 20 });
+    columns.push(
+      { header: 'Warna', key: 'warna', width: 18, style: { alignment: { horizontal: 'center' } } },
+      { header: 'Ket. Warna', key: 'ketWarna', width: 20 }
+    );
   }
-  columnConfig.push(
-    { header: 'QTY PO', width: 15 },
-    { header: 'QTY Masuk', width: 15 },
-    { header: 'Sisa PO', width: 15 }
+
+  columns.push(
+    { header: 'QTY PO', key: 'totalPO', width: 18 },
+    { header: 'QTY Masuk', key: 'masukPO', width: 18 },
+    { header: 'Sisa PO', key: 'sisaPO', width: 18 }
   );
+
   if (isKainJadi) {
-    columnConfig.push(
-      { header: 'Harga Greige', width: 18, format: 'Rp #,##0.00' },
-      { header: 'Harga Maklun', width: 18, format: 'Rp #,##0.00' }
+    columns.push(
+      { header: 'Harga Greige', key: 'harga_greige', width: 18, style: { numFmt: '"Rp "#,##0.00' } },
+      { header: 'Harga Maklun', key: 'harga_maklun', width: 18, style: { numFmt: '"Rp "#,##0.00' } }
     );
   } else {
-    columnConfig.push({ header: 'Harga', width: 18, format: 'Rp #,##0.00' });
+    columns.push({ header: 'Harga', key: 'harga_satuan', width: 18, style: { numFmt: '"Rp "#,##0.00' } });
   }
-  columnConfig.push({ header: 'Total', width: 20, format: 'Rp #,##0.00' });
-  
-  const headers = columnConfig.map(c => c.header);
-  let worksheetData = [ [title], [`Periode: ${filterLabel}`], [], headers ];
-  let grandTotal = 0;
+  columns.push({ header: 'Total', key: 'subtotal', width: 20, style: { numFmt: '"Rp "#,##0.00' } });
 
+  worksheet.columns = columns;
+
+  const lastColumnLetter = excelColLetter(columns.length);
+
+  worksheet.mergeCells(`A1:${lastColumnLetter}1`);
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = { name: 'Calibri', size: 14, bold: true };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const periodText = filterLabel === 's/d' ? 'Periode: Semua Data' : `Periode: ${filterLabel}`;
+  worksheet.mergeCells(`A2:${lastColumnLetter}2`);
+  const periodCell = worksheet.getCell('A2');
+  periodCell.value = periodText;
+  periodCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  worksheet.addRow([]);
+
+  const headerRow = worksheet.addRow(columns.map(col => col.header));
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+  });
+
+  let grandTotal = 0;
   processedData.forEach((po, index) => {
     const { mainData, items } = po;
-    if (items.length === 0) return;
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const startRow = worksheet.rowCount + 1;
 
     items.forEach((item, itemIndex) => {
-        grandTotal += item.subtotal;
+      grandTotal += Number(item.subtotal || 0);
+      
+      const rowData = {
+        ...item
+      };
 
-        // Data utama PO hanya diisi pada baris item pertama
-        const mainInfo = itemIndex === 0
-            ? [ index + 1, mainData.ref, mainData.relasi, mainData.tanggal.split(' ')[0] ]
-            : ['', '', '', ''];
-        
-        let dataRow = [...mainInfo, item.corak];
-
-        if (!isGreige) {
-            dataRow.push(item.warna, item.ketWarna);
-        }
-
-        // Kuantitas PO juga hanya diisi pada baris pertama
-        if (itemIndex === 0) {
-            dataRow.push(
-                `${formatNumExcel(mainData.totalPO)} ${mainData.unit}`,
-                `${formatNumExcel(mainData.masukPO)} ${mainData.unit}`,
-                `${formatNumExcel(mainData.sisaPO)} ${mainData.unit}`
-            );
-        } else {
-            // Kolom kuantitas PO dikosongkan untuk item selanjutnya
-            dataRow.push('', '', '');
-        }
-
-        if (isKainJadi) {
-            dataRow.push(item.harga_greige, item.harga_maklun);
-        } else {
-            dataRow.push(item.harga_satuan);
-        }
-        dataRow.push(item.subtotal);
-        worksheetData.push(dataRow);
-    });
-  });
-  
-  const totalRow = new Array(headers.length).fill('');
-  totalRow[headers.length - 2] = 'TOTAL AKHIR';
-  totalRow[headers.length - 1] = grandTotal;
-  worksheetData.push(totalRow);
-
-  const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-  
-  ws['!cols'] = columnConfig.map(c => ({ wch: c.width }));
-  worksheetData.forEach((rowData, r) => {
-    if (r < 3) return;
-    rowData.forEach((cellData, c) => {
-      const config = columnConfig[c];
-      if (config && config.format && typeof cellData === 'number') {
-        const cellAddress = XLSX.utils.encode_cell({ r, c });
-        if (!ws[cellAddress]) ws[cellAddress] = {};
-        ws[cellAddress].t = 'n';
-        ws[cellAddress].z = config.format;
+      if (itemIndex === 0) {
+        rowData.no = index + 1;
+        rowData.ref = mainData.ref;
+        rowData.relasi = mainData.relasi;
+        const dateStr = String(mainData.tanggal || '');
+        const dateParts = dateStr.includes(' ') ? dateStr.split(' ')[0].split('-') : dateStr.split('-');
+        rowData.tanggal = (dateParts.length === 3) ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : dateStr;
       }
+
+      const addedRow = worksheet.addRow(rowData);
+
+      ['totalPO', 'masukPO', 'sisaPO'].forEach(key => {
+        try {
+          const cell = addedRow.getCell(key);
+          cell.numFmt = `#,##0.00" ${mainData.unit || ''}"`;
+        } catch (e) {}
+      });
     });
+
+    if (items.length > 1) {
+      const endRow = worksheet.rowCount;
+      ['no', 'ref', 'relasi', 'tanggal'].forEach(key => {
+        const colNum = columns.findIndex(c => c.key === key) + 1;
+        if (colNum > 0) {
+          worksheet.mergeCells(startRow, colNum, endRow, colNum);
+          const cell = worksheet.getCell(startRow, colNum);
+          cell.alignment = { ...cell.alignment, vertical: 'middle', horizontal: 'center' };
+          if(key === 'ref' || key === 'relasi') {
+            cell.alignment = { ...cell.alignment, horizontal: 'center' };
+          }
+        }
+      });
+    }
   });
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Laporan PO Status');
-  XLSX.writeFile(wb, `${title} - ${filterLabel}.xlsx`);
+  worksheet.addRow([]);
+  const totalRowNumber = worksheet.lastRow.number + 1;
+  const totalRow = worksheet.addRow([]);
+  worksheet.mergeCells(totalRowNumber, 1, totalRowNumber, columns.length - 1);
+
+  const totalLabelCell = totalRow.getCell(1);
+  totalLabelCell.value = 'TOTAL AKHIR';
+  totalLabelCell.font = { bold: true };
+  totalLabelCell.alignment = { horizontal: 'right' };
+
+  const totalValueCell = totalRow.getCell(columns.length);
+  totalValueCell.value = grandTotal;
+  totalValueCell.font = { bold: true };
+  totalValueCell.numFmt = '"Rp "#,##0.00';
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title} - ${filterLabel}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 }

@@ -84,51 +84,68 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
         grandTotal += items.reduce((sum, item) => sum + item.subtotal, 0);
         
         const rowCount = items.length;
-        // Sel utama yang akan di-span
+        const unitLabel = mainData.unit || 'Meter';
+
         const mainInfoCells = `
-            <td rowspan="${rowCount}" style="text-align:center;">${index + 1}</td>
-            <td rowspan="${rowCount}">${mainData.ref}</td>
-            <td rowspan="${rowCount}">${mainData.relasi}</td>
-            <td rowspan="${rowCount}" style="text-align:center;">${formatDatePrint(mainData.tanggal)}</td>`;
-            
-        // Sel kuantitas PO yang juga di-span
-        const poQuantityCells = `
-            <td rowspan="${rowCount}" style="text-align:right;">${formatNum(mainData.totalPO)} ${mainData.unit}</td>
-            <td rowspan="${rowCount}" style="text-align:right;">${formatNum(mainData.masukPO)} ${mainData.unit}</td>
-            <td rowspan="${rowCount}" style="text-align:right;">${formatNum(mainData.sisaPO)} ${mainData.unit}</td>`;
-            
-        // Baris pertama dari item, digabung dengan sel utama
+        <td rowspan="${rowCount}" style="text-align:center; vertical-align: middle;">${index + 1}</td>
+        <td rowspan="${rowCount}" style="vertical-align: middle;">${mainData.ref}</td>
+        <td rowspan="${rowCount}" style="vertical-align: middle;">${mainData.relasi}</td>
+        <td rowspan="${rowCount}" style="text-align:center; vertical-align: middle;">${formatDatePrint(mainData.tanggal)}</td>
+        `;
+
         const firstItem = items[0];
         let firstItemRow = `<tr>${mainInfoCells}<td>${firstItem.corak}</td>`;
         if (!isGreige) {
-            firstItemRow += `<td>${firstItem.warna}</td><td>${firstItem.ketWarna}</td>`;
+        firstItemRow += `<td>${firstItem.warna}</td><td>${firstItem.ketWarna}</td>`;
         }
-        firstItemRow += poQuantityCells; // Tambahkan sel kuantitas
+
+        // tampilkan qty per ITEM (jangan rowspan) — gunakan field per-item jika ada, fallback ke mainData
+        const qtyPO_item = Number(firstItem.totalPO ?? firstItem.totalPO ?? firstItem.totalPO ?? mainData.totalPO ?? 0);
+        const masukPO_item = Number(firstItem.masukPO ?? firstItem.masukPO ?? firstItem.masukPO ?? mainData.masukPO ?? 0);
+        const sisaPO_item = Number(firstItem.sisaPO ?? Math.max(0, (qtyPO_item - masukPO_item)));
+
+        firstItemRow += `
+        <td style="text-align:right;">${formatNum(qtyPO_item)} ${unitLabel}</td>
+        <td style="text-align:right;">${formatNum(masukPO_item)} ${unitLabel}</td>
+        <td style="text-align:right;">${formatNum(sisaPO_item)} ${unitLabel}</td>
+        `;
+
         if (isKainJadi) {
-            firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_greige)}</td>
-                             <td style="text-align:right;">${formatCurrency(firstItem.harga_maklun)}</td>`;
+        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_greige)}</td>
+                        <td style="text-align:right;">${formatCurrency(firstItem.harga_maklun)}</td>`;
         } else {
-            firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_satuan)}</td>`;
+        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_satuan)}</td>`;
         }
         firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.subtotal)}</td></tr>`;
 
-        // Baris-baris item selanjutnya, hanya berisi data item
         const subsequentItemRows = items.slice(1).map(item => {
-            let rowHtml = `<tr><td>${item.corak}</td>`;
-            if (!isGreige) {
-                rowHtml += `<td>${item.warna}</td><td>${item.ketWarna}</td>`;
-            }
-            if (isKainJadi) {
-                rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_greige)}</td>
-                            <td style="text-align:right;">${formatCurrency(item.harga_maklun)}</td>`;
-            } else {
-                rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_satuan)}</td>`;
-            }
-            rowHtml += `<td style="text-align:right;">${formatCurrency(item.subtotal)}</td></tr>`;
-            return rowHtml;
+        const qtyPO = Number(item.totalPO ?? item.total ?? mainData.totalPO ?? 0);
+        const masukPO = Number(item.masukPO ?? item.masukPO ?? mainData.masukPO ?? 0);
+        const sisaPO = Number(item.sisaPO ?? Math.max(0, (qtyPO - masukPO)));
+
+        let rowHtml = `<tr><td>${item.corak}</td>`;
+        if (!isGreige) {
+            rowHtml += `<td>${item.warna}</td><td>${item.ketWarna}</td>`;
+        }
+
+        rowHtml += `
+            <td style="text-align:right;">${formatNum(qtyPO)} ${unitLabel}</td>
+            <td style="text-align:right;">${formatNum(masukPO)} ${unitLabel}</td>
+            <td style="text-align:right;">${formatNum(sisaPO)} ${unitLabel}</td>
+        `;
+
+        if (isKainJadi) {
+            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_greige)}</td>
+                        <td style="text-align:right;">${formatCurrency(item.harga_maklun)}</td>`;
+        } else {
+            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_satuan)}</td>`;
+        }
+        rowHtml += `<td style="text-align:right;">${formatCurrency(item.subtotal)}</td></tr>`;
+        return rowHtml;
         }).join('');
 
         return firstItemRow + subsequentItemRows;
+
     }).join('');
 
     const colspanForLabel = headers.length - 1;
