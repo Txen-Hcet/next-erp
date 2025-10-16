@@ -32,6 +32,12 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
     return;
   }
 
+  processedData.sort((a, b) => {
+    const dateA = new Date(a.mainData.tanggal);
+    const dateB = new Date(b.mainData.tanggal);
+    return dateA - dateB;
+  });
+
   // ==== BAGIAN KRITIS 1: KONFIGURASI KOLOM ====
   // Definisikan header, format, dan lebar kolom di sini agar mudah diubah
   const columnConfig = [
