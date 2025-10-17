@@ -988,7 +988,7 @@ export default function ExporSalesContractForm() {
             <tr>
               <th class="border p-2">#</th>
               <th class="border p-2">Article</th>
-              <th class="border p-2">Design (Color)</th>
+              <th hidden class="border p-2">Design (Color)</th>
               <th class="border p-2">Desc of Goods</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Meter</th>
@@ -1011,7 +1011,7 @@ export default function ExporSalesContractForm() {
                       classList={{ "bg-gray-200": isView }}
                     />
                   </td>
-                  <td class="border p-2">
+                  <td hidden class="border p-2">
                     <ColorDropdownSearch
                       colors={colorOptions}
                       item={item}

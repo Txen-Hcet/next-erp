@@ -256,7 +256,7 @@ function PrintPage(props) {
                   className="px-2 py-1 max-w-[300px] break-words whitespace-pre-wrap font-bold"
                   colSpan={2}
                 >
-                  ALI AL SALMAN TEXTILE EST{data.customer_name}
+                  ALI AL SALMAN TEXTILE EST <br></br>{data.customer_name}
                 </td>
               </tr>
               <tr>
@@ -264,7 +264,7 @@ function PrintPage(props) {
                   className="px-2 max-w-[300px] leading-relaxed break-words whitespace-pre-wrap font-bold"
                   colSpan={2}
                 >
-                  DAMMAM - SAUDI ARABIA{data.customer_alamat}
+                  DAMMAM - SAUDI ARABIA <br></br>{data.customer_alamat}
                 </td>
               </tr>
               <tr class="flex flex-col text-xs mt-5">
@@ -319,7 +319,7 @@ function PrintPage(props) {
               <tr>
                 <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
                 <th className="border border-black p-1 w-[13%]" rowSpan={2}>Art No.</th>
-                <th className="border border-black p-1 w-[13%]" rowSpan={2}>Design</th>
+                <th hidden className="border border-black p-1 w-[13%]" rowSpan={2}>Design</th>
                 <th className="border border-black p-1 w-[30%]" rowSpan={2}>Description of Goods</th>
                 <th className="border border-black p-1 w-[16%]" colSpan={1}>Quantity</th>
                 <th className="border border-black p-1 w-[20%]" rowSpan={2}>Price</th>
@@ -350,7 +350,7 @@ function PrintPage(props) {
                     <td className="p-1 text-center break-words">
                       {item.corak_kain || "-"}
                     </td>
-                    <td className="p-1 break-words text-center">
+                    <td hidden className="p-1 break-words text-center">
                       {item.design_kode}
                     </td>
                     <td className="p-1 break-words text-center">
@@ -393,7 +393,7 @@ function PrintPage(props) {
               <Show when={isLast}>
                 <tr>
                   <td
-                    colSpan={3}
+                    colSpan={2}
                     className="border border-black font-bold px-2 py-1 text-center"
                   >
                     TOTAL
@@ -416,7 +416,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -429,7 +429,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -442,7 +442,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex">
@@ -464,7 +464,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -477,7 +477,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -490,7 +490,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -503,7 +503,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -517,7 +517,7 @@ function PrintPage(props) {
                 </tr>
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={7}
                     className="border border-black px-2 py-1 align-top"
                   >
                     <div className="flex items-start gap-2">
@@ -529,7 +529,7 @@ function PrintPage(props) {
                   </td>
                 </tr>
                 <tr>
-                  <td colSpan={8} className="border border-black">
+                  <td colSpan={7} className="border border-black">
                     <p class="px-2 py-1">
                       Kindly return fax the copy of this sales confirmation
                       signed and accepted
@@ -562,7 +562,7 @@ function PrintPage(props) {
               </Show>
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="border border-black px-2 py-1 text-right italic"
                 >
                   Page {pageNo} from {pageCount}
