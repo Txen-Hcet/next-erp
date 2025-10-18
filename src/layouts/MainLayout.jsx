@@ -877,6 +877,8 @@ export default function MainLayout(props) {
                 {hasAllPermission([
                   "view_sales_contracts",
                   "view_sales_orders",
+                  "create_sales_contracts",
+                  "create_sales_orders",
                 ]) && (
                   <li>
                     <button
