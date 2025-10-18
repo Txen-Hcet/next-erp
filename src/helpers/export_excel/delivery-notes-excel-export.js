@@ -12,16 +12,21 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportDeliveryNotesToExcel({ block, token, startDate, endDate, filterLabel }) {
+export async function exportDeliveryNotesToExcel({ block, token, startDate, endDate, filterLabel, customer_id = null }) {
   const title = `Laporan - ${block.label}`;
   const isSales = block.mode === "penjualan";
   const isGreige = block.key === "greige";
   const isKainJadi = block.key === "kain_jadi";
 
+  if (block.key !== "sales") {
+      customer_id = null; // hanya sales yang pakai customer filter
+  }
+
   const normalizeDate = (d) => {
     if (!d) return null; const x = new Date(d); if (Number.isNaN(x.getTime())) return null;
     return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   };
+  
   const filterByDate = (rows) => {
     const s = normalizeDate(startDate); const e = normalizeDate(endDate); if (!s && !e) return rows;
     return rows.filter((r) => { const d = normalizeDate(r.created_at); if (d === null) return false; if (s && d < s) return false; if (e && d > e) return false; return true; });
@@ -35,7 +40,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
     return;
   }
 
-  const rawProcessed = await processDeliveryNotesData({ baseRows, block, token });
+  const rawProcessed = await processDeliveryNotesData({ baseRows, block, token, customer_id });
   if (!rawProcessed || rawProcessed.length === 0) {
     Swal.fire("Error", "Gagal memproses detail data untuk ekspor.", "error");
     return;

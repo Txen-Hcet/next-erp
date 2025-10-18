@@ -187,32 +187,36 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
   w.print();
 };
 
-export async function printDeliveryNotes(block, { token, startDate = "", endDate = "" } = {}) {
-    const normalizeDate = (d) => {
-        if (!d) return null; const x = new Date(d); if (Number.isNaN(x.getTime())) return null;
-        return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-    };
-    const filterByDate = (rows) => {
-        const s = normalizeDate(startDate); const e = normalizeDate(endDate); if (!s && !e) return rows;
-        return rows.filter((r) => { const d = normalizeDate(r.created_at); if (d === null) return false; if (s && d < s) return false; if (e && d > e) return false; return true; });
-    };
-    const rowsFromResponse = (res) => res?.suratJalans ?? res?.surat_jalan_list ?? res?.data ?? [];
-    
-    const res = await block.rawFetcher(token);
-    const baseRows = filterByDate(rowsFromResponse(res));
+export async function printDeliveryNotes(block, { token, startDate = "", endDate = "", customer_id = null } = {}) {
+  if (block.key !== "sales") {
+    customer_id = null; // hanya sales yang pakai customer filter
+  }
 
-    if (baseRows.length === 0) {
-        return alert("Tidak ada data untuk dicetak pada rentang tanggal ini.");
-    }
-    
-    const processedData = await processDeliveryNotesData({ baseRows, block, token });
+  const normalizeDate = (d) => {
+      if (!d) return null; const x = new Date(d); if (Number.isNaN(x.getTime())) return null;
+      return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  };
+  const filterByDate = (rows) => {
+      const s = normalizeDate(startDate); const e = normalizeDate(endDate); if (!s && !e) return rows;
+      return rows.filter((r) => { const d = normalizeDate(r.created_at); if (d === null) return false; if (s && d < s) return false; if (e && d > e) return false; return true; });
+  };
+  const rowsFromResponse = (res) => res?.suratJalans ?? res?.surat_jalan_list ?? res?.data ?? [];
+  
+  const res = await block.rawFetcher(token);
+  const baseRows = filterByDate(rowsFromResponse(res));
 
-    //console.log('processedData sample:', JSON.stringify(processedData.slice(0,3), null, 2));
-    
-    if (processedData.length === 0) {
-        return alert("Gagal memproses detail data untuk dicetak.");
-    }
+  if (baseRows.length === 0) {
+      return alert("Tidak ada data untuk dicetak pada rentang tanggal ini.");
+  }
+  
+  const processedData = await processDeliveryNotesData({ baseRows, block, token, customer_id });
 
-    const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
+  //console.log('processedData sample:', JSON.stringify(processedData.slice(0,3), null, 2));
+  
+  if (processedData.length === 0) {
+      return alert("Gagal memproses detail data untuk dicetak.");
+  }
+
+  const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
     openPrintWindow(`Laporan - ${block.label}`, processedData, block, filterLabel);
-}
+};

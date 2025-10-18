@@ -161,15 +161,18 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
     w.document.close(); w.focus(); w.print();
 };
 
-export async function printPOStatus({ block, status, poRows, startDate, endDate, token, PO_DETAIL_FETCHER }) {
+export async function printPOStatus({ block, status, poRows, startDate, endDate, token, PO_DETAIL_FETCHER, customer_id = null }) {
+    if (block.key !== "sales") {
+        customer_id = null; // hanya sales yang pakai customer filter
+    }
     const title = `Rekap ${block.label} - ${status === "done" ? "Selesai" : "Belum Selesai"}`;
     const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
-    
-    const processedData = await processPOStatusData({ poRows, status, block, token, PO_DETAIL_FETCHER });
+
+    const processedData = await processPOStatusData({ poRows, status, block, token, PO_DETAIL_FETCHER, customer_id });
 
     if (processedData.length === 0) {
         return alert(`Tidak ada data untuk dicetak dengan status "${status === 'done' ? 'Selesai' : 'Belum Selesai'}".`);
     }
-    
+
     openPrintWindow(title, processedData, block, filterLabel);
-}
+    }

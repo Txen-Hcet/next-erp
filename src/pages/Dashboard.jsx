@@ -1,5 +1,5 @@
 import MainLayout from "../layouts/MainLayout";
-import { onMount, createSignal, For, Show } from "solid-js";
+import { onMount, createSignal, createEffect, For, Show } from "solid-js";
 import ApexChart from "../components/ApexChart";
 import { Printer, FileSpreadsheet } from "lucide-solid";
 import Litepicker from "litepicker";
@@ -7,6 +7,8 @@ import Swal from "sweetalert2";
 import { exportDeliveryNotesToExcel } from "../helpers/export_excel/delivery-notes-excel-export";
 import { exportPOStatusToExcel } from "../helpers/export_excel/po-status-excel-export";
 import { exportSummaryToExcel } from "../helpers/export_excel/summary-excel-export";
+
+import CustomerDropdownSearch from "../components/CustomerDropdownSearch";
 
 // ==== IMPORT ENDPOINTS ====
 import {
@@ -47,7 +49,9 @@ import {
 import { printPOStatus } from "./reports/poStatusPrint";
 import { printDeliveryNotes } from "./reports/deliveryNotesPrint";
 import { printSummaryReport } from "./reports/summaryPrint";
+
 const [activeTab, setActiveTab] = createSignal("pembelian");
+const [salesCustomerForm, setSalesCustomerForm] = createSignal({ customer_id: null }); // Filter laporan penjualan berdasarkan nama customer
 
 export default function Dashboard() {
   const user = getUser();
@@ -278,6 +282,90 @@ export default function Dashboard() {
   const hasAnyPerm = (arr) =>
     Array.isArray(arr) ? arr.some((p) => hasPermission(p)) : false;
 
+  const buildCustomerListFromRows = (rows = []) => {
+    const map = new Map();
+    for (const r of rows || []) {
+      // coba beberapa kemungkinan lokasi id
+      let id =
+        r?.customer_id ??
+        r?.customer?.id ??
+        r?.buyer_id ??
+        r?.buyer?.id ??
+        r?.mainRow?.customer_id ??
+        r?.mainRow?.customer?.id ??
+        null;
+
+      const kode =
+        r?.customer_kode ??
+        r?.customer?.kode ??
+        r?.kode_customer ??
+        r?.kode ??
+        r?.buyer?.kode ??
+        "";
+
+      const nama =
+        r?.customer_name ??
+        r?.customer?.name ??
+        r?.customer?.nama ??
+        r?.buyer_name ??
+        r?.buyer?.nama ??
+        r?.mainRow?.customer_name ??
+        r?.name ??
+        "";
+
+      // jika tidak ada id, fallback ke "name:" key agar tetap unik per nama
+      const mapKey = id ? String(id) : nama ? `name:${nama}` : null;
+      if (!mapKey) continue;
+
+      if (!map.has(mapKey)) {
+        // simpan id sama persis (bisa number atau "name:...") — konsisten saat dipilih
+        map.set(mapKey, {
+          id: id ?? `name:${nama}`, // id akan dipakai sebagai nilai pilihan di dropdown
+          kode,
+          nama,
+        });
+      }
+    }
+    return Array.from(map.values());
+  };
+
+  // util untuk cek apakah baris cocok dengan selectedCustomerId (bisa number id atau "name:..." fallback)
+  const matchesCustomer = (row, selectedCustomerId) => {
+    if (!selectedCustomerId) return true; // tidak ada filter → cocok semua
+
+    // kandidat id dari row (bila ada)
+    const cid =
+      row?.customer_id ??
+      row?.customer?.id ??
+      row?.buyer_id ??
+      row?.buyer?.id ??
+      null;
+
+    // kandidat nama dari row
+    const cname =
+      row?.customer_name ??
+      row?.customer?.name ??
+      row?.customer?.nama ??
+      row?.buyer_name ??
+      row?.buyer?.nama ??
+      null;
+
+    // normalize jadi string
+    const sel = String(selectedCustomerId);
+
+    // 3 kemungkinan match:
+    // 1) id cocok (nomor/str)
+    if (cid !== null && String(cid) === sel) return true;
+
+    // 2) nama based key match: "name:Nama Customer"
+    if (cname && `name:${cname}` === sel) return true;
+
+    // 3) langsung kalau selectedCustomerId equals nama (jika ada scenario ini)
+    if (cname && String(cname) === sel) return true;
+
+    return false;
+  };
+
   // ====== LOAD & ASSEMBLE DATA PER BLOCK ======
   const reloadData = async () => {
     setLoading(true);
@@ -297,7 +385,6 @@ export default function Dashboard() {
 
         // === SUMMARY SECTION ===
         if (sec.key === "summary" && key === "summary") {
-          // ambil dua sumber: sales & jual_beli
           let salesRows = [],
             jbRows = [];
           try {
@@ -312,9 +399,7 @@ export default function Dashboard() {
           const salesTotal = salesRows.length;
           const jbTotal = jbRows.length;
 
-          const salesInv = salesRows.filter(
-            (r) => +r.delivered_status === 1
-          ).length;
+          const salesInv = salesRows.filter((r) => +r.delivered_status === 1).length;
           const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
 
           blocks.push({
@@ -344,9 +429,10 @@ export default function Dashboard() {
 
         // 1) Ambil semua SJ (hanya untuk show count SJ)
         let sjCount = 0;
+        let sjRows = [];
         try {
           const sjList = await keySJList?.(user?.token);
-          const sjRows = filterByDate(rowsFromResponse(sjList));
+          sjRows = filterByDate(rowsFromResponse(sjList));
           sjCount = Array.isArray(sjRows) ? sjRows.length : 0;
         } catch {
           sjCount = 0;
@@ -362,29 +448,58 @@ export default function Dashboard() {
           poRows = [];
         }
 
+        // Simpan data asli customer
+        const originalPoRows = Array.isArray(poRows) ? poRows.slice() : [];
+
+        // Filter dengan nama customer ketika mode penjualan
+        const selectedCustomerId = sec.key === "penjualan" ? salesCustomerForm().customer_id : null;
+
+        const filteredSJRows = (sjRows || []).filter((r) =>
+          matchesCustomer(r, selectedCustomerId)
+        );
+        const filteredPoRows = (poRows || []).filter((r) =>
+          matchesCustomer(r, selectedCustomerId)
+        );
+
+        // override with filtered results (only for penjualan this changes, for pembelian selectedCustomerId is null so no filter)
+        sjCount = filteredSJRows.length;
+        poRows = filteredPoRows;
+
+        // continue processing
         const isGreige = key === "greige";
         const chartSeries = buildChartSeriesFromPOs(poRows, isGreige);
+
+        // Ambil daftar nama customer asli agar dropdown konsisten
+        const customers = buildCustomerListFromRows(originalPoRows);
 
         blocks.push({
           key,
           label: b.label,
           mode: sec.key,
-          sjCount: sjCount,
+          sjCount,
           chart: {
             series: chartSeries,
             categories: ["Selesai", "Belum Selesai"],
           },
           poRows,
           rawFetcher: keySJList,
+          customers,
         });
       }
-      if (blocks.length)
-        assembled.push({ key: sec.key, title: sec.title, blocks });
+      if (blocks.length) assembled.push({ key: sec.key, title: sec.title, blocks });
     }
 
     setSectionsData(assembled);
     setLoading(false);
   };
+
+  createEffect(() => {
+    // ketika customer dipilih / di-clear -> reload data supaya cards & charts update
+    const cid = salesCustomerForm().customer_id;
+    // hanya trigger reload jika komponen sudah mounted; reloadData aman dipanggil berulang
+    // jika ingin debounce, bisa ditambahkan, tapi ini langsung dan sederhana
+    reloadData();
+  });
 
   // ===== Dialog pilih mode (Semua / Rentang) =====
   const askFilterMode = async () => {
@@ -528,6 +643,46 @@ export default function Dashboard() {
 
             <For each={section.blocks}>
               {(block) => {
+                // ==== KODE UNTUK DEBUGGING ====
+
+                // (function () {
+                //     try {
+                //       console.groupCollapsed(
+                //         `[DEBUG] Laporan block key=${block?.key ?? "?"} mode=${block?.mode ?? "?"}`
+                //       );
+
+                //       console.log("page URL:", JSON.stringify(window?.location?.href ?? null, null, 2));
+                //       console.log("block keys:", JSON.stringify(Object.keys(block || {}), null, 2));
+                //       console.log("poRows length:", JSON.stringify((block.poRows || []).length, null, 2));
+                //       console.log("customers length:", JSON.stringify((block.customers || []).length, null, 2));
+
+                //       console.log(
+                //         "poRows[0]:",
+                //         JSON.stringify((block.poRows && block.poRows[0]) ?? null, null, 2)
+                //       );
+                //       console.log(
+                //         "poRows first 3:",
+                //         JSON.stringify((block.poRows || []).slice(0, 3), null, 2)
+                //       );
+
+                //       console.log("block.customers:", JSON.stringify(block.customers ?? null, null, 2));
+
+                //       try {
+                //         console.log(
+                //           "salesCustomerForm():",
+                //           JSON.stringify(typeof salesCustomerForm === "function" ? salesCustomerForm() : null, null, 2)
+                //         );
+                //       } catch (e) {
+                //         console.log("salesCustomerForm() read error:", String(e));
+                //       }
+
+                //       console.groupEnd();
+                //     } catch (err) {
+                //       console.error("[DEBUG] unexpected error:", err);
+                //     }
+                //     return null;
+                //   })();
+                
                 // ==== RENDER KHUSUS SUMMARY ====
                 if (section.key === "summary" && block.key === "summary") {
                   const s = block.summaryCounts?.sales ?? {
@@ -661,6 +816,16 @@ export default function Dashboard() {
                   <div class="bg-white rounded shadow mb-8">
                     <div class="p-6 border-b">
                       <h3 class="text-lg font-semibold mb-4">{block.label}</h3>
+                      {section.key === "penjualan" && block.key === "sales" && (
+                        <div class="p-4 border-b">
+                          <CustomerDropdownSearch
+                            customersList={() => block.customers || []}
+                            form={salesCustomerForm}
+                            setForm={setSalesCustomerForm}
+                            // onChangeCustomer={reloadData}
+                          />
+                        </div>
+                      )}
                       <ApexChart
                         type="pie"
                         height={320}
@@ -689,16 +854,22 @@ export default function Dashboard() {
                         <div class="absolute top-4 right-4 flex gap-3">
                             <button class="text-gray-500 hover:text-green-600" title="Export Laporan ke Excel"
                                 onClick={() => exportDeliveryNotesToExcel({
-                                    block: block,
-                                    token: user?.token,
-                                    startDate: startDate(), // Kirim tanggal
-                                    endDate: endDate(),     // Kirim tanggal
-                                    filterLabel: currentFilterLabel()
+                                  block: block,
+                                  token: user?.token,
+                                  startDate: startDate(),
+                                  endDate: endDate(),
+                                  filterLabel: currentFilterLabel(),
+                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null
                                 })}>
                                 <FileSpreadsheet size={20} />
                             </button>
                             <button class="text-gray-500 hover:text-blue-600" title="Cetak laporan"
-                                onClick={() => printDeliveryNotes(block, { token: user?.token, startDate: startDate(), endDate: endDate() })}>
+                                onClick={() => printDeliveryNotes(block, {
+                                  token: user?.token,
+                                  startDate: startDate(),
+                                  endDate: endDate(),
+                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null
+                                })}>
                                 <Printer size={20} />
                             </button>
                         </div>
@@ -706,33 +877,59 @@ export default function Dashboard() {
 
                       {/* Kartu 2: Total Pesanan Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">
-                          Total Pesanan Selesai
-                        </p>
+                        <p class="text-sm text-gray-500">Total Pesanan Selesai</p>
                         <p class="text-3xl font-bold text-blue-600">{done}</p>
                         <div class="absolute top-4 right-4 flex gap-3">
-                           <button class="text-gray-500 hover:text-green-600" title="Export Laporan ke Excel"
-                            onClick={() => exportPOStatusToExcel({
-                              block: block,
-                              status: 'done',
-                              filterLabel: currentFilterLabel(),
-                              token: user?.token,
-                              poRows: block.poRows,
-                              isGreige: isGreige,
-                              PO_DETAIL_FETCHER: PO_DETAIL_FETCHER
-                            })}>
+                          {/* Export Done */}
+                          <button
+                            class="text-gray-500 hover:text-green-600"
+                            title="Export Laporan ke Excel"
+                            onClick={() => {
+                              // ambil selected id saat klik
+                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null                            
+
+                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                                matchesCustomer(r, selectedCustomerId)
+                              );
+
+                              exportPOStatusToExcel({
+                                block: block,
+                                status: "done",
+                                filterLabel: currentFilterLabel(),
+                                token: user?.token,
+                                poRows: filteredPoRows, // <-- hasil filter
+                                isGreige: isGreige,
+                                PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
+                                customer_id: selectedCustomerId,
+                              });
+                            }}
+                          >
                             <FileSpreadsheet size={20} />
                           </button>
-                          <button class="text-gray-500 hover:text-blue-600" title="Cetak daftar PO/ SO yang selesai"
-                            onClick={() => printPOStatus({
-                              block: block,
-                              status: "done",
-                              poRows: block.poRows,
-                              startDate: startDate(),
-                              endDate: endDate(),
-                              token: user?.token,
-                              PO_DETAIL_FETCHER: PO_DETAIL_FETCHER
-                            })}>
+
+                          {/* Print Done */}
+                          <button
+                            class="text-gray-500 hover:text-blue-600"
+                            title="Cetak daftar PO/ SO yang selesai"
+                            onClick={() => {
+                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null
+
+                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                                matchesCustomer(r, selectedCustomerId)
+                              );
+
+                              printPOStatus({
+                                block: block,
+                                status: "done",
+                                poRows: filteredPoRows,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                                token: user?.token,
+                                PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
+                                customer_id: selectedCustomerId,
+                              });
+                            }}
+                          >
                             <Printer size={20} />
                           </button>
                         </div>
@@ -740,35 +937,58 @@ export default function Dashboard() {
 
                       {/* Kartu 3: Total Pesanan Belum Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">
-                          Total Pesanan Belum Selesai
-                        </p>
-                        <p class="text-3xl font-bold text-blue-600">
-                          {notDone}
-                        </p>
+                        <p class="text-sm text-gray-500">Total Pesanan Belum Selesai</p>
+                        <p class="text-3xl font-bold text-blue-600">{notDone}</p>
                         <div class="absolute top-4 right-4 flex gap-3">
-                          <button class="text-gray-500 hover:text-green-600" title="Export Laporan ke Excel"
-                            onClick={() => exportPOStatusToExcel({
-                              block: block,
-                              status: 'not_done',
-                              filterLabel: currentFilterLabel(),
-                              token: user?.token,
-                              poRows: block.poRows,
-                              isGreige: isGreige,
-                              PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
-                            })}>
+                          {/* Export Not Done */}
+                          <button
+                            class="text-gray-500 hover:text-green-600"
+                            title="Export Laporan ke Excel"
+                            onClick={() => {
+                              const selectedCustomerId =  section.key === "penjualan" ? salesCustomerForm().customer_id : null;
+
+                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                                matchesCustomer(r, selectedCustomerId)
+                              );
+
+                              exportPOStatusToExcel({
+                                block: block,
+                                status: "not_done",
+                                filterLabel: currentFilterLabel(),
+                                token: user?.token,
+                                poRows: filteredPoRows,
+                                isGreige: isGreige,
+                                PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
+                                customer_id: selectedCustomerId,
+                              });
+                            }}
+                          >
                             <FileSpreadsheet size={20} />
                           </button>
-                          <button class="text-gray-500 hover:text-blue-600" title="Cetak daftar PO/ SO yang belum selesai"
-                            onClick={() => printPOStatus({
-                              block: block,
-                              status: "not_done",
-                              poRows: block.poRows,
-                              startDate: startDate(),
-                              endDate: endDate(),
-                              token: user?.token,
-                              PO_DETAIL_FETCHER: PO_DETAIL_FETCHER
-                            })}>
+
+                          {/* Print Not Done */}
+                          <button
+                            class="text-gray-500 hover:text-blue-600"
+                            title="Cetak daftar PO/ SO yang belum selesai"
+                            onClick={() => {
+                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null;
+
+                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                                matchesCustomer(r, selectedCustomerId)
+                              );
+
+                              printPOStatus({
+                                block: block,
+                                status: "not_done",
+                                poRows: filteredPoRows,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                                token: user?.token,
+                                PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
+                                customer_id: selectedCustomerId,
+                              });
+                            }}
+                          >
                             <Printer size={20} />
                           </button>
                         </div>

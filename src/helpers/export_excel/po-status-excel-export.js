@@ -12,13 +12,18 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportPOStatusToExcel({ block, status, filterLabel, token, poRows, isGreige, PO_DETAIL_FETCHER }) {
+export async function exportPOStatusToExcel({ block, status, filterLabel, token, poRows, isGreige, PO_DETAIL_FETCHER, customer_id = null }) {
+  if (block.key !== "sales") {
+      customer_id = null; // hanya sales yang pakai customer filter
+  }
+  
   const processedData = await processPOStatusData({
     poRows,
     status,
     block: { ...block },
     token,
-    PO_DETAIL_FETCHER
+    PO_DETAIL_FETCHER,
+    customer_id,
   });
 
   const title = `Rekap ${block.label} - ${status === 'done' ? 'Selesai' : 'Belum Selesai'}`;
