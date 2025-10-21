@@ -138,6 +138,12 @@ import ExpeditionAccessoriesList from "./finance_pages/purchase/expedition_acces
 import ExpeditionAccessoriesForm from "./finance_pages/purchase/expedition_accessories/ExpeditionAccessoriesForm";
 import HutangPurchaseGreigeList from "./finance_pages/payment/hutang_purchase_greige/HutangPurchaseGreigeList";
 import HutangPurchaseGreigeForm from "./finance_pages/payment/hutang_purchase_greige/HutangPurchaseGreigeForm";
+import HutangPurchaseCelupList from "./finance_pages/payment/hutang_purchase_celup/HutangPurchaseCelupList";
+import HutangPurchaseCelupForm from "./finance_pages/payment/hutang_purchase_celup/HutangPurchaseCelupForm";
+import HutangPurchaseKainJadiList from "./finance_pages/payment/hutang_purchase_kain_jadi/HutangPurchaseKainJadiList";
+import HutangPurchaseKainJadiForm from "./finance_pages/payment/hutang_purchase_kain_jadi/HutangPurchaseKainJadiForm";
+import HutangPurchaseJualBeliList from "./finance_pages/payment/hutang_purchase_jual_beli/HutangPurchaseJualBeliList";
+import HutangPurchaseJualBeliForm from "./finance_pages/payment/hutang_purchase_jual_beli/HutangPurchaseJualBeliForm";
 
 function App() {
   return (
@@ -350,11 +356,11 @@ function App() {
       <Route path="/retur-jualbeli" component={ReturJualBeliList} />
       <Route path="/retur-sales" component={ReturSalesList} />
 
-      <Route path="/retur-greige/form" component={ReturGreigeForm}/>
-      <Route path="/retur-ordercelup/form" component={ReturOrderCelupForm}/>
-      <Route path="/retur-kainjadi/form" component={ReturKainJadiForm}/>
-      <Route path="/retur-jualbeli/form" component={ReturJualBeliForm}/>
-      <Route path="/retur-sales/form" component={ReturSalesForm}/>
+      <Route path="/retur-greige/form" component={ReturGreigeForm} />
+      <Route path="/retur-ordercelup/form" component={ReturOrderCelupForm} />
+      <Route path="/retur-kainjadi/form" component={ReturKainJadiForm} />
+      <Route path="/retur-jualbeli/form" component={ReturJualBeliForm} />
+      <Route path="/retur-sales/form" component={ReturSalesForm} />
       {/* RETUR */}
 
       {/* PRINT RETUR */}
@@ -431,6 +437,7 @@ function App() {
       />
       {/* PURCHASE */}
       {/* PAYMENT */}
+      {/* BELI GREIGE */}
       <Route
         path="/hutang-purchase-greige"
         component={HutangPurchaseGreigeList}
@@ -439,6 +446,37 @@ function App() {
         path="/hutang-purchase-greige/form"
         component={HutangPurchaseGreigeForm}
       />
+      {/* BELI GREIGE */}
+      {/* BELI CELUP */}
+      <Route
+        path="/hutang-purchase-celup"
+        component={HutangPurchaseCelupList}
+      />
+      <Route
+        path="/hutang-purchase-celup/form"
+        component={HutangPurchaseCelupForm}
+      />
+      {/* BELI CELUP */}
+      {/* BELI KAIN JADI */}
+      <Route
+        path="/hutang-purchase-kain-jadi"
+        component={HutangPurchaseKainJadiList}
+      />
+      <Route
+        path="/hutang-purchase-kain-jadi/form"
+        component={HutangPurchaseKainJadiForm}
+      />
+      {/* BELI KAIN JADI */}
+      {/* BELI JUAL BELI */}
+      <Route
+        path="/hutang-purchase-jual-beli"
+        component={HutangPurchaseJualBeliList}
+      />
+      <Route
+        path="/hutang-purchase-jual-beli/form"
+        component={HutangPurchaseJualBeliForm}
+      />
+      {/* BELI JUAL BELI */}
       {/* PAYMENT */}
       {/* FINANCE MODULE */}
     </Router>

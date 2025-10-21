@@ -30,7 +30,16 @@ export default function FinanceMainLayout(props) {
       "/jenis-hutang/form",
     ],
     purchase: ["/expedition-accessories", "/expedition-accessories/form"],
-    payment: ["/hutang-purchase-greige", "/hutang-purchase-greige/form"],
+    payment: [
+      "/hutang-purchase-greige",
+      "/hutang-purchase-greige/form",
+      "/hutang-purchase-celup",
+      "/hutang-purchase-celup/form",
+      "/hutang-purchase-kain-jadi",
+      "/hutang-purchase-kain-jadi/form",
+      "/hutang-purchase-jual-beli",
+      "/hutang-purchase-jual-beli/form",
+    ],
   };
 
   function getFinanceRouteType(pathname) {
@@ -257,6 +266,52 @@ export default function FinanceMainLayout(props) {
                       }`}
                     >
                       Pembayaran Hutang Purchase Greige
+                    </A>
+                  </li>
+                </ul>
+                <ul>
+                  <li>
+                    <A
+                      href="/hutang-purchase-celup"
+                      class={`block pl-8 pr-4 py-2 hover:bg-green-800 ${
+                        location.pathname.startsWith("/hutang-purchase-celup")
+                          ? "bg-green-800 text-white"
+                          : ""
+                      }`}
+                    >
+                      Pembayaran Hutang Purchase Celup
+                    </A>
+                  </li>
+                </ul>
+                <ul>
+                  <li>
+                    <A
+                      href="/hutang-purchase-kain-jadi"
+                      class={`block pl-8 pr-4 py-2 hover:bg-green-800 ${
+                        location.pathname.startsWith(
+                          "/hutang-purchase-kain-jadi"
+                        )
+                          ? "bg-green-800 text-white"
+                          : ""
+                      }`}
+                    >
+                      Pembayaran Hutang Purchase Kain Jadi
+                    </A>
+                  </li>
+                </ul>
+                <ul>
+                  <li>
+                    <A
+                      href="/hutang-purchase-jual-beli"
+                      class={`block pl-8 pr-4 py-2 hover:bg-green-800 ${
+                        location.pathname.startsWith(
+                          "/hutang-purchase-jual-beli"
+                        )
+                          ? "bg-green-800 text-white"
+                          : ""
+                      }`}
+                    >
+                      Pembayaran Hutang Purchase Jual Beli
                     </A>
                   </li>
                 </ul>

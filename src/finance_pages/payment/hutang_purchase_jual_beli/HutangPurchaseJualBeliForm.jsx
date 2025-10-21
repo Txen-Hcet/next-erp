@@ -1,10 +1,10 @@
 import { createSignal, onMount } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { PembayaranHutangPurchaseGreige } from "../../../utils/financeAuth";
+import { PembayaranHutangPurchaseJualBeli } from "../../../utils/financeAuth";
 import Swal from "sweetalert2";
 import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 
-export default function HutangPurchaseGreigeForm() {
+export default function HutangPurchaseJualBeliForm() {
   const [form, setForm] = createSignal({
     no_pembayaran: "",
     sj_id: "",
@@ -29,7 +29,7 @@ export default function HutangPurchaseGreigeForm() {
   onMount(async () => {
     if (isEdit) {
       try {
-        const res = await PembayaranHutangPurchaseGreige.getById(params.id);
+        const res = await PembayaranHutangPurchaseJualBeli.getById(params.id);
         setForm(res.data);
       } catch (err) {
         Swal.fire("Error", "Gagal memuat data", "error");
@@ -42,9 +42,9 @@ export default function HutangPurchaseGreigeForm() {
 
     try {
       if (isEdit) {
-        await PembayaranHutangPurchaseGreige.update(params.id, form());
+        await PembayaranHutangPurchaseJualBeli.update(params.id, form());
       } else {
-        await PembayaranHutangPurchaseGreige.create(form());
+        await PembayaranHutangPurchaseJualBeli.create(form());
       }
 
       Swal.fire({
@@ -53,7 +53,7 @@ export default function HutangPurchaseGreigeForm() {
         text: isEdit ? "Data berhasil diperbarui" : "Data berhasil dibuat",
         showConfirmButton: false,
         timer: 1200,
-      }).then(() => navigate("/hutang-purchase-greige"));
+      }).then(() => navigate("/hutang-purchase-jual-beli"));
     } catch (error) {
       console.error(error);
       Swal.fire({
@@ -68,11 +68,15 @@ export default function HutangPurchaseGreigeForm() {
   return (
     <FinanceMainLayout>
       <h1 class="text-2xl font-bold mb-6">
-        {isEdit ? "Edit" : "Tambah"} Pembayaran Hutang Pembelian Greige
+        {isEdit
+          ? "Edit Pembayaran Hutang Pembelian Jual Beli"
+          : "Tambah Pembayaran Hutang Pembelian Jual Beli"}
       </h1>
 
       <form class="space-y-6" onSubmit={handleSubmit}>
+        {/* GRID FORM */}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Kolom kiri */}
           <div>
             <label class="block mb-1 font-medium">No Pembayaran</label>
             <input
@@ -258,7 +262,8 @@ export default function HutangPurchaseGreigeForm() {
           </div>
         </div>
 
-        <div class="pt-6">
+        {/* Tombol Simpan */}
+        <div class="pt-6 flex justify-end">
           <button
             type="submit"
             class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"

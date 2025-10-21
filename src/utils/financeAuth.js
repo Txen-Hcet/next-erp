@@ -184,17 +184,14 @@ const PurchaseAksesorisEkspedisi = {
 const PembayaranHutangPurchaseGreige = {
   create: async (payload) => {
     const res = await api.post("/create-purchase-aksesoris-ekspedisi", payload);
-    // console.log("PurchaseAksesorisEkspedisi.create response:", res);
     return res.data;
   },
   getAll: async () => {
     const res = await api.get("/purchase-aksesoris-ekspedisi");
-    // console.log("PurchaseAksesorisEkspedisi.getAll response:", res);
     return res.data;
   },
   getById: async (id) => {
     const res = await api.get(`/purchase-aksesoris-ekspedisi/${id}`);
-    // console.log("PurchaseAksesorisEkspedisi.getById response:", res);
     return res.data;
   },
   update: async (id, payload) => {
@@ -202,12 +199,106 @@ const PembayaranHutangPurchaseGreige = {
       `/update-purchase-aksesoris-ekspedisi/${id}`,
       payload
     );
-    // console.log("PurchaseAksesorisEkspedisi.update response:", res);
     return res.data;
   },
   delete: async (id) => {
     const res = await api.delete(`/delete-purchase-aksesoris-ekspedisi/${id}`);
-    // console.log("PurchaseAksesorisEkspedisi.delete response:", res);
+    return res.data;
+  },
+};
+
+const PembayaranHutangPurchaseCelup = {
+  create: async (payload) => {
+    const res = await api.post(
+      "/create-pembayaran-hutang-purchase-celup",
+      payload
+    );
+    return res.data;
+  },
+  getAll: async () => {
+    const res = await api.get("/purchase-pembayaran-hutang-purchase-celup");
+    return res.data;
+  },
+  getById: async (id) => {
+    const res = await api.get(
+      `/purchase-pembayaran-hutang-purchase-celup/${id}`
+    );
+    return res.data;
+  },
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-purchase-pembayaran-hutang-purchase-celup/${id}`,
+      payload
+    );
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(
+      `/delete-purchase-pembayaran-hutang-purchase-celup/${id}`
+    );
+    return res.data;
+  },
+};
+
+const PembayaranHutangPurchaseKainJadi = {
+  create: async (payload) => {
+    const res = await api.post(
+      "/create-pembayaran-hutang-purchase-finish",
+      payload
+    );
+    return res.data;
+  },
+  getAll: async () => {
+    const res = await api.get("/purchase-pembayaran-hutang-purchase-finish");
+    return res.data;
+  },
+  getById: async (id) => {
+    const res = await api.get(
+      `/purchase-pembayaran-hutang-purchase-finish/${id}`
+    );
+    return res.data;
+  },
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-purchase-pembayaran-hutang-purchase-finish/${id}`,
+      payload
+    );
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(
+      `/delete-purchase-pembayaran-hutang-purchase-finish/${id}`
+    );
+    return res.data;
+  },
+};
+
+const PembayaranHutangPurchaseJualBeli = {
+  create: async (payload) => {
+    const res = await api.post("/create-pembayaran-hutang-jual-beli", payload);
+    return res.data;
+  },
+  getAll: async () => {
+    const res = await api.get("/purchase-pembayaran-hutang-purchase-jual-beli");
+    return res.data;
+  },
+  getById: async (id) => {
+    const res = await api.get(
+      `/purchase-pembayaran-hutang-purchase-jual-beli/${id}`
+    );
+    return res.data;
+  },
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-purchase-pembayaran-hutang-purchase-jual-beli/${id}`,
+      payload
+    );
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(
+      `/delete-purchase-pembayaran-hutang-purchase-jual-beli/${id}`
+    );
     return res.data;
   },
 };
@@ -224,5 +315,8 @@ export {
   JenisHutang,
   PurchaseAksesorisEkspedisi,
   PembayaranHutangPurchaseGreige,
+  PembayaranHutangPurchaseCelup,
+  PembayaranHutangPurchaseKainJadi,
+  PembayaranHutangPurchaseJualBeli,
   User,
 };

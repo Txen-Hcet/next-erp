@@ -1,10 +1,10 @@
 import { createSignal, onMount } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
-import { PembayaranHutangPurchaseGreige } from "../../../utils/financeAuth";
+import { PembayaranHutangPurchaseCelup } from "../../../utils/financeAuth";
 import Swal from "sweetalert2";
 import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 
-export default function HutangPurchaseGreigeForm() {
+export default function HutangPurchaseCelupForm() {
   const [form, setForm] = createSignal({
     no_pembayaran: "",
     sj_id: "",
@@ -26,10 +26,11 @@ export default function HutangPurchaseGreigeForm() {
   const isEdit = !!params.id;
   const navigate = useNavigate();
 
+  // Load data saat edit
   onMount(async () => {
     if (isEdit) {
       try {
-        const res = await PembayaranHutangPurchaseGreige.getById(params.id);
+        const res = await PembayaranHutangPurchaseCelup.getById(params.id);
         setForm(res.data);
       } catch (err) {
         Swal.fire("Error", "Gagal memuat data", "error");
@@ -42,9 +43,9 @@ export default function HutangPurchaseGreigeForm() {
 
     try {
       if (isEdit) {
-        await PembayaranHutangPurchaseGreige.update(params.id, form());
+        await PembayaranHutangPurchaseCelup.update(params.id, form());
       } else {
-        await PembayaranHutangPurchaseGreige.create(form());
+        await PembayaranHutangPurchaseCelup.create(form());
       }
 
       Swal.fire({
@@ -53,7 +54,7 @@ export default function HutangPurchaseGreigeForm() {
         text: isEdit ? "Data berhasil diperbarui" : "Data berhasil dibuat",
         showConfirmButton: false,
         timer: 1200,
-      }).then(() => navigate("/hutang-purchase-greige"));
+      }).then(() => navigate("/hutang-purchase-celup"));
     } catch (error) {
       console.error(error);
       Swal.fire({
@@ -68,10 +69,11 @@ export default function HutangPurchaseGreigeForm() {
   return (
     <FinanceMainLayout>
       <h1 class="text-2xl font-bold mb-6">
-        {isEdit ? "Edit" : "Tambah"} Pembayaran Hutang Pembelian Greige
+        {isEdit ? "Edit" : "Tambah"} Pembayaran Hutang Pembelian Celup
       </h1>
 
       <form class="space-y-6" onSubmit={handleSubmit}>
+        {/* Input Utama */}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block mb-1 font-medium">No Pembayaran</label>
@@ -258,6 +260,7 @@ export default function HutangPurchaseGreigeForm() {
           </div>
         </div>
 
+        {/* Tombol Simpan */}
         <div class="pt-6">
           <button
             type="submit"
