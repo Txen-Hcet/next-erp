@@ -732,7 +732,7 @@ export default function KJPurchaseOrderForm() {
   //   window.open(`/print/kainjadi/order?data=${encodedData}`, "_blank");
   // }
 
-  function handlePrint() {
+  function handlePrint(printType = "default") {
     if (!purchaseContractData()) {
       Swal.fire(
         "Gagal",
@@ -745,7 +745,9 @@ export default function KJPurchaseOrderForm() {
     const dataToPrint = { ...purchaseContractData() };
     // CHANGED: kirim via hash, bukan query, agar tidak kena 431
     const encodedData = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/kainjadi/order#${encodedData}`, "_blank");
+
+    const printUrl = `/print/kainjadi/order?type=${printType}#${encodedData}`;
+    window.open(printUrl, "_blank");
   }
 
   return (
@@ -759,15 +761,39 @@ export default function KJPurchaseOrderForm() {
       <h1 class="text-2xl font-bold mb-4">
         {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Order Kain Jadi
       </h1>
-      <button
-        type="button"
-        class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
-        onClick={handlePrint}
-        hidden={!isEdit}
-      >
-        <Printer size={20} />
-        Print
-      </button>
+
+      <div class="flex flex-wrap gap-2 mb-4" hidden={!isEdit}>
+        {/* Tombol 1: Print Gudang */}
+        <button
+          type="button"
+          class="flex gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+          onClick={() => handlePrint("gudang")}
+        >
+          <Printer size={20} />
+          Print Gudang
+        </button>
+
+        {/* Tombol 2: Print Pabrik */}
+        <button
+          type="button"
+          class="flex gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+          onClick={() => handlePrint("pabrik")}
+        >
+          <Printer size={20} />
+          Print Pabrik
+        </button>
+
+        {/* Tombol 3: Print (Default) */}
+        <button
+          type="button"
+          class="flex gap-2 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+          onClick={() => handlePrint("default")}
+        >
+          <Printer size={20} />
+          Print
+        </button>
+      </div>
+      
       <form class="space-y-4" onSubmit={handleSubmit} onkeydown={handleKeyDown}>
         <div class="grid grid-cols-3 gap-4">
           <div>

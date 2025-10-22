@@ -1,8 +1,12 @@
 import { createMemo, createEffect, For, Show } from "solid-js";
+import { useSearchParams } from "@solidjs/router";
 import logoNavel from "../../../../assets/img/navelLogo.png";
 import { splitIntoPagesWithOffsets, createStretch } from "../../../../components/PrintUtils";
 
 export default function KJOrderPrint(props) {
+  const [searchParams] = useSearchParams();
+  const printType = createMemo(() => searchParams.type || "default");
+
   const data = createMemo(() => props.data ?? { items: [], summary: {} });
 
   // ===== Formatter =====
@@ -145,6 +149,7 @@ export default function KJOrderPrint(props) {
               totals={totals()}
               formatters={{ formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal, formatPersen }}
               logoNavel={logoNavel}
+              printType={printType()}
             />
           );
         }}
@@ -154,8 +159,11 @@ export default function KJOrderPrint(props) {
 }
 
 function PrintPage(props) {
-  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, logoNavel } = props;
+  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, logoNavel, printType } = props;
   const { formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal, formatPersen } = formatters;
+
+  const showNote = createMemo(() => printType === "gudang" || printType === "default");
+  const showInstruksi = createMemo(() => printType === "pabrik" || printType === "default");
 
   // Inisialisasi stretch lebih dulu, baru effect-nya
   const { extraRows, bind, recalc } = createStretch({ fudge: 40 }); // fudge diperbesar
@@ -408,20 +416,41 @@ function PrintPage(props) {
                 </td>
               </tr>
               <tr>
-                <td colSpan={3} className="border border-black p-2 align-top">
-                  <div className="font-bold mb-1">NOTE:</div>
-                  <div className="whitespace-pre-wrap break-words italic">
-                    {data.keterangan ?? "-"}
-                  </div>
-                </td>
+                {/* Case 1: Tampilkan Keduanya (default) */}
+                <Show when={showNote() && showInstruksi()}>
+                  <td colSpan={3} className="border border-black p-2 align-top">
+                    <div className="font-bold mb-1">NOTE:</div>
+                    <div className="whitespace-pre-wrap break-words italic">
+                      {data.keterangan ?? "-"}
+                    </div>
+                  </td>
+                  <td colSpan={3} className="border border-black p-2 align-top">
+                    <div className="font-bold mb-1">INSTRUKSI KAIN:</div>
+                    <div className="whitespace-pre-wrap break-words italic">
+                      {data.instruksi_kain ?? "-"}
+                    </div>
+                  </td>
+                </Show>
 
-                {/* Kolom baru untuk Instruksi Kain */}
-                <td colSpan={3} className="border border-black p-2 align-top">
-                  <div className="font-bold mb-1">INSTRUKSI KAIN:</div>
-                  <div className="whitespace-pre-wrap break-words italic">
-                    {data.instruksi_kain ?? "-"}
-                  </div>
-                </td>
+                {/* Case 2: Tampilkan NOTE Saja (gudang) */}
+                <Show when={showNote() && !showInstruksi()}>
+                  <td colSpan={6} className="border border-black p-2 align-top">
+                    <div className="font-bold mb-1">NOTE:</div>
+                    <div className="whitespace-pre-wrap break-words italic">
+                      {data.keterangan ?? "-"}
+                    </div>
+                  </td>
+                </Show>
+
+                {/* Case 3: Tampilkan INSTRUKSI Saja (pabrik) */}
+                <Show when={!showNote() && showInstruksi()}>
+                  <td colSpan={6} className="border border-black p-2 align-top">
+                    <div className="font-bold mb-1">INSTRUKSI KAIN:</div>
+                    <div className="whitespace-pre-wrap break-words italic">
+                      {data.instruksi_kain ?? "-"}
+                    </div>
+                  </td>
+                </Show>
               </tr>
               <tr>
                 <td colSpan={6} className="border border-black">
