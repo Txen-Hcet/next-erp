@@ -680,7 +680,7 @@ export default function KJPurchaseContractForm() {
               <Show when={parseInt(form().satuan_unit_id) === 2}>
                 <th class="border p-2">Yard</th>
               </Show>
-              <th class="border p-2">Harga Greige</th>             {" "}
+              <th class="border p-2">Harga Greige</th>
               <th class="border p-2">Harga Celup</th>
               <th class="border p-2">Subtotal</th>
               <th class="border p-2">Aksi</th>
@@ -784,7 +784,6 @@ export default function KJPurchaseContractForm() {
                     </td>
                   </Show>
                   <td class="border p-2">
-                                       {" "}
                     <input
                       type="text"
                       inputmode="decimal"
@@ -796,11 +795,8 @@ export default function KJPurchaseContractForm() {
                       disabled={isView}
                       classList={{ "bg-gray-200": isView }}
                     />
-                                     {" "}
                   </td>
-                                   {" "}
                   <td class="border p-2">
-                                       {" "}
                     <input
                       type="text"
                       inputmode="decimal"
@@ -812,7 +808,6 @@ export default function KJPurchaseContractForm() {
                       disabled={isView}
                       classList={{ "bg-gray-200": isView }}
                     />
-                                     {" "}
                   </td>
                   <td class="border p-2">
                     <input
