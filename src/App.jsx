@@ -144,6 +144,8 @@ import HutangPurchaseKainJadiList from "./finance_pages/payment/hutang_purchase_
 import HutangPurchaseKainJadiForm from "./finance_pages/payment/hutang_purchase_kain_jadi/HutangPurchaseKainJadiForm";
 import HutangPurchaseJualBeliList from "./finance_pages/payment/hutang_purchase_jual_beli/HutangPurchaseJualBeliList";
 import HutangPurchaseJualBeliForm from "./finance_pages/payment/hutang_purchase_jual_beli/HutangPurchaseJualBeliForm";
+import HutangPurchaseAksesorisEkspedisiList from "./finance_pages/payment/hutang_purchase_aksesoris_ekspedisi/HutangPurchaseAksesorisEkspedisiList";
+import HutangPurchaseAksesorisEkspedisiForm from "./finance_pages/payment/hutang_purchase_aksesoris_ekspedisi/HutangPurchaseAksesorisEkspedisiForm";
 
 function App() {
   return (
@@ -477,6 +479,16 @@ function App() {
         component={HutangPurchaseJualBeliForm}
       />
       {/* BELI JUAL BELI */}
+      {/* BELI AKSESORIS EKSPEDISI */}
+      <Route
+        path="/hutang-purchase-aksesoris-ekspedisi"
+        component={HutangPurchaseAksesorisEkspedisiList}
+      />
+      <Route
+        path="/hutang-purchase-aksesoris-ekspedisi/form"
+        component={HutangPurchaseAksesorisEkspedisiForm}
+      />
+      {/* BELI AKSESORIS EKSPEDISI */}
       {/* PAYMENT */}
       {/* FINANCE MODULE */}
     </Router>
