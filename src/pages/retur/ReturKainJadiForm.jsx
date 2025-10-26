@@ -43,16 +43,27 @@ function enrichLeftWithInfo(leftArr = [], referItems = []) {
 async function computeAvailableForSJ(
   sjId,
   token,
-  { includeCurrent = false, currentReturId = null } = {}
+  { includeCurrent = false, currentReturId = null } = {},
+  allRetursData = null,
+  sjData = null,
 ) {
   // 1) Detail SJ → qty awal + label
-  const sjRes = await getKJDeliveryNotes(sjId, token);
-  const sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+  let sj;
+  if(sjData){
+    sj = sjData?.suratJalan || sjData?.order || sjData;
+  } else{
+    const sjRes = await getKJDeliveryNotes(sjId, token);
+    sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+  }
+
   const sjItems = (sj?.items || []).filter((it) => !it?.deleted_at);
 
   // 2) Ambil semua retur KJ untuk SJ ini
-  const all = await getAllFinishReturs?.(token);
-  const rows = (all && Array.isArray(all.data) && all.data) || [];
+  const all = allRetursData
+    ? { data: allRetursData }
+    : await getAllFinishReturs?.(token);
+  const rows = (all && Array.isArray(all.data) && all.data) || [];
+
   const sameSJ = rows
     .filter((r) => String(r.sj_id) === String(sjId))
     .filter(
@@ -101,13 +112,16 @@ async function computeAvailableForSJ(
 }
 
 // Tambahkan __available_total__ ke item dropdown agar bisa hide SP yang sisa=0
-async function annotateWithAvailableTotal(list, token) {
+async function annotateWithAvailableTotal(list, allRetursData, token) {
   const enriched = await Promise.all(
     (Array.isArray(list) ? list : []).map(async (sj) => {
       try {
         const left = await computeAvailableForSJ(sj.id, token, {
           includeCurrent: true,
-        });
+        },
+          allRetursData,
+          sj,
+        );
         const unit = sj.satuan_unit_name || sj.satuan_unit || "Meter";
         const total = (left || []).reduce((sum, r) => {
           return (
@@ -141,6 +155,8 @@ export default function ReturKainJadiForm() {
   const [loading, setLoading] = createSignal(true);
   const [deliveryNoteData, setDeliveryNoteData] = createSignal(null);
   const [deletedItems, setDeletedItems] = createSignal([]);
+  const [allRetursCache, setAllRetursCache] = createSignal([]);
+  const [allSJsCacheMap, setAllSJsCacheMap] = createSignal(new Map());
 
   // Sisa (available) untuk SJ terpilih → panel preview
   const [availableItems, setAvailableItems] = createSignal([]);
@@ -177,15 +193,29 @@ export default function ReturKainJadiForm() {
       const rawList = Array.isArray(allSP?.suratJalans)
         ? allSP.suratJalans
         : [];
-      const list = await annotateWithAvailableTotal(rawList, user?.token); // ⬅️ untuk hide HABIS
+      const allRetursRes = await getAllFinishReturs?.(user?.token);
+      const allRetursData =
+        (allRetursRes && Array.isArray(allRetursRes.data) && allRetursRes.data) ||
+        [];
+      setAllRetursCache(allRetursData);
+
+      const sjMap = new Map(rawList.map((sj) => [Number(sj.id), sj]));
+      setAllSJsCacheMap(sjMap);
+
+      const list = await annotateWithAvailableTotal(
+        rawList,
+        allRetursData,
+        user?.token
+      ); 
       setSpOptions(list);
 
       if (returId) {
-        await prefillFromReturId(returId);
+        await prefillFromReturId(returId, sjMap);
         return;
       }
       if (sjId) {
-        await prefillFromSPId(sjId);
+        const sjData = sjMap.get(Number(sjId));
+        await prefillFromSPId(sjId, allRetursData, sjData);
         setSelectedSJId(sjId);
       }
     } catch (err) {
@@ -250,9 +280,15 @@ export default function ReturKainJadiForm() {
   }
 
   /* ===== Prefill ===== */
-  async function prefillFromSPId(id) {
-    const sjResponse = await getKJDeliveryNotes(id, user?.token);
-    const sj = sjResponse?.suratJalan;
+  async function prefillFromSPId(id, allRetursData = null, sjData = null) {
+    let sj;
+    if(sjData){
+      sj = sjData?.suratJalan || sjData?.order || sjData;
+    } else{
+      const sjResponse = await getKJDeliveryNotes(id, user?.token);
+      sj = sjResponse?.suratJalan || sjResponse?.order || sjResponse;
+    }
+
     if (!sj) {
       Swal.fire({
         icon: "error",
@@ -266,10 +302,15 @@ export default function ReturKainJadiForm() {
     }
     setDeliveryNoteData({ ...sj });
 
+    const retursToUse = allRetursData ?? allRetursCache();
+
     // Hitung sisa dari retur-retur sebelumnya (tanpa retur saat ini)
     const left = await computeAvailableForSJ(sj.id, user?.token, {
       includeCurrent: false,
-    });
+    },
+      retursToUse,
+      sj,
+    );
     setAvailableItems(left);
 
     setForm((prev) => ({
@@ -307,14 +348,17 @@ export default function ReturKainJadiForm() {
     let referItems = [];
     try {
       if (detail.sj_id) {
-        const sjRes = await getKJDeliveryNotes(detail.sj_id, user?.token);
-        const sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+        let sj = sjMap.get(Number(detail.sj_id));
+        if(!sj){
+          const sjRes = await getKJDeliveryNotes(detail.sj_id, user?.token);
+          sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+        }
         referItems = (sj?.items || []).filter((it) => !it?.deleted_at);
       }
     } catch (e) {
       console.error("Gagal ambil referensi SJ untuk enrich itemLeft:", e);
     }
-    const enrichedLeft = enrichLeftWithInfo(detail.itemLeft || [], referItems);
+    const enrichedLeft = enrichLeftWithInfo(detail.itemLeft || [], detail.items || []);
     setAvailableItems(enrichedLeft);
 
     setForm((prev) => ({
@@ -335,7 +379,9 @@ export default function ReturKainJadiForm() {
     try {
       setSelectedSJId(sj?.id ?? null);
       if (!sj?.id) return;
-      await prefillFromSPId(sj.id);
+
+      const sjData = allSJsCacheMap().get(Number(sj.id));
+      await prefillFromSPId(sj.id, allRetursCache(), sjData);
     } catch (err) {
       console.error(err);
       Swal.fire({
@@ -398,15 +444,21 @@ export default function ReturKainJadiForm() {
       }
 
       // 1) Detail SJ untuk ambil info lengkap item
-      const sjRes = await getKJDeliveryNotes(sj_id, user?.token);
-      const sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+      let sj = allSJsCacheMap().get(Number(sj_id));
+      if(!sj){
+        const sjRes = await getKJDeliveryNotes(sj_id, user?.token);
+        sj = sjRes?.suratJalan || sjRes?.order || sjRes;
+      }
       const sjItems = (sj?.items || []).filter((it) => !it?.deleted_at);
 
       // 2) Hitung item yang masih tersedia (exclude retur yang sedang diedit)
       const available = await computeAvailableForSJ(sj_id, user?.token, {
         includeCurrent: false,
         currentReturId: returId,
-      });
+      },
+        allRetursCache(),
+        sj,
+      );
 
       // Set sj_item_id yang masih punya sisa > 0
       const unit = sj?.satuan_unit_name || sj?.satuan_unit || "Meter";
