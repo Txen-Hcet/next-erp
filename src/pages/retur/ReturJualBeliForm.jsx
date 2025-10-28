@@ -432,6 +432,7 @@ export default function ReturJualBeliForm() {
   const handleSuratPenerimaanChange = async (sj) => {
 	try {
 		setSelectedSJId(sj?.id ?? null);
+		setForm((prev) => ({ ...prev, no_retur: "" }));
 		if (!sj?.id) return;
 
 		await prefillFromSPId(sj.id);

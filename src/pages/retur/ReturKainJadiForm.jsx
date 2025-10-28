@@ -378,6 +378,7 @@ export default function ReturKainJadiForm() {
   const handleSuratPenerimaanChange = async (sj) => {
     try {
       setSelectedSJId(sj?.id ?? null);
+      setForm((prev) => ({ ...prev, no_retur: "" }));
       if (!sj?.id) return;
 
       const sjData = allSJsCacheMap().get(Number(sj.id));
