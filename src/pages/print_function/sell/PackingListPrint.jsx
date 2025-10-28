@@ -445,7 +445,7 @@ function PrintPage(props) {
             className={`border border-black table-fixed ${isContinuous && maxCol === 10 ? "table-compact" : ""}`}
           >
             <ColGroup />
-            <thead ref={bind("theadRef")} className="bg-gray-200">
+            <thead ref={bind("theadRef")}>
               <tr>
                 <th rowSpan={2}>No</th>
                 <th rowSpan={2}>Bal</th>
