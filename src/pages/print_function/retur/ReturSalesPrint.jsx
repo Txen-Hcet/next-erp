@@ -253,7 +253,7 @@ function PrintPage(props) {
 
         {/* TABEL ITEM */}
         <table ref={bind("tableRef")} className="w-full table-fixed border border-black text-[11px] border-collapse mt-1">
-          <thead ref={bind("theadRef")} className="bg-gray-200">
+          <thead ref={bind("theadRef")}>
             <tr>
               <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
               <th className="border border-black p-1 w-[9%]" rowSpan={2}>Bal</th>
