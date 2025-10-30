@@ -100,6 +100,23 @@ export default function HutangPurchaseGreigeForm() {
     return isNaN(n) ? null : n;
   };
 
+  const handleSuratPenerimaanChange = (val) => {
+    const newSjId = normalizeId(val);
+    const currentSjId = form().sj_id;
+    
+    if (newSjId !== currentSjId && manualGenerateDone()) {
+      setForm({ 
+        ...form(), 
+        sj_id: newSjId, 
+        sequence_number: "",
+        no_seq: 0
+      });
+      setManualGenerateDone(false);
+    } else {
+      setForm({ ...form(), sj_id: newSjId });
+    }
+  };    
+
   onMount(async () => {
     setLoading(true);
 
@@ -221,6 +238,18 @@ export default function HutangPurchaseGreigeForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isEdit && !manualGenerateDone()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Harap generate nomor penerimaan terlebih dahulu.",
+        showConfirmButton: false,
+        timerProgressBar: true,
+        timer: 1200,
+      });
+      return;
+    }   
+
     // Ambil data mentah dari form input
     const rawForm = form();
 
@@ -315,7 +344,7 @@ export default function HutangPurchaseGreigeForm() {
             <SuratPenerimaanDropdownSearch
               items={spOptions()}
               value={form().sj_id}
-              onChange={(val) => setForm({ ...form(), sj_id: normalizeId(val) })}
+              onChange={handleSuratPenerimaanChange}
               disabled={isView || isEdit}
               required
             />
