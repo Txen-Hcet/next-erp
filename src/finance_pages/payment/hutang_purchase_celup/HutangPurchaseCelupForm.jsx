@@ -184,7 +184,14 @@ export default function HutangPurchaseCelupForm() {
         console.warn("Format No SJ tidak terduga, default ke 'N'.", no_sj);
       }
 
-      const lastSeq = await getLastSequence("pembayaran_oc");
+      let ppnValue = null;
+      if(taxFlag === "P"){
+        ppnValue = 11;
+      } else{
+        ppnValue = 0;
+      }
+
+      const lastSeq = await getLastSequence("pembayaran_oc", "", ppnValue);
       const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
 
       const now = new Date();

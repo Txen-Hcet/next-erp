@@ -211,7 +211,14 @@ export default function HutangPurchaseKainJadiForm() {
         console.warn("Format No SJ tidak terduga, default ke 'N'.", no_sj);
       }
 
-      const lastSeq = await getLastSequence("pembayaran_kj");
+      let ppnValue = null;
+      if(taxFlag === "P"){
+        ppnValue = 11;
+      } else{
+        ppnValue = 0;
+      }      
+
+      const lastSeq = await getLastSequence("pembayaran_kj", "", ppnValue);
       const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
 
       const now = new Date();
