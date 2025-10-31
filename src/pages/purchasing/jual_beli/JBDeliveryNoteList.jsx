@@ -190,7 +190,7 @@ export default function JBDeliveryNoteList() {
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Surat Penerimaan</th>
+              {/* <th class="py-2 px-2">No Surat Penerimaan</th> */}
               <th class="py-2 px-2">No Purchase Contract</th>
               <th class="py-2 px-2">No SJ Supplier</th>              
               <th class="py-2 px-2">Tanggal</th>
@@ -238,7 +238,7 @@ export default function JBDeliveryNoteList() {
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sj.no_sj}</td>
+                {/* <td class="py-2 px-4">{sj.no_sj}</td> */}
                 <td class="py-2 px-4">{sj.no_jb}</td>
                 <td class="py-2 px-4">{sj.no_sj_supplier}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sj.created_at)}</td>
