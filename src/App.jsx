@@ -146,6 +146,10 @@ import HutangPurchaseJualBeliList from "./finance_pages/payment/hutang_purchase_
 import HutangPurchaseJualBeliForm from "./finance_pages/payment/hutang_purchase_jual_beli/HutangPurchaseJualBeliForm";
 import HutangPurchaseAksesorisEkspedisiList from "./finance_pages/payment/hutang_purchase_aksesoris_ekspedisi/HutangPurchaseAksesorisEkspedisiList";
 import HutangPurchaseAksesorisEkspedisiForm from "./finance_pages/payment/hutang_purchase_aksesoris_ekspedisi/HutangPurchaseAksesorisEkspedisiForm";
+import PiutangJualBeliList from "./finance_pages/penerimaan_piutang/piutang_jual_beli/PiutangJualBeliList";
+import PiutangJualBeliForm from "./finance_pages/penerimaan_piutang/piutang_jual_beli/PiutangJualBeliForm";
+import PiutangSalesList from "./finance_pages/penerimaan_piutang/piutang_sales/PiutangSalesList";
+import PiutangSalesForm from "./finance_pages/penerimaan_piutang/piutang_sales/PiutangSalesForm";
 
 function App() {
   return (
@@ -490,6 +494,32 @@ function App() {
       />
       {/* BELI AKSESORIS EKSPEDISI */}
       {/* PAYMENT */}
+
+      {/* PIUTANG */}
+
+      {/* Jual Beli */}
+      <Route
+        path="/piutang-jual-beli"
+        component={PiutangJualBeliList}
+      />
+      <Route
+        path="/piutang-jual-beli/form"
+        component={PiutangJualBeliForm}
+      />
+      {/* Jual Beli */}
+
+      {/* Sales */}
+      <Route
+        path="/piutang-sales"
+        component={PiutangSalesList}
+      />
+      <Route
+        path="/piutang-sales/form"
+        component={PiutangSalesForm}
+      />
+      {/* Sales */}
+
+      {/* PIUTANG */}
       {/* FINANCE MODULE */}
     </Router>
   );
