@@ -382,6 +382,67 @@ const PembayaranHutangPurchaseAksesorisEkspedisi = {
   },
 };
 
+// ============ PENERIMAAN PIUTANG ============
+const PenerimaanPiutangJualBeli = {
+  create: async (payload) => {
+    const res = await api.post("/create-penerimaan-piutang-jual-beli", payload);
+    return res.data;
+  },
+  getAll: async () => {
+    const res = await api.get("/penerimaan-piutang-jual-beli");
+    return res.data;
+  },
+  getById: async (id) => {
+    const res = await api.get(
+      `/penerimaan-piutang-jual-beli/${id}`
+    );
+    return res.data;
+  },
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-penerimaan-piutang-jual-beli/${id}`,
+      payload
+    );
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(
+      `/delete-penerimaan-piutang-jual-beli/${id}`
+    );
+    return res.data;
+  },
+};
+
+const PenerimaanPiutangSales = {
+  create: async (payload) => {
+    const res = await api.post("/create-penerimaan-piutang-sales", payload);
+    return res.data;
+  },
+  getAll: async () => {
+    const res = await api.get("/penerimaan-piutang-sales");
+    return res.data;
+  },
+  getById: async (id) => {
+    const res = await api.get(
+      `/penerimaan-piutang-sales/${id}`
+    );
+    return res.data;
+  },
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-penerimaan-piutang-sales/${id}`,
+      payload
+    );
+    return res.data;
+  },
+  delete: async (id) => {
+    const res = await api.delete(
+      `/delete-penerimaan-piutang-sales/${id}`
+    );
+    return res.data;
+  },
+};
+
 const User = {
   getUser: () => JSON.parse(localStorage.getItem("user")),
 };
@@ -400,5 +461,7 @@ export {
   PembayaranHutangPurchaseKainJadi,
   PembayaranHutangPurchaseJualBeli,
   PembayaranHutangPurchaseAksesorisEkspedisi,
+  PenerimaanPiutangJualBeli,
+  PenerimaanPiutangSales,
   User,
 };
