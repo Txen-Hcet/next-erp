@@ -168,6 +168,19 @@ export default function OCDeliveryNoteList() {
     return `${tanggalNum} ${bulan} ${tahun}`;
   }  
 
+  const formatKodeWarna = (items, options = { maxShow: 3 }) => {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return { display: "-", full: "-" };
+    }
+
+    const uniqueWarna = [...new Set(items.map(item => item.kode_warna))];
+    const displayed = uniqueWarna.slice(0, options.maxShow);
+    const full = uniqueWarna.join(', ');
+    const display = displayed.join(', ') + (uniqueWarna.length > options.maxShow ? `, ...` : '');
+
+    return { display, full };
+  };  
+
   createEffect(() => {
     if (tokUser?.token) {
       handleGetAllDeliveryNotes(tokUser?.token);
@@ -197,6 +210,7 @@ export default function OCDeliveryNoteList() {
               <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">Supplier</th>
               <th class="py-2 px-2">Corak Kain</th>
+              <th class="py-2 px-2">Kode Warna</th>
               <th class="py-2 px-2 text-center">
                 <div>Qty by System</div>
                 <span class="text-xs text-gray-500">
@@ -224,6 +238,19 @@ export default function OCDeliveryNoteList() {
                     return (
                       <span
                         class="inline-block max-w-[260px] truncate align-middle"
+                        title={full}
+                      >
+                        {display}
+                      </span>
+                    );
+                  })()}
+                </td>
+                <td class="py-2 px-4">
+                  {(() => {
+                    const { display, full } = formatKodeWarna(sj.items, { maxShow: 3 });
+                    return (
+                      <span
+                        class="inline-block max-w-[200px] truncate align-middle"
                         title={full}
                       >
                         {display}

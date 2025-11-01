@@ -131,6 +131,19 @@ export default function KJDeliveryNoteList() {
     return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
   };
 
+  const formatKodeWarna = (items, options = { maxShow: 3 }) => {
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return { display: "-", full: "-" };
+    }
+
+    const uniqueWarna = [...new Set(items.map(item => item.kode_warna))];
+    const displayed = uniqueWarna.slice(0, options.maxShow);
+    const full = uniqueWarna.join(', ');
+    const display = displayed.join(', ') + (uniqueWarna.length > options.maxShow ? `, ...` : '');
+
+    return { display, full };
+  };    
+
   createEffect(() => {
     if (tokUser?.token) {
       handleGetAllDeliveryNotes(tokUser?.token);
@@ -184,6 +197,7 @@ export default function KJDeliveryNoteList() {
                   <th class="py-2 px-2">Tanggal</th>
                   <th class="py-2 px-2">No Lot</th>
                   <th class="py-2 px-2">Corak Kain</th>
+                  <th class="py-2 px-2">Kode Warna</th>
                   <th class="py-2 px-2 text-center">
                     <div>Qty by System</div>
                     <span class="text-xs text-gray-500">
@@ -226,16 +240,29 @@ export default function KJDeliveryNoteList() {
                         </span>
                       );
                     })()}
+                  </td>
+                  <td class="py-2 px-4">
+                    {(() => {
+                      const { display, full } = formatKodeWarna(sj.items, { maxShow: 3 });
+                      return (
+                        <span
+                          class="inline-block max-w-[200px] truncate align-middle"
+                          title={full}
+                        >
+                          {display}
+                        </span>
+                      );
+                    })()}
                   </td>                    
-                    <td
-                      className={`py-2 px-4 text-center ${
-                        qtyCounterbySystem(sj, sj.satuan_unit_name) === "SELESAI"
-                          ? "text-green-500"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {qtyCounterbySystem(sj, sj.satuan_unit_name)}
-                    </td>
+                  <td
+                    className={`py-2 px-4 text-center ${
+                      qtyCounterbySystem(sj, sj.satuan_unit_name) === "SELESAI"
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {qtyCounterbySystem(sj, sj.satuan_unit_name)}
+                  </td>
                   <td class="py-2 px-4">{sj.satuan_unit_name}</td>
                     <td class="py-2 px-4 space-x-2">
                       <button
