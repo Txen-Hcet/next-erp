@@ -1,29 +1,37 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { 
-  getAllColors, 
-  getUser, 
+import {
+  getAllColors,
+  getUser,
   softDeleteColor,
   hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function ColorsList() {
   const [colors, setColors] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(colors, [
+    "kode",
+    "deskripsi",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(colors().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return colors().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -57,10 +65,10 @@ export default function ColorsList() {
           title: "Gagal",
           text: error.message || `Gagal menghapus data warna dengan ID ${id}`,
           icon: "error",
-          
- showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -72,6 +80,7 @@ export default function ColorsList() {
     if (getDataColors.status === 200) {
       const sortedData = getDataColors.warna.sort((a, b) => a.id - b.id);
       setColors(sortedData);
+      applyFilter({});
     }
   };
 
@@ -92,6 +101,19 @@ export default function ColorsList() {
         </button>
       </div>
 
+      <SearchSortFilter
+        sortOptions={[
+          { label: "Kode", value: "kode" },
+          { label: "Deskripsi", value: "deskripsi" },
+        ]}
+        filterOptions={
+          [
+            // { label: "Kode", value: "kode" },
+            // { label: "Deskripsi", value: "deskripsi" },
+          ]
+        }
+        onChange={applyFilter}
+      />
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
@@ -124,7 +146,7 @@ export default function ColorsList() {
                       class="text-red-600 hover:underline"
                       onClick={() => handleDelete(color.id)}
                     >
-                    <Trash size={25} />
+                      <Trash size={25} />
                     </button>
                   </td>
                 )}
