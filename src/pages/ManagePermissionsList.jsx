@@ -18,7 +18,7 @@ export default function ManagePermissionsList() {
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(roles().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {

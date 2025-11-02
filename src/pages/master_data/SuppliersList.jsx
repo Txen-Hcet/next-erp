@@ -15,14 +15,13 @@ import useSimpleFilter from "../../utils/useSimpleFilter";
 
 export default function SuppliersList() {
   const [suppliers, setSuppliers] = createSignal([]);
-  const { filteredData, applyFilter } = useSimpleFilter(
-    suppliers,
-    ["kode"],
-    ["nama"],
-    ["no_telp"],
-    ["no_hp"],
-    ["alamat"]
-  );
+  const { filteredData, applyFilter } = useSimpleFilter(suppliers, [
+    "kode",
+    "nama",
+    "no_telp",
+    "no_hp",
+    "alamat",
+  ]);
 
   const navigate = useNavigate();
   const tokUser = getUser();
@@ -30,7 +29,7 @@ export default function SuppliersList() {
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(suppliers().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
