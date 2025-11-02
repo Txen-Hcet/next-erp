@@ -10,20 +10,25 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function UnitsList() {
   const [units, setUnits] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(units, ["satuan"]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(units().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return units().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -58,10 +63,10 @@ export default function UnitsList() {
           text:
             error.message || `Gagal menghapus data satuan unit dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -73,6 +78,7 @@ export default function UnitsList() {
     if (getDataSatuanUnits.status === 200) {
       const sortedData = getDataSatuanUnits.data.sort((a, b) => a.id - b.id);
       setUnits(sortedData);
+      applyFilter({});
     }
   };
 
@@ -93,6 +99,16 @@ export default function UnitsList() {
         </button>
       </div>
 
+      <SearchSortFilter
+        sortOptions={[{ label: "Satuan", value: "satuan" }]}
+        filterOptions={
+          [
+            // { label: "Grade A", value: "A" },
+            // { label: "Grade B", value: "B" },
+          ]
+        }
+        onChange={applyFilter}
+      />
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
@@ -111,7 +127,10 @@ export default function UnitsList() {
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
                 <td class="py-2 px-4">{color.satuan}</td>
-                {hasAllPermission(["edit_satuan_unit", "delete_satuan_unit"]) && (
+                {hasAllPermission([
+                  "edit_satuan_unit",
+                  "delete_satuan_unit",
+                ]) && (
                   <td class="py-2 px-4 space-x-2">
                     <button
                       class="text-blue-600 hover:underline"
