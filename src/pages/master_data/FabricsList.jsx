@@ -1,29 +1,37 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { 
-  getAllFabrics, 
-  getUser, 
+import {
+  getAllFabrics,
+  getUser,
   softDeleteFabric,
   hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function FabricsList() {
   const [fabrics, setFabrics] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(fabrics, [
+    "corak",
+    "konstruksi",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(fabrics().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return fabrics().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -56,10 +64,10 @@ export default function FabricsList() {
           title: "Gagal",
           text: error.message || `Gagal menghapus data kain dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -71,6 +79,7 @@ export default function FabricsList() {
     if (getDataFabrics.status === 200) {
       const sortedData = getDataFabrics.kain.sort((a, b) => a.id - b.id);
       setFabrics(sortedData);
+      applyFilter({});
     }
   };
 
@@ -90,7 +99,19 @@ export default function FabricsList() {
           + Tambah Kain
         </button>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "Corak", value: "corak" },
+          { label: "Konstruksi", value: "konstruksi" },
+        ]}
+        filterOptions={
+          [
+            // { label: "Kode", value: "kode" },
+            // { label: "Deskripsi", value: "deskripsi" },
+          ]
+        }
+        onChange={applyFilter}
+      />
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
@@ -123,7 +144,7 @@ export default function FabricsList() {
                       class="text-red-600 hover:underline"
                       onClick={() => handleDelete(fabric.id)}
                     >
-                    <Trash size={25} />
+                      <Trash size={25} />
                     </button>
                   </td>
                 )}
