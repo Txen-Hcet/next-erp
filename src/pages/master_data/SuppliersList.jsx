@@ -133,11 +133,8 @@ export default function SuppliersList() {
           { label: "Alamat", value: "alamat" },
         ]}
         filterOptions={[
-          { label: "Kode", value: "kode" },
-          { label: "Nama", value: "nama" },
-          { label: "No Telp", value: "no_telp" },
-          { label: "No HP", value: "no_hp" },
-          { label: "Alamat", value: "alamat" },
+          { label: "Tipe (PT)", value: "PT" },
+          { label: "Tipe (CV)", value: "CV" },
         ]}
         onChange={applyFilter}
       />

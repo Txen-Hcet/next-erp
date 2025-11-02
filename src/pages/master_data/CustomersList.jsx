@@ -1,29 +1,41 @@
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
-import { 
-  getAllCustomers, 
-  getUser, 
-  softDeleteCustomer, 
+import {
+  getAllCustomers,
+  getUser,
+  softDeleteCustomer,
   hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function CustomerList() {
   const [customers, setCustomers] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(customers, [
+    "kode",
+    "nama",
+    "customer_type_name",
+    "termin",
+    "alamat",
+    "limit_kredit",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(customers().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return customers().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -58,10 +70,10 @@ export default function CustomerList() {
           text:
             error.message || `Gagal menghapus data customer dengan ID ${id}`,
           icon: "error",
-          
- showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -73,6 +85,7 @@ export default function CustomerList() {
     if (getDataCustomers.status === 200) {
       const sortedData = getDataCustomers.customers.sort((a, b) => a.id - b.id);
       setCustomers(sortedData);
+      applyFilter({});
     }
   };
 
@@ -103,6 +116,21 @@ export default function CustomerList() {
         </button>
       </div>
 
+      <SearchSortFilter
+        sortOptions={[
+          { label: "Kode", value: "kode" },
+          { label: "Nama", value: "nama" },
+          { label: "Customer Type Name", value: "customer_type_name" },
+          { label: "Termin", value: "termin" },
+          { label: "Alamat", value: "alamat" },
+          { label: "Limit Kredit", value: "limit_kredit" },
+        ]}
+        filterOptions={[
+          { label: "Tipe Customer Domestik", value: "Domestik" },
+          { label: "Tipe Customer Ekspor", value: "Ekspor" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
