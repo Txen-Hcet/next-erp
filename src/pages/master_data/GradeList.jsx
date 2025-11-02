@@ -11,20 +11,25 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function GradeList() {
   const [grade, setGrade] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(grade, ["grade"]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(grade().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return grade().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -58,10 +63,10 @@ export default function GradeList() {
           title: "Gagal",
           text: error.message || `Gagal menghapus data warna dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -82,6 +87,7 @@ export default function GradeList() {
     if (result.status === 200) {
       const sortedData = result.data.sort((a, b) => a.id - b.id);
       setGrade(sortedData);
+      applyFilter({});
     } else if (result.status === 403) {
       await Swal.fire({
         title: "Tidak Ada Akses",
@@ -100,7 +106,7 @@ export default function GradeList() {
         timerProgressBar: true,
       });
     }
-  };  
+  };
 
   createEffect(() => {
     if (tokUser?.token) {
@@ -119,6 +125,14 @@ export default function GradeList() {
         </button>
       </div>
 
+      <SearchSortFilter
+        sortOptions={[{ label: "Grade", value: "grade" }]}
+        filterOptions={[
+          { label: "Grade A", value: "A" },
+          { label: "Grade B", value: "B" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
