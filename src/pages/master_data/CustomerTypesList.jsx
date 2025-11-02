@@ -11,20 +11,25 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function CustomerTypesList() {
   const [customerTypes, setCustomerTypes] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(customerTypes, ["jenis"]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(customerTypes().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return customerTypes().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -59,10 +64,10 @@ export default function CustomerTypesList() {
             error.message ||
             `Gagal menghapus data jenis customer dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -84,6 +89,7 @@ export default function CustomerTypesList() {
     if (result.status === 200) {
       const sortedData = result.data.sort((a, b) => a.id - b.id);
       setCustomerTypes(sortedData);
+      applyFilter({});
     } else if (result.status === 403) {
       await Swal.fire({
         title: "Tidak Ada Akses",
@@ -121,15 +127,26 @@ export default function CustomerTypesList() {
         </button>
       </div>
 
+      <SearchSortFilter
+        sortOptions={[{ label: "Jenis", value: "jenis" }]}
+        filterOptions={
+          [
+            // { label: "Tipe (PT)", value: "PT" },
+            // { label: "Tipe (CV)", value: "CV" },
+          ]
+        }
+        onChange={applyFilter}
+      />
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
               <th class="py-2 px-4">ID</th>
               <th class="py-2 px-2">Jenis</th>
-              {hasAllPermission(["edit_customer_types", "delete_customer_types"]) && (
-                <th class="py-2 px-2">Aksi</th>
-              )}
+              {hasAllPermission([
+                "edit_customer_types",
+                "delete_customer_types",
+              ]) && <th class="py-2 px-2">Aksi</th>}
             </tr>
           </thead>
           <tbody>
@@ -139,7 +156,10 @@ export default function CustomerTypesList() {
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
                 <td class="py-2 px-4">{custType.jenis}</td>
-                {hasAllPermission(["edit_customer_types", "delete_customer_types"]) && (
+                {hasAllPermission([
+                  "edit_customer_types",
+                  "delete_customer_types",
+                ]) && (
                   <td class="py-2 px-4 space-x-2">
                     <button
                       class="text-blue-600 hover:underline"
@@ -153,7 +173,7 @@ export default function CustomerTypesList() {
                       class="text-red-600 hover:underline"
                       onClick={() => handleDelete(custType.id)}
                     >
-                    <Trash size={25} />
+                      <Trash size={25} />
                     </button>
                   </td>
                 )}
