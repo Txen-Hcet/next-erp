@@ -10,8 +10,18 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../../components/SearchSortFilter";
+import useSimpleFilter from "../../../utils/useSimpleFilter";
+
 export default function JBPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(beliGreiges, [
+    "no_pc",
+    "supplier_name",
+    "items",
+    "satuan_unit_name",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
@@ -25,12 +35,12 @@ export default function JBPurchaseContractList() {
   };
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(beliGreiges().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return beliGreiges().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -89,6 +99,7 @@ export default function JBPurchaseContractList() {
     if (result.status === 200) {
       const sortedData = result.mainRows.sort((a, b) => b.id - a.id);
       setBeliGreiges(sortedData);
+      applyFilter({});
     } else if (result.status === 403) {
       await Swal.fire({
         title: "Tidak Ada Akses",
@@ -181,7 +192,22 @@ export default function JBPurchaseContractList() {
           + Tambah Kontrak Jual Beli
         </button>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No PC", value: "no_pc" },
+          { label: "Nama Supplier", value: "supplier_name" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Supplier (PT)", value: "PT" },
+          { label: "Supplier (CV)", value: "CV" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
@@ -223,13 +249,20 @@ export default function JBPurchaseContractList() {
                   <button
                     class="text-yellow-600 hover:underline"
                     onClick={() =>
-                      navigate(`/jualbeli-purchasecontract/form?id=${jb.id}&view=true`)
+                      navigate(
+                        `/jualbeli-purchasecontract/form?id=${jb.id}&view=true`
+                      )
                     }
                   >
                     <Eye size={25} />
                   </button>
                   {hasPermission("edit_jual_beli") && (
-                    <button class="text-blue-600" onClick={() => navigate(`/jualbeli-purchasecontract/form?id=${jb.id}`)}>
+                    <button
+                      class="text-blue-600"
+                      onClick={() =>
+                        navigate(`/jualbeli-purchasecontract/form?id=${jb.id}`)
+                      }
+                    >
                       <Edit size={25} />
                     </button>
                   )}
