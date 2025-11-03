@@ -12,23 +12,33 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function ExporSalesContractList() {
   const [salesContracts, setSalesContracts] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(salesContracts, [
+    "no_sc",
+    "created_at",
+    "customer_name",
+    "satuan_unit_name",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const transactionType = createMemo(() =>
-    salesContracts().filter(
+    filteredData().filter(
       (c) => (c.transaction_type || "").toLowerCase() === "ekspor"
     )
   );
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(salesContracts().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
-  
+
   const paginatedData = () => {
     const start = (currentPage() - 1) * pageSize;
     return transactionType().slice(start, start + pageSize);
@@ -87,6 +97,7 @@ export default function ExporSalesContractList() {
         (a, b) => b.id - a.id
       );
       setSalesContracts(sortedData);
+      applyFilter({});
     }
   };
 
@@ -206,7 +217,23 @@ export default function ExporSalesContractList() {
           + Tambah Sales Contract
         </button>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No SC", value: "no_sc" },
+          { label: "Tanngal", value: "created_at" },
+          { label: "Nama Customer", value: "customer_name" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Customer (PT)", value: "PT" },
+          { label: "Customer (Non-PT)", value: "NON_PT" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
