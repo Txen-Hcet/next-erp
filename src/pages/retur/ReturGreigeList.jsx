@@ -171,7 +171,6 @@ export default function ReturGreigeList() {
           { label: "Tanggal", value: "created_at" },
           { label: "Nama Supplier", value: "supplier_name" },
           { label: "Satuan Unit", value: "satuan_unit_name" },
-          { label: "Status Invoice", value: "delivered_status" },
         ]}
         filterOptions={[
           { label: "Pembelian (Pajak)", value: "/P/" },
@@ -180,8 +179,6 @@ export default function ReturGreigeList() {
           { label: "Supplier (Non-PT)", value: "NON_PT" },
           { label: "Satuan Unit (Meter)", value: "Meter" },
           { label: "Satuan Unit (Yard)", value: "Yard" },
-          { label: "Status Invoice (Sudah Print)", value: 1 },
-          { label: "Status Invoice (Belum Print)", value: 0 },
         ]}
         onChange={applyFilter}
       />
