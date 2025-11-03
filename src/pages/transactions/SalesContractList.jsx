@@ -12,21 +12,31 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function SalesContractList() {
   const [salesContracts, setSalesContracts] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(salesContracts, [
+    "no_sc",
+    "created_at",
+    "customer_name",
+    "satuan_unit_name",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const transactionType = createMemo(() =>
-    salesContracts().filter(
+    filteredData().filter(
       (c) => (c.transaction_type || "").toLowerCase() === "domestik"
     )
   );
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(salesContracts().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
@@ -70,10 +80,10 @@ export default function SalesContractList() {
             error.message ||
             `Gagal menghapus data sales contract dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -89,6 +99,7 @@ export default function SalesContractList() {
         (a, b) => b.id - a.id
       );
       setSalesContracts(sortedData);
+      applyFilter({});
     }
   };
 
@@ -208,7 +219,23 @@ export default function SalesContractList() {
           + Tambah Sales Contract
         </button>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No SC", value: "no_sc" },
+          { label: "Tanngal", value: "created_at" },
+          { label: "Nama Customer", value: "customer_name" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Customer (PT)", value: "PT" },
+          { label: "Customer (Non-PT)", value: "NON_PT" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
@@ -266,7 +293,9 @@ export default function SalesContractList() {
                   {hasPermission("edit_sales_contracts") && (
                     <button
                       class="text-blue-600 hover:underline"
-                      onClick={() => navigate(`/salescontract/form?id=${sc.id}`)}
+                      onClick={() =>
+                        navigate(`/salescontract/form?id=${sc.id}`)
+                      }
                     >
                       <Edit size={25} />
                     </button>

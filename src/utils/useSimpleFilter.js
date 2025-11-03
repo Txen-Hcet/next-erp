@@ -17,12 +17,20 @@ export default function useSimpleFilter(dataSource, searchFields = []) {
 
     // Filter
     if (filter) {
-      list = list.filter((item) =>
-        Object.values(item)
-          .join(" ")
-          .toLowerCase()
-          .includes(filter.toLowerCase())
-      );
+      if (filter === "NON_PT") {
+        // Exclude PT
+        list = list.filter(
+          (item) => !Object.values(item).join(" ").toLowerCase().includes("pt")
+        );
+      } else {
+        // Normal filter
+        list = list.filter((item) =>
+          Object.values(item)
+            .join(" ")
+            .toLowerCase()
+            .includes(filter.toLowerCase())
+        );
+      }
     }
 
     // Sort
