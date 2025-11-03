@@ -10,8 +10,20 @@ import {
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function SuratJalanList() {
   const [suratJalan, setSuratJalan] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(suratJalan, [
+    "no_sj",
+    "created_at",
+    "no_pl",
+    "customer_name",
+    "satuan_unit_name",
+    "jenis_so_name",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
@@ -47,12 +59,12 @@ export default function SuratJalanList() {
   });
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(suratJalan().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return suratJalan().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -86,10 +98,10 @@ export default function SuratJalanList() {
           text:
             error.message || `Gagal menghapus data surat jalan dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -101,7 +113,7 @@ export default function SuratJalanList() {
 
   //   if (getDataDeliveryNotes.status === 200) {
   //       const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
-      
+
   //     const sortedData = suratJalanList.sort(
   //       (a, b) => a.id - b.id
   //     );
@@ -119,6 +131,7 @@ export default function SuratJalanList() {
         const suratJalanList = result.surat_jalan_list || [];
         const sortedData = suratJalanList.sort((a, b) => b.id - a.id);
         setSuratJalan(sortedData);
+        applyFilter({});
       } else if (result.status === 403) {
         await Swal.fire({
           title: "Tidak Ada Akses",
@@ -191,7 +204,26 @@ export default function SuratJalanList() {
           + Tambah Surat Jalan
         </button>
       </div>
-
+      no_sj created_at no_pl customer_name satuan_unit_name jenis_so_name
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No SJ", value: "no_sj" },
+          { label: "Tanggal", value: "created_at" },
+          { label: "No PL", value: "no_pl" },
+          { label: "Nama Customer", value: "customer_name" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+          { label: "Jenis SO", value: "jenis_so_name" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Customer (PT)", value: "PT" },
+          { label: "Customer (Non-PT)", value: "NON_PT" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
@@ -205,7 +237,7 @@ export default function SuratJalanList() {
               <th class="py-2 px-2">Jenis Sales Order</th>
               <th class="py-2 px-2">Jumlah Kain</th>
               <th class="py-2 px-2">Total</th>
-              
+
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -229,11 +261,13 @@ export default function SuratJalanList() {
                     ? `${formatNumber(sc.summary.total_yard)} yd`
                     : `${formatNumber(sc.summary.total_kilogram)} kg`}
                 </td>
-                
+
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-yellow-600 hover:underline"
-                    onClick={() => navigate(`/deliverynote/form?id=${sc.id}&view=true`)}
+                    onClick={() =>
+                      navigate(`/deliverynote/form?id=${sc.id}&view=true`)
+                    }
                   >
                     <Eye size={25} />
                   </button>
