@@ -8,14 +8,26 @@ import {
   getDeliveryNotes,
   setInvoiceSales,
   unsetInvoiceSales,
-  hasPermission
+  hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Trash, Eye, Printer, FileDown, X } from "lucide-solid";
 import html2pdf from "html2pdf.js";
 
+import SearchSortFilter from "../../components/SearchSortFilter";
+import useSimpleFilter from "../../utils/useSimpleFilter";
+
 export default function SalesInvoiceList() {
   const [suratJalan, setSuratJalan] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(suratJalan, [
+    "no_sj",
+    "created_at",
+    "no_pl",
+    "customer_name",
+    "satuan_unit_name",
+    "delivered_status",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
@@ -51,12 +63,12 @@ export default function SalesInvoiceList() {
   });
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(suratJalan().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return suratJalan().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -90,10 +102,10 @@ export default function SalesInvoiceList() {
           text:
             error.message || `Gagal menghapus data surat jalan dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -107,6 +119,7 @@ export default function SalesInvoiceList() {
         const suratJalanList = result.surat_jalan_list || [];
         const sortedData = suratJalanList.sort((a, b) => b.id - a.id);
         setSuratJalan(sortedData);
+        applyFilter({});
       } else if (result.status === 403) {
         await Swal.fire({
           title: "Tidak Ada Akses",
@@ -136,15 +149,17 @@ export default function SalesInvoiceList() {
         timerProgressBar: true,
       });
     }
-  };  
-  
+  };
+
   async function handlePrint(sc) {
     try {
       let updatedSc = { ...sc };
       if (!sc.delivered_status) {
         await setInvoiceSales(tokUser?.token, sc.id, { delivered_status: 1 });
         updatedSc = { ...sc, delivered_status: 1 };
-        setSuratJalan((prev) => prev.map((item) => (item.id === sc.id ? updatedSc : item)));
+        setSuratJalan((prev) =>
+          prev.map((item) => (item.id === sc.id ? updatedSc : item))
+        );
       }
       const detail = await getDeliveryNotes(sc.id, tokUser?.token);
       if (!detail) {
@@ -158,7 +173,7 @@ export default function SalesInvoiceList() {
       Swal.fire("Error", err.message || "Gagal memproses print", "error");
     }
   }
-  
+
   async function handlePreview(sc) {
     try {
       const detail = await getDeliveryNotes(sc.id, tokUser?.token);
@@ -166,17 +181,17 @@ export default function SalesInvoiceList() {
         Swal.fire("Error", "Data untuk preview tidak ditemukan.", "error");
         return;
       }
-      
+
       const detailForPreview = { ...detail, _previewMode: true };
       const encoded = encodeURIComponent(JSON.stringify(detailForPreview));
-      
+
       window.open(`/print/deliverynote-invoice#${encoded}`, "_blank");
     } catch (err) {
       console.error(err);
       Swal.fire("Error", err.message || "Gagal memproses preview", "error");
     }
   }
-  
+
   async function handleDownloadPDF(sc) {
     Swal.fire({
       title: "Mempersiapkan PDF...",
@@ -196,13 +211,13 @@ export default function SalesInvoiceList() {
 
       const detailForPdf = { ...detail, _pdfMode: true };
       const encoded = encodeURIComponent(JSON.stringify(detailForPdf));
-      
-      iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.left = '-9999px';
-      iframe.style.width = '210mm'; 
-      iframe.style.height = '297mm';
-      
+
+      iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.left = "-9999px";
+      iframe.style.width = "210mm";
+      iframe.style.height = "297mm";
+
       document.body.appendChild(iframe);
 
       iframe.src = `/print/deliverynote-invoice#${encoded}`;
@@ -212,37 +227,46 @@ export default function SalesInvoiceList() {
         let attempts = 0;
 
         const checkInterval = setInterval(() => {
-          const element = iframe.contentWindow.document.getElementById('printable-area');
+          const element =
+            iframe.contentWindow.document.getElementById("printable-area");
 
           if (element) {
             clearInterval(checkInterval);
-            
+
             const opt = {
-              margin:       [0, 0, 0, 0],
-              filename:     `Invoice Penjualan-${sc.no_sj}-${sc.customer_name}.pdf`,
-              image:        { type: 'png', quality: 1.0 },
-              html2canvas:  { 
+              margin: [0, 0, 0, 0],
+              filename: `Invoice Penjualan-${sc.no_sj}-${sc.customer_name}.pdf`,
+              image: { type: "png", quality: 1.0 },
+              html2canvas: {
                 scale: 3,
-                useCORS: true, 
-                logging: false 
+                useCORS: true,
+                logging: false,
               },
-              jsPDF:        { 
-                unit: 'mm', 
-                format: 'a4', 
-                orientation: 'portrait' 
-              }
+              jsPDF: {
+                unit: "mm",
+                format: "a4",
+                orientation: "portrait",
+              },
             };
 
-            html2pdf().from(element).set(opt).save().then(() => {
-              document.body.removeChild(iframe);
-              Swal.close();
-            });
+            html2pdf()
+              .from(element)
+              .set(opt)
+              .save()
+              .then(() => {
+                document.body.removeChild(iframe);
+                Swal.close();
+              });
           } else {
             attempts++;
             if (attempts > maxAttempts) {
               clearInterval(checkInterval);
               document.body.removeChild(iframe);
-              Swal.fire("Error", "Gagal memuat konten invoice untuk PDF.", "error");
+              Swal.fire(
+                "Error",
+                "Gagal memuat konten invoice untuk PDF.",
+                "error"
+              );
             }
           }
         }, 250);
@@ -253,7 +277,7 @@ export default function SalesInvoiceList() {
       Swal.fire("Error", err.message || "Gagal memproses PDF", "error");
     }
   }
-  
+
   async function handleUnsetInvoice(sc) {
     try {
       const result = await Swal.fire({
@@ -281,8 +305,18 @@ export default function SalesInvoiceList() {
   function formatTanggalIndo(tanggalString) {
     const tanggal = new Date(tanggalString);
     const bulanIndo = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
     ];
     const tanggalNum = tanggal.getDate();
     const bulan = bulanIndo[tanggal.getMonth()];
@@ -301,7 +335,27 @@ export default function SalesInvoiceList() {
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold">Invoice Penjualan</h1>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No SJ", value: "no_sj" },
+          { label: "Tanggal", value: "created_at" },
+          { label: "No PL", value: "no_pl" },
+          { label: "Nama Customer", value: "supplier_name" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+          { label: "Status Invoice", value: "delivered_status" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Supplier (PT)", value: "PT" },
+          { label: "Supplier (Non-PT)", value: "NON_PT" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+          { label: "Status Invoice (Sudah Print)", value: 1 },
+          { label: "Status Invoice (Belum Print)", value: 0 },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
@@ -315,7 +369,9 @@ export default function SalesInvoiceList() {
               <th class="py-2 px-2 text-center">Total</th>
               <th class="py-2 px-2 text-center">Status Invoice</th>
               <th class="py-2 px-4 text-center">Preview</th>
-              <th hidden class="py-2 px-4 text-center">Download PDF</th>
+              <th hidden class="py-2 px-4 text-center">
+                Download PDF
+              </th>
               <th class="py-2 px-4 text-center">Print</th>
               <th class="py-2 px-4 text-center">Batal</th>
             </tr>
@@ -323,7 +379,9 @@ export default function SalesInvoiceList() {
           <tbody>
             {paginatedData().map((sc, index) => (
               <tr class="border-b" key={sc.id}>
-                <td class="py-2 px-4">{(currentPage() - 1) * pageSize + (index + 1)}</td>
+                <td class="py-2 px-4">
+                  {(currentPage() - 1) * pageSize + (index + 1)}
+                </td>
                 <td class="py-2 px-4">{sc.no_sj}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
                 <td class="py-2 px-4">{sc.no_pl}</td>
@@ -338,40 +396,64 @@ export default function SalesInvoiceList() {
                 </td>
                 <td class="py-2 px-4 text-center">
                   {sc.delivered_status ? (
-                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 text-purple-700 font-semibold">Sudah Print</span>
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-purple-100 text-purple-700 font-semibold">
+                      Sudah Print
+                    </span>
                   ) : (
-                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 font-semibold">Belum Print</span>
+                    <span class="inline-block px-3 py-1 text-sm rounded-full bg-red-100 text-red-700 font-semibold">
+                      Belum Print
+                    </span>
                   )}
                 </td>
                 <td class="py-2 px-4 text-center">
-                    <button class="text-blue-600 hover:underline" onClick={() => handlePreview(sc)} title="Preview Invoice">
-                        <Eye size={25} />
-                    </button>
+                  <button
+                    class="text-blue-600 hover:underline"
+                    onClick={() => handlePreview(sc)}
+                    title="Preview Invoice"
+                  >
+                    <Eye size={25} />
+                  </button>
                 </td>
                 <td hidden class="py-2 px-4 text-center">
-                  <button class="text-teal-600 hover:underline" onClick={() => handleDownloadPDF(sc)} title="Download Invoice sebagai PDF">
+                  <button
+                    class="text-teal-600 hover:underline"
+                    onClick={() => handleDownloadPDF(sc)}
+                    title="Download Invoice sebagai PDF"
+                  >
                     <FileDown size={25} />
                   </button>
                 </td>
                 <td class="py-2 px-4 text-center">
-                  <button class={sc.delivered_status ? 
-                    "text-yellow-600 hover:underline" : 
-                    "text-green-600 hover:underline"
-                    } 
-                    onClick={() => handlePrint(sc)} title="Cetak / tandai sudah print">
+                  <button
+                    class={
+                      sc.delivered_status
+                        ? "text-yellow-600 hover:underline"
+                        : "text-green-600 hover:underline"
+                    }
+                    onClick={() => handlePrint(sc)}
+                    title="Cetak / tandai sudah print"
+                  >
                     <Printer size={25} />
                   </button>
                 </td>
                 <td class="py-2 px-4 text-center">
                   <button
                     class={
-                      hasPermission("unprint_invoice") && sc.delivered_status ? 
-                      "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700" : 
-                      "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
+                      hasPermission("unprint_invoice") && sc.delivered_status
+                        ? "px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        : "px-2 py-1 bg-gray-300 text-gray-600 rounded cursor-not-allowed"
                     }
-                    disabled={!hasPermission("unprint_invoice") || !sc.delivered_status}
+                    disabled={
+                      !hasPermission("unprint_invoice") || !sc.delivered_status
+                    }
                     onClick={() => handleUnsetInvoice(sc)}
-                    title={!hasPermission("unprint_invoice") ? "Anda tidak memiliki izin" : sc.delivered_status ? "Batalkan invoice" : "Tidak bisa batalkan sebelum dicetak"}
+                    title={
+                      !hasPermission("unprint_invoice")
+                        ? "Anda tidak memiliki izin"
+                        : sc.delivered_status
+                        ? "Batalkan invoice"
+                        : "Tidak bisa batalkan sebelum dicetak"
+                    }
                   >
                     <X size={16} />
                   </button>
@@ -380,15 +462,23 @@ export default function SalesInvoiceList() {
             ))}
           </tbody>
         </table>
-        
+
         <div class="w-full mt-8 flex justify-between space-x-2">
-          <button class="px-3 py-1 bg-gray-200 rounded min-w-[80px]" onClick={() => setCurrentPage(currentPage() - 1)} disabled={currentPage() === 1}>
+          <button
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() - 1)}
+            disabled={currentPage() === 1}
+          >
             Prev
           </button>
           <span>
             Page {currentPage()} of {totalPages()}
           </span>
-          <button class="px-3 py-1 bg-gray-200 rounded min-w-[80px]" onClick={() => setCurrentPage(currentPage() + 1)} disabled={currentPage() === totalPages()}>
+          <button
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() + 1)}
+            disabled={currentPage() === totalPages()}
+          >
             Next
           </button>
         </div>
