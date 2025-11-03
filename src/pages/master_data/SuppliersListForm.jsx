@@ -103,7 +103,7 @@ export default function SuppliersListForm() {
 
   return (
     <MainLayout>
-      <h1 class="text-2xl font-bold mb-4">{isEdit ? "Edit" : "Tambah"} User</h1>
+      <h1 class="text-2xl font-bold mb-4">{isEdit ? "Edit" : "Tambah"} Supplier</h1>
       <form class="space-y-4" onSubmit={handleSubmit} onkeydown={handleKeyDown}>
         <div className="grid grid-cols-4 gap-4">
           <div>
