@@ -11,20 +11,30 @@ import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
 import { formatCorak } from "../../../components/CorakKainList";
 
+import SearchSortFilter from "../../../components/SearchSortFilter";
+import useSimpleFilter from "../../../utils/useSimpleFilter";
+
 export default function KJPurchaseContractList() {
   const [beliGreiges, setBeliGreiges] = createSignal([]);
+  const { filteredData, applyFilter } = useSimpleFilter(beliGreiges, [
+    "no_pc",
+    "supplier_name",
+    "items",
+    "satuan_unit_name",
+  ]);
+
   const navigate = useNavigate();
   const tokUser = getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(beliGreiges().length / pageSize));
+    return Math.max(1, Math.ceil(filteredData().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return beliGreiges().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {
@@ -57,13 +67,12 @@ export default function KJPurchaseContractList() {
         Swal.fire({
           title: "Gagal",
           text:
-            error.message ||
-            `Gagal menghapus data kain jadi dengan ID ${id}`,
+            error.message || `Gagal menghapus data kain jadi dengan ID ${id}`,
           icon: "error",
-          
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
+
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
         });
       }
     }
@@ -77,6 +86,7 @@ export default function KJPurchaseContractList() {
     if (result.status === 200) {
       const sortedData = result.contracts.sort((a, b) => b.id - a.id);
       setBeliGreiges(sortedData);
+      applyFilter({});
     } else if (result.status === 403) {
       await Swal.fire({
         title: "Tidak Ada Akses",
@@ -97,7 +107,7 @@ export default function KJPurchaseContractList() {
     }
   };
 
-   const qtyCounterReal = (bg, satuanUnit) => {
+  const qtyCounterReal = (bg, satuanUnit) => {
     let total = 0;
     let terkirim = 0;
 
@@ -193,11 +203,11 @@ export default function KJPurchaseContractList() {
       const raw = Array.isArray(props.items)
         ? props.items
         : props.items
-          ? [props.items] // jaga-jaga kalau API kadang kirim object
-          : [];
+        ? [props.items] // jaga-jaga kalau API kadang kirim object
+        : [];
 
       const vals = raw
-        .map(it => (it?.corak_kain ?? "").toString().trim())
+        .map((it) => (it?.corak_kain ?? "").toString().trim())
         .filter(Boolean);
 
       return Array.from(new Set(vals)); // unik
@@ -220,7 +230,7 @@ export default function KJPurchaseContractList() {
         {display()}
       </span>
     );
-  }  
+  }
 
   createEffect(() => {
     if (tokUser?.token) {
@@ -239,7 +249,23 @@ export default function KJPurchaseContractList() {
           + Tambah Kontrak Kain Jadi
         </button>
       </div>
-
+      <SearchSortFilter
+        sortOptions={[
+          { label: "No PC", value: "no_pc" },
+          { label: "Nama Supplier", value: "supplier_name" },
+          { label: "Corak Kain", value: "items" },
+          { label: "Satuan Unit", value: "satuan_unit_name" },
+        ]}
+        filterOptions={[
+          { label: "Pembelian (Pajak)", value: "/P/" },
+          { label: "Pembelian (Non Pajak)", value: "/N/" },
+          { label: "Supplier (PT)", value: "PT" },
+          { label: "Supplier (CV)", value: "CV" },
+          { label: "Satuan Unit (Meter)", value: "Meter" },
+          { label: "Satuan Unit (Yard)", value: "Yard" },
+        ]}
+        onChange={applyFilter}
+      />
       <div class="w-full overflow-x-auto">
         <table class="w-full bg-white shadow-md rounded">
           <thead>
@@ -274,7 +300,9 @@ export default function KJPurchaseContractList() {
                 <td class="py-2 px-4">{kj.supplier_name}</td>
                 <td class="py-2 px-4">
                   {(() => {
-                    const { display, full } = formatCorak(kj.items, { maxShow: 3 });
+                    const { display, full } = formatCorak(kj.items, {
+                      maxShow: 3,
+                    });
                     return (
                       <span
                         class="inline-block max-w-[260px] truncate align-middle"
@@ -306,10 +334,12 @@ export default function KJPurchaseContractList() {
                 <td class="py-2 px-4">{kj.satuan_unit_name}</td>
                 {/* <td class="py-2 px-4">{formatTanggalIndo(kj.created_at)}</td> */}
                 <td class="py-2 px-4 space-x-2">
-                   <button
+                  <button
                     class="text-yellow-600 hover:underline"
                     onClick={() =>
-                      navigate(`/kainjadi-purchasecontract/form?id=${kj.id}&view=true`)
+                      navigate(
+                        `/kainjadi-purchasecontract/form?id=${kj.id}&view=true`
+                      )
                     }
                   >
                     <Eye size={25} />
