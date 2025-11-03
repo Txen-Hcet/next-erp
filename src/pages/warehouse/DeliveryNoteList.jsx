@@ -204,7 +204,6 @@ export default function SuratJalanList() {
           + Tambah Surat Jalan
         </button>
       </div>
-      no_sj created_at no_pl customer_name satuan_unit_name jenis_so_name
       <SearchSortFilter
         sortOptions={[
           { label: "No SJ", value: "no_sj" },
