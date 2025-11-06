@@ -304,20 +304,20 @@ export default function HutangPurchaseGreigeList() {
           </div>
         )}        
 
-        <div class="w-full mt-8 flex justify-between items-center space-x-2">
+        <div class="w-full mt-8 flex justify-between space-x-2">
           <button
-            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            onClick={goPrev}
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() - 1)}
             disabled={currentPage() === 1}
           >
             Prev
           </button>
-          <span class="text-gray-700">
+          <span>
             Page {currentPage()} of {totalPages()}
           </span>
           <button
-            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            onClick={goNext}
+            class="px-3 py-1 bg-gray-200 rounded min-w-[80px]"
+            onClick={() => setCurrentPage(currentPage() + 1)}
             disabled={currentPage() === totalPages()}
           >
             Next
