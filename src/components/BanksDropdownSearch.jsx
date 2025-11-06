@@ -22,6 +22,7 @@ export default function BanksDropdownSearch({
   });
 
   const list = createMemo(() => {
+    // Prioritaskan options, lalu banks
     if (typeof options === "function") {
       const maybe = options();
       return Array.isArray(maybe) ? maybe : [];
@@ -45,10 +46,11 @@ export default function BanksDropdownSearch({
     const q = search().trim().toLowerCase();
     if (!q) return list();
     return list().filter((b) => {
-      const name = (b.name || "").toLowerCase();
+      const name = (b.name || b.bank_name || "").toLowerCase();
       const id = String(b.id || "").toLowerCase();
       const kode = (b.kode || "").toLowerCase();
       const bank_number = (b.bank_number || "").toLowerCase();
+      
       return name.includes(q) || id.includes(q) || kode.includes(q) || bank_number.includes(q);
     });
   });
@@ -71,7 +73,14 @@ export default function BanksDropdownSearch({
 
   const getBankDisplayText = (bank) => {
     if (!bank) return "";
-    return bank.bank_number ? `${bank.name} - ${bank.bank_number}` : bank.name;
+    
+    // Gunakan name atau bank_name (handle kedua kemungkinan)
+    const bankName = bank.name || bank.bank_name || "";
+    
+    // Tampilkan dengan bank_number jika ada
+    return bank.bank_number 
+      ? `${bankName} - ${bank.bank_number}`
+      : bankName;
   };
 
   const selectItem = (item) => {
@@ -91,7 +100,7 @@ export default function BanksDropdownSearch({
         disabled={disabled}
       >
         <span class="block whitespace-nowrap overflow-hidden text-ellipsis">
-          {selected() ? selected().name : placeholder}
+          {selected() ? getBankDisplayText(selected()) : placeholder}
         </span>
       </button>
 
