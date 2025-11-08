@@ -9,6 +9,7 @@ import {
 } from "../../../utils/financeAuth";
 import {
   getAllDeliveryNotes,
+  getDeliveryNotes, // Tambahkan import untuk get detail SJ
   getUser,
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
@@ -32,6 +33,7 @@ export default function PiutangSalesFormV2() {
   const [paymentMethodsOptions, setPaymentMethodsOptions] = createSignal([]);
   const [banksOptions, setBanksOptions] = createSignal([]);
   const [spOptions, setSpOptions] = createSignal([]);
+  const [nominalInvoice, setNominalInvoice] = createSignal(""); // State untuk nominal invoice
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -87,6 +89,27 @@ export default function PiutangSalesFormV2() {
     return isNaN(n) ? null : n;
   };
 
+  // Fungsi untuk mengambil data detail Surat Jalan
+  const fetchSuratJalanDetail = async (sjId) => {
+    try {
+      const response = await getDeliveryNotes(sjId, user?.token);
+      const sjData = response?.order || response?.data;
+      
+      if (sjData && sjData.summary) {
+        // Ambil subtotal dari summary dan format sebagai IDR
+        const subtotal = sjData.summary.subtotal || 0;
+        setNominalInvoice(formatIDR(subtotal));
+      } else {
+        setNominalInvoice(formatIDR(0));
+        console.warn("Data summary tidak ditemukan dalam response Surat Jalan");
+      }
+    } catch (error) {
+      console.error("Gagal mengambil detail Surat Jalan:", error);
+      setNominalInvoice(formatIDR(0));
+      Swal.fire("Error", "Gagal memuat data Surat Jalan", "error");
+    }
+  };
+
   // Memo untuk mendapatkan detail jenis potongan terpilih
   const selectedJenisPotongan = createMemo(() => {
     const id = form().jenis_potongan_id;
@@ -108,7 +131,7 @@ export default function PiutangSalesFormV2() {
     return formatIDR(val);
   };
 
-  const handleSuratPenerimaanChange = (val) => {
+  const handleSuratPenerimaanChange = async (val) => {
     const newSjId = normalizeId(val);
     const currentSjId = form().sj_id;
     
@@ -122,6 +145,13 @@ export default function PiutangSalesFormV2() {
       setManualGenerateDone(false);
     } else {
       setForm({ ...form(), sj_id: newSjId });
+    }
+
+    // Jika ada SJ ID yang dipilih, ambil data detailnya
+    if (newSjId) {
+      await fetchSuratJalanDetail(newSjId);
+    } else {
+      setNominalInvoice(""); // Reset jika tidak ada SJ yang dipilih
     }
   };  
 
@@ -145,7 +175,13 @@ export default function PiutangSalesFormV2() {
         (async () => {
           const allSP = await getAllDeliveryNotes(user?.token);
           const rawList = allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
-          setSpOptions(Array.isArray(rawList) ? rawList : []);
+          
+          // Filter hanya Surat Jalan dengan delivered_status = 1/true
+          const filteredSP = Array.isArray(rawList) 
+            ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
+            : [];
+            
+          setSpOptions(filteredSP);
         })(),
       ]);
 
@@ -191,6 +227,11 @@ export default function PiutangSalesFormV2() {
           status: data.status || "",
           keterangan: data.keterangan || "",
         });
+
+        // Jika ada sj_id dalam data edit, ambil detail Surat Jalan untuk menampilkan nominal invoice
+        if (data.sj_id) {
+          await fetchSuratJalanDetail(data.sj_id);
+        }
 
       } catch (err) {
         console.error("Gagal memuat data edit:", err);
@@ -390,6 +431,17 @@ export default function PiutangSalesFormV2() {
               onChange={handleSuratPenerimaanChange}
               disabled={isView || isEdit}
               required
+            />
+          </div>
+
+          {/* Tambahkan field Nominal Invoice di sini */}
+          <div>
+            <label class="block mb-1 font-medium">Nominal Invoice</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={nominalInvoice()}
+              readOnly
             />
           </div>
 

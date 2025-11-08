@@ -9,7 +9,7 @@ import {
 } from "../../../utils/financeAuth";
 import { 
   getAllDeliveryNotes,
-  //getLastSequence,
+  getDeliveryNotes,
   getUser, 
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
@@ -33,9 +33,9 @@ export default function PiutangSalesForm() {
   const [paymentMethodsOptions, setPaymentMethodsOptions] = createSignal([]);
   const [banksOptions, setBanksOptions] = createSignal([]);
   const [spOptions, setSpOptions] = createSignal([]);
+  const [nominalInvoice, setNominalInvoice] = createSignal(""); // State untuk nominal invoice
 
   const [form, setForm] = createSignal({
-    // no_penerimaan: "",
     sequence_number: "",
     no_seq: 0,
     sj_id: "",
@@ -54,7 +54,6 @@ export default function PiutangSalesForm() {
   // ========= HELPER FUNCTIONS =========
   const parseNumber = (str) => {
     if (typeof str !== "string" || !str) return 0;
-    // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
     const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
     return parseFloat(cleaned) || 0;
   };
@@ -78,16 +77,6 @@ export default function PiutangSalesForm() {
     }
   };
 
-  // Format angka 2 desimal
-  const formatNumber = (val, decimals = 2, showZero = true) => {
-    const num = typeof val === "string" ? parseNumber(val) : (val === 0 ? 0 : (val || 0));
-    if ((val === null || val === undefined || val === "") && !showZero) return "";
-    return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(num);
-  };
-
   const normalizeId = (v) => {
     if (v === null || v === undefined || v === "") return null;
     if (typeof v === "object") {
@@ -99,7 +88,28 @@ export default function PiutangSalesForm() {
     return isNaN(n) ? null : n;
   };  
 
-  const handleSuratPenerimaanChange = (val) => {
+  // Fungsi untuk mengambil data detail Surat Jalan
+  const fetchSuratJalanDetail = async (sjId) => {
+    try {
+      const response = await getDeliveryNotes(sjId, user?.token);
+      const sjData = response?.order || response?.data;
+      
+      if (sjData && sjData.summary) {
+        // Ambil subtotal dari summary dan format sebagai IDR
+        const subtotal = sjData.summary.subtotal || 0;
+        setNominalInvoice(formatIDR(subtotal));
+      } else {
+        setNominalInvoice(formatIDR(0));
+        console.warn("Data summary tidak ditemukan dalam response Surat Jalan");
+      }
+    } catch (error) {
+      console.error("Gagal mengambil detail Surat Jalan:", error);
+      setNominalInvoice(formatIDR(0));
+      Swal.fire("Error", "Gagal memuat data Surat Jalan", "error");
+    }
+  };
+
+  const handleSuratPenerimaanChange = async (val) => {
     const newSjId = normalizeId(val);
     const currentSjId = form().sj_id;
     
@@ -113,6 +123,13 @@ export default function PiutangSalesForm() {
       setManualGenerateDone(false);
     } else {
       setForm({ ...form(), sj_id: newSjId });
+    }
+
+    // Jika ada SJ ID yang dipilih, ambil data detailnya
+    if (newSjId) {
+      await fetchSuratJalanDetail(newSjId);
+    } else {
+      setNominalInvoice(""); // Reset jika tidak ada SJ yang dipilih
     }
   };  
 
@@ -135,7 +152,12 @@ export default function PiutangSalesForm() {
       const rawList =
         allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
 
-      setSpOptions(Array.isArray(rawList) ? rawList : []);
+      // Filter hanya Surat Jalan dengan delivered_status = 1/true
+      const filteredSP = Array.isArray(rawList) 
+        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
+        : [];
+
+      setSpOptions(filteredSP);
 
     } catch (err) {
       console.error("Gagal memuat opsi dropdown:", err);
@@ -155,18 +177,20 @@ export default function PiutangSalesForm() {
 
         setForm({
           ...data,
-
           sequence_number: data.no_penerimaan || "",
-
           potongan: formatIDR(parseFloat(data.potongan || 0)),
           pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
           pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
-
           tanggal_pembayaran: data.tanggal_pembayaran || "",
           tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
           status: data.status || "",
           keterangan: data.keterangan || "",
         });
+
+        // Jika ada sj_id dalam data edit, ambil detail Surat Jalan untuk menampilkan nominal invoice
+        if (data.sj_id) {
+          await fetchSuratJalanDetail(data.sj_id);
+        }
         
       } catch (err) {
         console.error("Gagal memuat data edit:", err);
@@ -229,8 +253,6 @@ export default function PiutangSalesForm() {
 
         const lastSeq = await getLastSequence("penerimaan_s", regionValue, ppnValue);
         
-        //console.log("Last sequence response:", lastSeq); // Debug log
-
         if (!lastSeq || lastSeq.last_sequence === undefined) {
         throw new Error("Gagal mendapatkan sequence dari server");
         }
@@ -281,16 +303,12 @@ export default function PiutangSalesForm() {
     // Payload untuk passing data ke backend
     const payload = {
       no_penerimaan: rawForm.sequence_number,
-      
-      // Passing data input manipulasi "string" untuk di konversi menjadi number
       sj_id: normalizeId(rawForm.sj_id),
       jenis_potongan_id: normalizeId(rawForm.jenis_potongan_id),
       potongan: parseNumber(rawForm.potongan),
       pembulatan: parseNumber(rawForm.pembulatan),
       pembayaran: parseNumber(rawForm.pembayaran),
       payment_method_id: normalizeId(rawForm.payment_method_id),
-
-      // Fallback jika data kosong kirim sebagai null
       bank_id: normalizeId(rawForm.bank_id) || null,
       tanggal_pembayaran: rawForm.tanggal_pembayaran || null,
       tanggal_jatuh_tempo: rawForm.tanggal_jatuh_tempo || null,
@@ -300,12 +318,8 @@ export default function PiutangSalesForm() {
 
     try {
       if (isEdit) {
-        //console.log("Payload update penerimaan hutang sales:", JSON.stringify(payload, null, 2));
-
         await PenerimaanPiutangSales.update(params.id, payload);
       } else {
-        //console.log("Payload create penerimaan hutang sales:", JSON.stringify(payload, null, 2));
-
         await PenerimaanPiutangSales.create(payload);
       }
 
@@ -372,6 +386,17 @@ export default function PiutangSalesForm() {
               onChange={handleSuratPenerimaanChange}
               disabled={isView || isEdit}
               required
+            />
+          </div>
+
+          {/* Tambahkan field Nominal Invoice di sini */}
+          <div>
+            <label class="block mb-1 font-medium">Nominal Invoice</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={nominalInvoice()}
+              readOnly
             />
           </div>
 
