@@ -682,7 +682,7 @@ export default function ReturSalesForm() {
       
       // Untuk CREATE mode, load detail SJ
       if (!hasId) {
-        setLoading(true);
+        setLoading(false);
         await loadSJDetailById(sj.id);
       }
       // Untuk VIEW/EDIT, kita sudah punya data dari retur
