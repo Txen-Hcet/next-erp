@@ -94,6 +94,7 @@ export default function SalesInvoicePrint(props) {
 
   const totalMeter = createMemo(() => Number(summary()?.total_meter ?? 0));
   const totalYard  = createMemo(() => Number(summary()?.total_yard ?? 0));
+  const totalKilogram  = createMemo(() => Number(summary()?.total_kilogram ?? 0));
   const totalRolls = createMemo(() => {
     // const sum = Number(summary()?.jumlah_kain);
     // if (!Number.isNaN(sum) && sum > 0) return sum;
@@ -117,6 +118,7 @@ export default function SalesInvoicePrint(props) {
     grand: grand(),
     totalMeter: totalMeter(),
     totalYard: totalYard(),
+    totalKilogram: totalKilogram(),
     totalRolls: totalRolls(),
   }));
 
@@ -230,8 +232,38 @@ function PrintPage(props) {
 
   const { extraRows, bind, recalc } = createStretch({ fudge: 40 });
 
-  const isUnitMeter = createMemo(() => (data?.satuan_unit || "Meter") === "Meter");
-  const quantityUnitName = createMemo(() => isUnitMeter() ? "Meter" : "Yard");
+  // Tentukan satuan yang aktif - TAMBAHKAN DUKUNGAN KILOGRAM
+  const activeUnit = createMemo(() => data?.satuan_unit || "Meter");
+  
+  // Fungsi untuk mendapatkan quantity berdasarkan satuan - TAMBAHKAN KILOGRAM
+  const getItemQuantity = (item) => {
+    switch(activeUnit()) {
+      case "Meter": return parseFloat(item?.meter_total || 0);
+      case "Yard": return parseFloat(item?.yard_total || 0);
+      case "Kilogram": return parseFloat(item?.kilogram_total || 0);
+      default: return parseFloat(item?.meter_total || 0);
+    }
+  };
+
+  // Fungsi untuk mendapatkan total quantity berdasarkan satuan - TAMBAHKAN KILOGRAM
+  const getTotalQuantity = () => {
+    switch(activeUnit()) {
+      case "Meter": return totals.totalMeter;
+      case "Yard": return totals.totalYard;
+      case "Kilogram": return totals.totalKilogram;
+      default: return totals.totalMeter;
+    }
+  };
+
+  // Nama satuan untuk display - TAMBAHKAN KILOGRAM
+  const quantityUnitName = createMemo(() => {
+    switch(activeUnit()) {
+      case "Meter": return "Meter";
+      case "Yard": return "Yard";
+      case "Kilogram": return "Kilogram";
+      default: return "Meter";
+    }
+  });
 
   // Recalc saat item/page berubah (double rAF biar layout settle)
   createEffect(() => {
@@ -396,6 +428,7 @@ function PrintPage(props) {
             </tr>
             <tr>
               <th className="border border-black p-1 w-[5%]">Roll</th>
+              {/* UBAH: quantityUnitName() sekarang support Kilogram */}
               <th className="border border-black p-1 w-[14%]">{quantityUnitName()}</th>
             </tr>
           </thead>
@@ -414,15 +447,16 @@ function PrintPage(props) {
                   <td className="p-1 text-center break-words">{item?.grade_name}</td>
 
                   <td className="p-1 text-center break-words">{(item?.rolls || []).length}</td>
+                  {/* UBAH: Gunakan getItemQuantity() yang support Kilogram */}
                   <td className="p-1 text-center break-words">
-                    {formatAngka(parseFloat(isUnitMeter() ? item?.meter_total : item?.yard_total || 0))}
+                    {formatAngka(getItemQuantity(item))}
                   </td>
 
                   <td className="p-1 text-center break-words">{formatRupiah(item?.harga)}</td>
                   <td className="p-1 text-right break-words">
+                    {/* UBAH: Gunakan getItemQuantity() yang support Kilogram */}
                     {(() => {
-                      const useMeter = (data?.satuan_unit || "Meter") === "Meter";
-                      const qty   = useMeter ? parseFloat(item?.meter_total || 0) : parseFloat(item?.yard_total || 0);
+                      const qty   = getItemQuantity(item);
                       const harga = parseFloat(item?.harga || 0);
                       return harga && qty ? formatRupiah(harga * qty) : "-";
                     })()}
@@ -459,8 +493,9 @@ function PrintPage(props) {
                 <td colSpan={5} className="border border-black font-bold text-right px-2 py-1">Total:</td>
                 {/* 3 kolom quantity */}
                 <td className="border border-black px-2 py-1 text-center font-semibold">{totals.totalRolls}</td>
+                {/* UBAH: Gunakan getTotalQuantity() yang support Kilogram */}
                 <td className="border border-black px-2 py-1 text-center font-semibold">
-                  {formatAngka(isUnitMeter() ? totals.totalMeter : totals.totalYard)}
+                  {formatAngka(getTotalQuantity())}
                 </td>
                 {/* 2 kolom nominal */}
                 <td className="border border-black px-2 py-1 text-right font-bold">
