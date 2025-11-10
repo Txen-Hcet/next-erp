@@ -49,16 +49,35 @@ export default function ExpeditionAccessoriesForm() {
     ],
   });
 
+  // FIXED: parseNumber yang benar
   const parseNumber = (str) => {
     if (typeof str !== 'string' || !str) return 0;
-    // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
-    const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
+    // Hapus semua karakter non-digit termasuk titik (pemisah ribuan)
+    const cleaned = str
+      .replace(/[^\d,]/g, "") // Hanya pertahankan digit dan koma
+      .replace(/\./g, "")     // Hapus semua titik (pemisah ribuan)
+      .replace(",", ".");     // Ganti koma dengan titik untuk decimal
     return parseFloat(cleaned) || 0;
   };
 
+  // FIXED: formatIDR untuk display saja
   const formatIDR = (val) => {
-    const num = typeof val === "string" ? parseNumber(val) : val || 0;
+    const num = typeof val === "string" ? parseFloat(val) : (val || 0);
     if (num === 0) return "";
+    
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  };
+
+  // NEW: Format khusus untuk input harga (tanpa currency symbol)
+  const formatHargaInput = (val) => {
+    const num = typeof val === "string" ? parseFloat(val) : (val || 0);
+    if (num === 0) return "";
+    
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
@@ -109,18 +128,21 @@ export default function ExpeditionAccessoriesForm() {
         const raw = res.data ?? res;
         const data = Array.isArray(raw) && raw.length ? raw[0] : raw;
 
+        // FIXED: Normalisasi items dengan benar
         const normalizedItems = (data.items || []).map((it) => {
-          const hargaVal = parseNumber(it.harga || it.harga_value || 0);
+          // Gunakan nilai langsung dari database, jangan parseNumber
+          const hargaVal = parseFloat(it.harga || it.harga_value || 0);
           const kuant = parseInt(it.kuantitas ?? it.quantity ?? 0, 10) || 0;
           const subtotal = hargaVal * kuant;
+          
           return {
             nama: it.nama ?? "",
             deskripsi: it.deskripsi ?? "",
             kuantitas: kuant,
-            harga: formatIDR(hargaVal) || "",
-            hargaValue: hargaVal,
+            harga: formatHargaInput(hargaVal), // Format tanpa currency symbol
+            hargaValue: hargaVal, // Simpan nilai asli
             subtotal: subtotal,
-            subtotalFormatted: subtotal ? formatIDR(subtotal) : "",
+            subtotalFormatted: formatIDR(subtotal),
           };
         });
 
@@ -199,18 +221,19 @@ export default function ExpeditionAccessoriesForm() {
     });
   };
 
+  // FIXED: Handle item change dengan benar
   const handleItemChange = (index, field, value) => {
     setForm((prev) => {
       const items = [...prev.items];
       const item = { ...items[index] };
 
       if (field === "kuantitas") {
-        const intVal = parseInt(String(value).replace(/[^0-9-]/g, ""), 10) || 0;
+        const intVal = parseInt(String(value).replace(/[^0-9]/g, ""), 10) || 0;
         item.kuantitas = intVal;
       } else if (field === "harga") {
         const num = parseNumber(value);
         item.hargaValue = num;
-        item.harga = num ? formatIDR(num) : "";
+        item.harga = num ? formatHargaInput(num) : ""; // Format tanpa currency
       } else if (field === "nama" || field === "deskripsi") {
         item[field] = value;
       }
@@ -219,7 +242,7 @@ export default function ExpeditionAccessoriesForm() {
       const hargaVal = Number(item.hargaValue || 0);
       const subtotal = qty * hargaVal;
       item.subtotal = subtotal;
-      item.subtotalFormatted = subtotal ? formatIDR(subtotal) : "";
+      item.subtotalFormatted = formatIDR(subtotal); // Format dengan currency untuk display
 
       items[index] = item;
       return { ...prev, items };
@@ -228,7 +251,7 @@ export default function ExpeditionAccessoriesForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading(false);
 
     try {
       const payloadItems = form().items.map((it) => ({
