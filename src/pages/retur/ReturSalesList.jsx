@@ -69,6 +69,35 @@ export default function ReturSalesListV2() {
     return (Number(n) || 0).toLocaleString("id-ID");
   }
 
+  function fmtCurrency(n) {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(n) || 0);
+  }
+
+   // Fungsi untuk mendapatkan harga dari item pertama
+  function getHarga(row) {
+    if (!row.items || row.items.length === 0) return 0;
+    return Number(row.items[0]?.harga) || 0;
+  }
+
+  // Fungsi untuk menghitung nominal retur
+  function calculateNominal(row) {
+    const harga = getHarga(row);
+    const unit = String(row.satuan_unit_name || row.satuan_unit || "").toLowerCase();
+    
+    let quantity = 0;
+    if (unit === "meter") quantity = Number(row?.summary?.total_meter ?? 0);
+    else if (unit === "yard") quantity = Number(row?.summary?.total_yard ?? 0);
+    else if (unit === "kg" || unit === "kilogram") quantity = Number(row?.summary?.total_kilogram ?? 0);
+    else quantity = Number(row?.summary?.total_meter ?? 0);
+    
+    return harga * quantity;
+  }
+
   function totalCounter(row) {
     const unit = String(
       row?.satuan_unit_name || row?.satuan_unit || ""
@@ -171,8 +200,10 @@ export default function ReturSalesListV2() {
               <th class="py-2 px-2">No Surat Jalan</th>
               <th class="py-2 px-2">Tanggal</th>
               <th class="py-2 px-2">Customer</th>
-              <th class="py-2 px-2">Total</th>
+              <th class="py-2 px-2">Quantity</th>
               <th class="py-2 px-2">Satuan</th>
+              <th class="py-2 px-2">Harga</th>
+              <th class="py-2 px-2">Nominal Retur</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -190,6 +221,8 @@ export default function ReturSalesListV2() {
                 <td class="py-2 px-2">
                   {row.satuan_unit_name || row.satuan_unit}
                 </td>
+                <td class="py-2 px-2">{fmtCurrency(getHarga(row))}</td>
+                <td class="py-2 px-2">{fmtCurrency(calculateNominal(row))}</td>
                 <td class="py-2 px-4">
                   <button
                     class="text-yellow-600 mr-2"
