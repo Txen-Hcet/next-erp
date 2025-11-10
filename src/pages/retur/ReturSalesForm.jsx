@@ -112,8 +112,10 @@ export default function ReturSalesForm() {
     group.rolls.forEach(roll => {
       if (satuan.toLowerCase() === "meter") {
         totalQuantity += parseFloat(roll.meter) || 0;
-      } else {
+      } else if (satuan.toLowerCase() === "yard") {
         totalQuantity += parseFloat(roll.yard) || 0;
+      } else if (satuan.toLowerCase() === "kilogram") {
+        totalQuantity += parseFloat(roll.kilogram) || 0;
       }
     });
     
@@ -135,10 +137,12 @@ export default function ReturSalesForm() {
       
       if (satuan.toLowerCase() === "meter") {
         quantity = parseFloat(item.meter_total) || 0;
-      } else {
+      } else if (satuan.toLowerCase() === "yard") {
         quantity = parseFloat(item.yard_total) || 0;
+      } else if (satuan.toLowerCase() === "kilogram") {
+        quantity = parseFloat(item.kilogram_total) || 0;
       }
-      
+
       const harga = parseFloat(item.harga) || 0;
       total += harga * quantity;
     });
@@ -351,10 +355,29 @@ export default function ReturSalesForm() {
       ]);
       setShowFinance(canAccessFinance);
 
-      // 2) Jika buka View/Edit (punya ?id=...), load data retur saja
+      // 1) Ambil semua SJ (yang delivered saja) untuk dropdown - lakukan ini untuk semua mode
+      const res = await getAllDeliveryNotes(user?.token);
+      const list = Array.isArray(res?.surat_jalan_list)
+        ? res.surat_jalan_list
+        : Array.isArray(res?.suratJalans)
+        ? res.suratJalans
+        : Array.isArray(res?.data)
+        ? res.data
+        : [];
+
+      const delivered = list.filter(
+        (sj) => Number(sj.delivered_status ?? 0) === 1
+      );
+      const enriched = await enrichSJOptions(delivered);
+      setSjOptions(enriched);
+
+      // 2) Jika buka View/Edit (punya ?id=...), load data retur
       if (hasId) {
         const rRaw = await getSalesRetur(returId, user?.token);
         const r = normalizeReturResponse(rRaw);
+
+        //console.log("Data retur: ", JSON.stringify(r, null ,2));
+
         if (!r) throw new Error("Data retur kosong.");
 
         setReturData(r);
@@ -414,10 +437,10 @@ export default function ReturSalesForm() {
             r?.delivery_note_no;
 
           if (noFromRetur) {
-            // Untuk VIEW/EDIT, kita hanya perlu memuat SJ yang spesifik, tidak semua
             const target = normNo(noFromRetur);
-            // Coba cari dari cache dulu, jika tidak ada baru fetch
-            const found = await findSJByNo(target);
+            const found = enriched.find(
+              (sj) => normNo(getNoSJ(sj)) === target
+            );
             sjId = toNum(found?.id);
           }
         }
@@ -439,24 +462,7 @@ export default function ReturSalesForm() {
           sopir: r?.sopir || p.sopir || "",
           keterangan: r?.keterangan_retur || r?.keterangan || "",
         }));
-      } else {
-        // CREATE mode - hanya load SJ yang delivered
-        const res = await getAllDeliveryNotes(user?.token);
-        const list = Array.isArray(res?.surat_jalan_list)
-          ? res.surat_jalan_list
-          : Array.isArray(res?.suratJalans)
-          ? res.suratJalans
-          : Array.isArray(res?.data)
-          ? res.data
-          : [];
-
-        const delivered = list.filter(
-          (sj) => Number(sj.delivered_status ?? 0) === 1
-        );
-        const enriched = await enrichSJOptions(delivered);
-        setSjOptions(enriched);
       }
-
     } catch (err) {
       console.error(err);
       Swal.fire("Error", err?.message || "Gagal memuat data.", "error");
@@ -464,6 +470,7 @@ export default function ReturSalesForm() {
       setLoading(false);
     }
   });
+
 
   // Tambahkan fungsi helper untuk mencari SJ by nomor
   async function findSJByNo(noSJ) {
@@ -680,12 +687,9 @@ export default function ReturSalesForm() {
         return;
       }
       
-      // Untuk CREATE mode, load detail SJ
-      if (!hasId) {
-        setLoading(false);
-        await loadSJDetailById(sj.id);
-      }
-      // Untuk VIEW/EDIT, kita sudah punya data dari retur
+      // Untuk semua mode, load detail SJ
+      setLoading(true);
+      await loadSJDetailById(sj.id);
     } catch (err) {
       console.error(err);
       Swal.fire(
@@ -755,12 +759,11 @@ export default function ReturSalesForm() {
     return formatList(uniq, limit);
   }
 
-  // hide roll yang sudah dipilih (sj_roll_selected_status = 1)
-  // KECUALI: saat EDIT, kalau roll itu milik retur ini, tetap tampil.
   function isReturnedRoll(r) {
     const rid = Number(r?.id);
     if (!Number.isFinite(rid)) return false;
 
+    // PERBAIKAN: Handle berbagai format field status
     const alreadySelected =
       Number(r?.sj_roll_selected_status ?? r?.selected_status ?? 0) === 1;
 
@@ -774,17 +777,20 @@ export default function ReturSalesForm() {
   }
 
   function sjItemIdFromItem(it) {
-    const direct = toNum(it?.sj_item_id ?? it?.id_sj ?? it?.sji_id);
+    // Coba ambil dari berbagai kemungkinan field
+    const direct = toNum(it?.sj_item_id ?? it?.id_sj ?? it?.sji_id ?? it?.id);
     if (direct) return direct;
 
     const retMap = returExistingByItem();
     for (const [sjId, set] of retMap.entries()) {
       if ((it?.rolls || []).some((r) => set.has(toNum(r?.id)))) return sjId;
     }
+    
     for (const r of it?.rolls || []) {
       const viaRoll = toNum(r?.sj_item_id ?? r?.sji_item_id ?? r?.sjItemId);
       if (viaRoll) return viaRoll;
     }
+    
     return null;
   }
 
@@ -883,6 +889,30 @@ export default function ReturSalesForm() {
           if (isReturnedRoll(r)) continue;
         }
 
+        // PERBAIKAN UTAMA: Gunakan field yang benar dari response
+        // Untuk data Surat Jalan, gunakan all_meter dan all_yard
+        // Untuk data Retur, gunakan meter_roll dan yard_roll
+        const meterValue = Number(
+          r.all_meter || // dari data SJ
+          r.meter_roll || // dari data retur
+          r.meter || 
+          0
+        );
+        
+        const yardValue = Number(
+          r.all_yard || // dari data SJ
+          r.yard_roll || // dari data retur  
+          r.yard ||
+          0
+        );
+
+        const kilogramValue = Number(
+          r.all_kilogram || // dari data SJ
+          r.kilogram_roll || // dari data retur  
+          r.kilogram ||
+          0
+        );
+
         g.rolls.push({
           id: r.id,
           pli_roll_id: r.pli_roll_id,
@@ -890,9 +920,10 @@ export default function ReturSalesForm() {
           col_num: r.col_num,
           no_bal: r.no_bal,
           lot: r.lot ?? it.lot ?? "-",
-          meter: Number(r.meter || 0),
-          yard: Number(r.yard || 0),
-          kilogram: Number(r.kilogram || 0),
+          meter: meterValue,
+          yard: yardValue,
+          kilogram: kilogramValue,
+          kilogram: Number(r.all_kilogram || r.kilogram_roll || r.kilogram || 0),
         });
       }
     }
@@ -905,25 +936,29 @@ export default function ReturSalesForm() {
     if (isView) {
       let pcs = g.rolls.length,
         m = 0,
-        y = 0;
+        y = 0,
+        kg = 0;
       for (const r of g.rolls) {
         m += r.meter;
         y += r.yard;
+        kg += r.kilogram;
       }
-      return { pcs, m, y };
+      return { pcs, m, y, kg };
     }
     returChecked();
     let pcs = 0,
       m = 0,
       y = 0;
+      kg = 0;
     for (const r of g.rolls) {
       if (returChecked().get(r.id)) {
         pcs += 1;
         m += r.meter;
         y += r.yard;
+        kg += r.kilogram;
       }
     }
-    return { pcs, m, y };
+    return { pcs, m, y, kg };
   }
 
   function calcPLSelected(groups) {
@@ -934,9 +969,10 @@ export default function ReturSalesForm() {
         acc.pcs += t.pcs;
         acc.m += t.m;
         acc.y += t.y;
+        acc.kg += t.kg;
         return acc;
       },
-      { pcs: 0, m: 0, y: 0 }
+      { pcs: 0, m: 0, y: 0, kg: 0, }
     );
   }
   function calcAllSelected(detail) {
@@ -948,9 +984,10 @@ export default function ReturSalesForm() {
         acc.pcs += t.pcs;
         acc.m += t.m;
         acc.y += t.y;
+        acc.kg += t.kg;
         return acc;
       },
-      { pcs: 0, m: 0, y: 0 }
+      { pcs: 0, m: 0, y: 0, kg: 0 }
     );
   }
 
@@ -1550,6 +1587,7 @@ export default function ReturSalesForm() {
                               <th class="border px-2 py-1 w-[8%]">Lot</th>
                               <th class="border px-2 py-1 w-[8%]">Meter</th>
                               <th class="border px-2 py-1 w-[8%]">Yard</th>
+                              <th class="border px-2 py-1 w-[8%]">Kilogram</th>
                               {/* Hanya tampilkan kolom Retur untuk CREATE/EDIT, dan Status untuk VIEW */}
                               <Show when={!isView}>
                                 <th class="border px-2 py-1 w-[8%]">Retur</th>
@@ -1590,6 +1628,9 @@ export default function ReturSalesForm() {
                                     </td>
                                     <td class="border px-2 py-1 text-right">
                                       {formatNumber(r.yard)}
+                                    </td>
+                                    <td class="border px-2 py-1 text-right">
+                                      {formatNumber(r.kilogram)}
                                     </td>
 
                                     <Show when={!isView}>
@@ -1639,6 +1680,9 @@ export default function ReturSalesForm() {
                                 <td class="border px-2 py-1 text-right">
                                   {formatNumber(subSel().y)}
                                 </td>
+                                <td class="border px-2 py-1 text-right">
+                                  {formatNumber(subSel().kg)}
+                                </td>
                                 <td class="border px-2 py-1 text-center">
                                   TTL/PCS: {subSel().pcs}
                                 </td>
@@ -1664,6 +1708,7 @@ export default function ReturSalesForm() {
                 <tr>
                   <th class="px-4 py-2 border">Total Meter</th>
                   <th class="px-4 py-2 border">Total Yard</th>
+                  <th class="px-4 py-2 border">Total Kilogram</th>
                   <Show when={isView && showFinance()}>
                     <th class="px-4 py-2 border">Total Harga Retur</th>
                   </Show>
@@ -1682,6 +1727,9 @@ export default function ReturSalesForm() {
                         </td>
                         <td class="px-4 py-2 border text-right">
                           {formatNumber(t.y)}
+                        </td>
+                        <td class="px-4 py-2 border text-right">
+                          {formatNumber(t.kg)}
                         </td>
                         <Show when={isView && showFinance()}>
                           <td class="px-4 py-2 border text-right">
