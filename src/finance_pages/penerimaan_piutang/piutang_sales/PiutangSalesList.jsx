@@ -43,7 +43,19 @@ export default function PiutangSalesList() {
     const tahun = tanggal.getFullYear();
 
     return `${tanggalNum} ${bulan} ${tahun}`;
-  }  
+  }
+
+  const formatIDR = (val) => {
+    const num = typeof val === "string" ? parseFloat(val) : (val || 0);
+    if (num === 0) return "";
+    
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  };
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
@@ -141,8 +153,10 @@ export default function PiutangSalesList() {
               <th class="py-2 px-4">No</th>
               <th class="py-2 px-4">No Penerimaan Piutang</th>
               <th class="py-2 px-4">No SJ</th>
+              <th class="py-2 px-4">Nama Customer</th>
               <th class="py-2 px-4">Tanggal Jatuh Tempo</th>
               <th class="py-2 px-4">Tanggal Penerimaan</th>
+              <th class="py-2 px-4">Nominal Penerimaan</th>
               <th class="py-2 px-2">Payment Method</th>
               <th class="py-2 px-2">Aksi</th>
             </tr>
@@ -153,8 +167,10 @@ export default function PiutangSalesList() {
                 <td class="py-2 px-4">{(currentPage() - 1) * pageSize + (index + 1)}</td>
                 <td class="py-2 px-4">{pp.no_penerimaan}</td>
                 <td class="py-2 px-4">{pp.no_sj}</td>
+                <td class="py-2 px-4">{pp.customer_name}</td>
                 <td class="py-2 px-4">{formatTanggal(pp.tanggal_jatuh_tempo || "-")}</td>
                 <td class="py-2 px-4">{formatTanggal(pp.tanggal_pembayaran || "-")}</td>
+                <td class="py-2 px-4">{formatIDR(pp.pembayaran || "0,00")}</td>
                 <td class="py-2 px-4">{pp.payment_method_name || "-"}</td>
                 <td class="py-2 px-4 space-x-2">
                   <button
