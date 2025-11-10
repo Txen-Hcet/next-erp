@@ -46,7 +46,7 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
             no_sj: r.no_sj ?? '-',
             relasi: r.relasi ?? (r.supplier_name ?? r.customer_name) ?? '-',
             no_ref: r.no_ref ?? '-',
-            unit: r.unit ?? (r.satuan_unit_name ?? 'Meter'),
+            unit: r.unit ?? (r.satuan_unit ?? r.satuan_unit_name) ?? 'Meter',
           },
           items: []
         };

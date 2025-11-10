@@ -116,7 +116,7 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
               row.customer_name ??
               "-",
             no_ref: pick(data.no_po, data.no_pc, data.no_jb, data.no_so, "-"),
-            unit: data.satuan_unit_name || "Meter",
+            unit: data.satuan_unit_name || data.satuan_unit || "Meter",
           };
 
           const items = itemsFromApi.map((item) => {
@@ -162,7 +162,7 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
           no_sj: row.no_sj ?? "-",
           relasi: data.supplier_name ?? data.customer_name ?? "-",
           no_ref: pick(data.no_po, data.no_pc, data.no_jb, data.no_so, "-"),
-          unit: data.satuan_unit_name || "Meter",
+          unit: data.satuan_unit_name || data.satuan_unit || "Meter",
         };
 
         const flatRows = itemsForPurchase.map((item, idx) => {
