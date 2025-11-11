@@ -923,7 +923,7 @@ export default function ReturSalesForm() {
           meter: meterValue,
           yard: yardValue,
           kilogram: kilogramValue,
-          kilogram: Number(r.all_kilogram || r.kilogram_roll || r.kilogram || 0),
+          //kilogram: Number(r.all_kilogram || r.kilogram_roll || r.kilogram || 0),
         });
       }
     }
@@ -948,7 +948,7 @@ export default function ReturSalesForm() {
     returChecked();
     let pcs = 0,
       m = 0,
-      y = 0;
+      y = 0,
       kg = 0;
     for (const r of g.rolls) {
       if (returChecked().get(r.id)) {
