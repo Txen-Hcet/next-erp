@@ -254,7 +254,23 @@ export default function BGPurchaseOrderForm() {
     }).format(val);
   };
 
+  const validateContractSelected = () => {
+    return !!form().pc_id;
+  };
+
   const generateNomorKontrak = async () => {
+    if (!validateContractSelected()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Pilih Contract Terlebih Dahulu',
+        text: 'Silakan pilih Purchase Contract sebelum generate nomor PO.',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
+      });
+      return;
+    }
+
     const lastSeq = await getLastSequence(
       user?.token,
       "bg_o",
