@@ -1,14 +1,19 @@
 import MainLayout from "../layouts/MainLayout";
-import { onMount, createSignal, createEffect, For, Show } from "solid-js";
+import { onMount, createSignal, createMemo, createEffect, For, Show } from "solid-js";
 import ApexChart from "../components/ApexChart";
-import { Printer, FileSpreadsheet } from "lucide-solid";
+import { Printer, FileSpreadsheet, Funnel } from "lucide-solid";
 import Litepicker from "litepicker";
 import Swal from "sweetalert2";
 import { exportDeliveryNotesToExcel } from "../helpers/export_excel/delivery-notes-excel-export";
 import { exportPOStatusToExcel } from "../helpers/export_excel/po-status-excel-export";
 import { exportSummaryToExcel } from "../helpers/export_excel/summary-excel-export";
 
+import OutstandingPreviewModal from "./reports/OutstandingPreviewModal";
 import CustomerDropdownSearch from "../components/CustomerDropdownSearch";
+import SupplierDropdownOutstanding from "../components/SupplierDropdownOutstanding";
+import ColorDropdownOutstanding from "../components/ColorDropdownOutstanding";
+import FabricDropdownOutstanding from "../components/FabricDropdownOutstanding";
+import CustomerDropdownOutstanding from "../components/CustomerDropdownOutstanding";
 
 // ==== IMPORT ENDPOINTS ====
 import {
@@ -42,6 +47,12 @@ import {
   getOrderCelupOrders,
   getKainJadiOrders,
   getJualBelis,
+  
+  // ==== DATA MASTER ====
+  getAllSuppliers,
+  getAllColors,
+  getAllFabrics,
+  getAllCustomers,
   getUser,
 } from "../utils/auth";
 
@@ -55,6 +66,26 @@ const [salesCustomerForm, setSalesCustomerForm] = createSignal({ customer_id: nu
 
 export default function Dashboard() {
   const user = getUser();
+
+  // ==== STATE UNTUK FILTER OUTSTANDING ====
+  const [outstandingFilters, setOutstandingFilters] = createSignal({});
+  const [outstandingLoading, setOutstandingLoading] = createSignal(false);
+  const [filterButtonLoading, setFilterButtonLoading] = createSignal(false);
+  const [applyFilterLoading, setApplyFilterLoading] = createSignal(false);
+  const [showOutstandingModal, setShowOutstandingModal] = createSignal(false);
+  const [currentOutstandingBlock, setCurrentOutstandingBlock] = createSignal(null);
+  const [showOutstandingPreview, setShowOutstandingPreview] = createSignal(false);
+  const [previewData, setPreviewData] = createSignal({
+    block: null,
+    poRows: [],
+    outstanding_filter: null
+  });
+  const [masterData, setMasterData] = createSignal({
+    suppliers: [],
+    colors: [],
+    fabrics: [],
+    customers: []
+  });
 
   // ==== FORMATTERS ====
   const formatTanggalIndo = (tanggalString) => {
@@ -205,6 +236,307 @@ export default function Dashboard() {
     return startDate() || endDate();
   };
 
+  // ==== FUNGSI UNTUK FILTER OUTSTANDING ====
+  const loadMasterData = async () => {
+    try {
+      const [suppliersRes, colorsRes, fabricsRes, customersRes] = await Promise.all([
+        getAllSuppliers(user?.token),
+        getAllColors(user?.token),
+        getAllFabrics(user?.token),
+        getAllCustomers(user?.token)
+      ]);
+
+      // Ekstrak dan normalisasi data suppliers
+      const suppliersArray = suppliersRes?.suppliers || suppliersRes?.data || suppliersRes || [];
+      const mappedSuppliers = suppliersArray.map(s => ({ 
+        ...s,
+        id: s.id,
+        nama: s.nama || s.name,
+        kode: s.kode || s.supplier_kode
+      }));
+
+      // Ekstrak dan normalisasi data colors
+      const colorsArray = colorsRes?.warna || colorsRes?.data || colorsRes || [];
+      const mappedColors = colorsArray.map(c => ({
+        ...c,
+        id: c.id,
+        kode_warna: c.kode_warna || c.kode,
+        deskripsi_warna: c.deskripsi_warna || c.deskripsi,
+        nama: c.nama
+      }));
+
+      // Ekstrak dan normalisasi data fabrics
+      const fabricsArray = fabricsRes?.kain || fabricsRes?.data || fabricsRes || [];
+      const mappedFabrics = fabricsArray.map(f => ({
+        ...f, 
+        id: f.id,
+        corak_kain: f.corak_kain || f.corak,
+        konstruksi_kain: f.konstruksi_kain || f.konstruksi,
+        nama: f.nama
+      }));
+
+      const customersArray = customersRes?.customers || customersRes?.data || customersRes || [];
+      const mappedCustomers = customersArray.map(c => ({
+        ...c,
+        id: c.id,
+        nama: c.nama || c.name,
+        kode: c.kode || c.customer_kode
+      }));
+
+      setMasterData({
+        suppliers: mappedSuppliers,
+        colors: mappedColors,
+        fabrics: mappedFabrics,
+        customers: mappedCustomers,
+      });
+      
+    } catch (error) {
+      console.error("Gagal memuat data master:", error);
+    }
+  };
+
+  const openOutstandingFilter = async (block) => {
+    setFilterButtonLoading(true);
+    setCurrentOutstandingBlock(block);
+    
+    try {
+      const isPenjualan = block.mode === "penjualan";
+
+      // Load filter yang sudah ada untuk block ini
+      const existingFilter = outstandingFilters()[block.key] || {
+        // Untuk penjualan: customer_id, untuk pembelian: supplier_id
+        ...(isPenjualan ? { customer_id: null } : { supplier_id: null }),
+        color_id: null,
+        fabric_id: null,
+        start_date: startDate(),
+        end_date: endDate(),    
+      };
+        
+      setOutstandingFilters(prev => ({
+        ...prev,
+        [block.key]: existingFilter
+      }));
+      
+      // Tampilkan modal filter outstanding
+      setShowOutstandingModal(true);
+    } catch (error) {
+      console.error("Error opening filter modal:", error);
+      Swal.fire("Error", "Gagal membuka filter", "error");
+    } finally {
+      setFilterButtonLoading(false);
+    }
+  };
+
+  const applyFilterFromPreview = async () => {
+    setApplyFilterLoading(true);
+    const preview = previewData();
+    
+    try {
+      if (preview.block && preview.outstanding_filter) {
+        setOutstandingFilters(prev => ({
+          ...prev,
+          [preview.block.key]: preview.outstanding_filter
+        }));
+        setShowOutstandingPreview(false);
+        
+        // Tampilkan loading di dashboard selama reload data
+        setLoading(true);
+        await reloadData(); // Reload data dengan filter yang baru
+      }
+    } catch (error) {
+      console.error("Error applying filter:", error);
+      Swal.fire("Error", "Gagal menerapkan filter", "error");
+    } finally {
+      setApplyFilterLoading(false);
+    }
+  };
+
+  // Fungsi untuk cancel filter dari preview  
+  const cancelFilterFromPreview = () => {
+    setShowOutstandingPreview(false);
+  };
+
+  const applyOutstandingFilter = async () => {
+    setOutstandingLoading(true);
+    setShowOutstandingModal(false);
+    try {
+      await reloadData(); // Reload data dengan filter outstanding baru
+    } catch (error) {
+      console.error("Error applying outstanding filter:", error);
+    } finally {
+      setOutstandingLoading(false);
+    }
+  }
+
+  const clearOutstandingFilter = async (blockKey) => {
+    setOutstandingLoading(true);
+    try {
+      setOutstandingFilters(prev => {
+        const newFilters = { ...prev };
+        delete newFilters[blockKey];
+        return newFilters;
+      });
+      await reloadData();
+    } catch (error) {
+      console.error("Error clearing outstanding filter:", error);
+      Swal.fire("Error", "Gagal menghapus filter", "error");
+    } finally {
+      setOutstandingLoading(false);
+    }
+  };
+
+  const getOutstandingFilterLabel = (block) => {
+    const filter = outstandingFilters()[block?.key];
+    
+    const parts = [];
+
+    // Tampilkan filter customer dari salesCustomerForm untuk penjualan
+    if (block.mode === "penjualan") {
+      const customerFromForm = salesCustomerForm().customer_id 
+        ? masterData().customers.find(c => c.id == salesCustomerForm().customer_id)
+        : null;
+        
+      const customerFromFilter = filter?.customer_id 
+        ? masterData().customers.find(c => c.id == filter.customer_id)
+        : null;
+
+      if (customerFromForm) {
+        parts.push(`Customer: ${customerFromForm.nama}`);
+      }
+      if (customerFromFilter && customerFromFilter.id !== customerFromForm?.id) {
+        parts.push(`Customer (Filter): ${customerFromFilter.nama}`);
+      }
+    }
+
+    if (filter) {
+      if (filter.start_date && filter.end_date) {
+        parts.push(`Tanggal: ${filter.start_date} s/d ${filter.end_date}`);
+      }
+      
+      // Untuk penjualan, jika ada customer_id di outstanding filter, tampilkan juga
+      if (block.mode === "penjualan" && filter.customer_id) {
+        const customer = masterData().customers.find(c => c.id == filter.customer_id);
+        if (customer) parts.push(`Customer (Filter): ${customer.nama}`);
+      }
+      
+      // Untuk pembelian, tampilkan supplier
+      if (block.mode === "pembelian" && filter.supplier_id) {
+        const supplier = masterData().suppliers.find(s => s.id == filter.supplier_id);
+        if (supplier) parts.push(`Supplier: ${supplier.nama || supplier.name}`);
+      }
+      
+      if (filter.color_id) {
+        const color = masterData().colors.find(c => c.id == filter.color_id);
+        if (color) parts.push(`Warna: ${color.kode_warna || color.kode}`);
+      }
+      if (filter.fabric_id) {
+        const fabric = masterData().fabrics.find(f => f.id == filter.fabric_id);
+        if (fabric) parts.push(`Kain: ${fabric.corak_kain || fabric.corak}`);
+      }
+    }
+
+    return parts.length > 0 ? parts.join(", ") : null;
+  };
+
+  // Fungsi untuk memfilter PO berdasarkan kriteria outstanding
+  const filterPOByOutstanding = (poRows, blockKey, mode = "pembelian") => {
+    const filter = outstandingFilters()[blockKey];
+
+    // Jika tidak ada filter outstanding, tetap terapkan filter customer dari salesCustomerForm untuk penjualan
+    if (!filter) {
+      if (mode === "penjualan" && salesCustomerForm().customer_id) {
+        return poRows.filter(po => matchesCustomer(po, salesCustomerForm().customer_id));
+      }
+      return poRows;
+    }
+
+    return poRows.filter(po => {
+      // Filter customer untuk penjualan
+      if (mode === "penjualan") {
+        const targetCustomerId = filter.customer_id || salesCustomerForm().customer_id;
+        if (targetCustomerId && !matchesCustomer(po, targetCustomerId)) {
+          return false;
+        }
+      } else {
+        // Pembelian - filter supplier
+        if (filter.supplier_id && po.supplier_id != filter.supplier_id) {
+          return false;
+        }
+      }
+
+      // Filter warna dan kain
+      if (filter.color_id || filter.fabric_id) {
+        const hasMatchingItem = po.items?.some(item => {
+          // Dapatkan kode warna dari filter color_id
+          const filterColor = masterData().colors.find(c => c.id == filter.color_id);
+          const filterColorCode = filterColor?.kode_warna || filterColor?.kode;
+          
+          // Dapatkan corak kain dari filter fabric_id  
+          const filterFabric = masterData().fabrics.find(f => f.id == filter.fabric_id);
+          const filterFabricPattern = filterFabric?.corak_kain || filterFabric?.corak;
+
+          // CARI FIELD WARNA DENGAN BERBAGAI KEMUNGKINAN
+          let itemColor = null;
+          const colorFields = ['kode_warna', 'warna_kode', 'color_code', 'warna', 'color', 'warna_nama'];
+          for (const field of colorFields) {
+            if (item[field]) {
+              itemColor = item[field];
+              break;
+            }
+          }
+
+          // CARI FIELD CORAK DENGAN BERBAGAI KEMUNGKINAN
+          let itemCorak = null;
+          const corakFields = ['corak_kain', 'corak', 'fabric_pattern', 'fabric', 'kain_nama'];
+          for (const field of corakFields) {
+            if (item[field]) {
+              itemCorak = item[field];
+              break;
+            }
+          }
+
+          // Filter warna
+          const colorMatch = !filter.color_id || 
+            (itemColor && filterColorCode && itemColor.toString().trim() === filterColorCode.toString().trim());
+          
+          // Filter kain
+          const fabricMatch = !filter.fabric_id ||
+            (itemCorak && filterFabricPattern && itemCorak.toString().trim() === filterFabricPattern.toString().trim());
+
+          return colorMatch && fabricMatch;
+        });
+
+        if (!hasMatchingItem) {
+          return false;
+        }
+      }
+
+      // Filter tanggal outstanding
+      if (filter.start_date || filter.end_date) {
+        const poDate = new Date(po.created_at || po.tanggal);
+        const poDateOnly = new Date(poDate.getFullYear(), poDate.getMonth(), poDate.getDate()).getTime();
+        
+        if (filter.start_date) {
+          const startDate = new Date(filter.start_date);
+          const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+          if (poDateOnly < startDateOnly) {
+            return false;
+          }
+        }
+        
+        if (filter.end_date) {
+          const endDate = new Date(filter.end_date);
+          const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
+          if (poDateOnly > endDateOnly) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  };
+
   // ---- helpers
   const rowsFromResponse = (res) => {
     const cand = [
@@ -284,84 +616,60 @@ export default function Dashboard() {
 
   const buildCustomerListFromRows = (rows = []) => {
     const map = new Map();
+    
     for (const r of rows || []) {
-      // coba beberapa kemungkinan lokasi id
-      let id =
-        r?.customer_id ??
-        r?.customer?.id ??
-        r?.buyer_id ??
-        r?.buyer?.id ??
-        r?.mainRow?.customer_id ??
-        r?.mainRow?.customer?.id ??
-        null;
+      let id = r?.customer_id || r?.buyer_id || r?.customer?.id || r?.buyer?.id;
+      let kode = r?.customer_kode || r?.buyer_kode || r?.customer?.kode || r?.buyer?.kode || "";
+      let nama = r?.customer_name || r?.buyer_name || r?.customer?.name || r?.customer?.nama || r?.buyer?.nama || "";
 
-      const kode =
-        r?.customer_kode ??
-        r?.customer?.kode ??
-        r?.kode_customer ??
-        r?.kode ??
-        r?.buyer?.kode ??
-        "";
-
-      const nama =
-        r?.customer_name ??
-        r?.customer?.name ??
-        r?.customer?.nama ??
-        r?.buyer_name ??
-        r?.buyer?.nama ??
-        r?.mainRow?.customer_name ??
-        r?.name ??
-        "";
-
-      // jika tidak ada id, fallback ke "name:" key agar tetap unik per nama
+      // Jika tidak ada id, tapi ada nama, gunakan nama sebagai identifier
       const mapKey = id ? String(id) : nama ? `name:${nama}` : null;
       if (!mapKey) continue;
 
       if (!map.has(mapKey)) {
-        // simpan id sama persis (bisa number atau "name:...") — konsisten saat dipilih
         map.set(mapKey, {
-          id: id ?? `name:${nama}`, // id akan dipakai sebagai nilai pilihan di dropdown
+          id: id || `name:${nama}`, // Jika tidak ada ID, gunakan format name:Nama
           kode,
           nama,
         });
       }
     }
+    
     return Array.from(map.values());
   };
 
   // util untuk cek apakah baris cocok dengan selectedCustomerId (bisa number id atau "name:..." fallback)
   const matchesCustomer = (row, selectedCustomerId) => {
-    if (!selectedCustomerId) return true; // tidak ada filter → cocok semua
+    if (!selectedCustomerId) return true;
 
-    // kandidat id dari row (bila ada)
-    const cid =
-      row?.customer_id ??
-      row?.customer?.id ??
-      row?.buyer_id ??
-      row?.buyer?.id ??
-      null;
-
-    // kandidat nama dari row
-    const cname =
-      row?.customer_name ??
-      row?.customer?.name ??
-      row?.customer?.nama ??
-      row?.buyer_name ??
-      row?.buyer?.nama ??
-      null;
-
-    // normalize jadi string
     const sel = String(selectedCustomerId);
+    
+    // **PERBAIKAN: Untuk penjualan, gunakan customer_name sebagai fallback**
+    const cid = row?.customer_id || row?.buyer_id || row?.customer?.id || row?.buyer?.id;
+    const cname = row?.customer_name || row?.buyer_name || row?.customer?.name || row?.customer?.nama || row?.buyer?.nama;
 
-    // 3 kemungkinan match:
-    // 1) id cocok (nomor/str)
-    if (cid !== null && String(cid) === sel) return true;
+    // 1) match by id (jika ada)
+    if (cid !== null && cid !== undefined && String(cid) === sel) {
+      return true;
+    }
 
-    // 2) nama based key match: "name:Nama Customer"
-    if (cname && `name:${cname}` === sel) return true;
+    // 2) match by name key "name:Nama"
+    if (cname && `name:${cname}` === sel) {
+      return true;
+    }
 
-    // 3) langsung kalau selectedCustomerId equals nama (jika ada scenario ini)
-    if (cname && String(cname) === sel) return true;
+    // 3) direct name equality
+    if (cname && String(cname) === sel) {
+      return true;
+    }
+
+    // **PERBAIKAN BARU: 4) Cari customer di masterData berdasarkan selectedCustomerId dan bandingkan nama**
+    if (cname && masterData().customers.length > 0) {
+      const selectedCustomer = masterData().customers.find(c => c.id == selectedCustomerId);
+      if (selectedCustomer && selectedCustomer.nama && cname.toLowerCase() === selectedCustomer.nama.toLowerCase()) {
+        return true;
+      }
+    }
 
     return false;
   };
@@ -442,12 +750,65 @@ export default function Dashboard() {
         let poRows = [];
         try {
           const poList = await PO_LIST_FETCHER[key]?.(user?.token);
-          const list = filterByDate(rowsFromResponse(poList)); // field created_at sama
-          poRows = Array.isArray(list) ? list : [];
-        } catch {
+          const list = filterByDate(rowsFromResponse(poList));
+          
+          // FETCH DETAIL SETIAP PO UNTUK DAPATKAN DATA LENGKAP
+          poRows = await Promise.all(
+            list.map(async (po) => {
+              try {
+                const detail = await PO_DETAIL_FETCHER[key]?.(po.id, user?.token);
+                
+                // DEBUG DETAIL RESPONSE
+                // console.log(`=== DETAIL RESPONSE FOR PO ${po.id} (${key}) ===`);
+                // console.log("Detail response structure:", JSON.stringify({
+                //   hasDetail: !!detail,
+                //   detailKeys: detail ? Object.keys(detail) : [],
+                //   hasOrder: detail?.order ? Object.keys(detail.order) : [],
+                //   hasMainRow: detail?.mainRow ? Object.keys(detail.mainRow) : [],
+                //   orderItems: detail?.order?.items ? detail.order.items.length : 0,
+                //   mainRowItems: detail?.mainRow?.items ? detail.mainRow.items.length : 0
+                // }, null, 2));
+
+                // CARI ITEMS DARI BERBAGAI LOKASI YANG MUNGKIN
+                let items = [];
+                if (detail?.order?.items) {
+                  items = detail.order.items;
+                  //console.log(`Using items from detail.order.items for PO ${po.id}`);
+                } else if (detail?.mainRow?.items) {
+                  items = detail.mainRow.items;
+                  //console.log(`Using items from detail.mainRow.items for PO ${po.id}`);
+                } else if (detail?.items) {
+                  items = detail.items;
+                  //console.log(`Using items from detail.items for PO ${po.id}`);
+                } else if (po.items) {
+                  items = po.items;
+                  //console.log(`Using items from po.items for PO ${po.id}`);
+                }
+
+                // DEBUG ITEMS STRUCTURE
+                // if (items.length > 0) {
+                //   console.log(`=== ITEMS STRUCTURE FOR PO ${po.id} ===`);
+                //   console.log("First item:", JSON.stringify(items[0], null, 2));
+                //   console.log("First item keys:", JSON.stringify(Object.keys(items[0]), null, 2));
+                // }
+
+                return {
+                  ...po,
+                  items: items,
+                  // Pastikan supplier_id tersedia
+                  supplier_id: po.supplier_id || detail?.order?.supplier_id || detail?.mainRow?.supplier_id
+                };
+              } catch (error) {
+                console.error(`Gagal fetch detail PO ${po.id}:`, error);
+                return po; // Fallback ke data asli
+              }
+            })
+          );
+        } catch (error) {
+          console.error(`Gagal fetch PO list untuk ${key}:`, error);
           poRows = [];
         }
-
+        
         // Simpan data asli customer
         const originalPoRows = Array.isArray(poRows) ? poRows.slice() : [];
 
@@ -461,9 +822,15 @@ export default function Dashboard() {
           matchesCustomer(r, selectedCustomerId)
         );
 
+        // Terapkan filter outstanding untuk pembelian / penjualan
+        let finalPoRows = filteredPoRows;
+        if (sec.key === "pembelian" || sec.key === "penjualan") {
+          finalPoRows = filterPOByOutstanding(filteredPoRows, key, sec.key);
+        }
+
         // override with filtered results (only for penjualan this changes, for pembelian selectedCustomerId is null so no filter)
         sjCount = filteredSJRows.length;
-        poRows = filteredPoRows;
+        poRows = finalPoRows;
 
         // continue processing
         const isGreige = key === "greige";
@@ -560,11 +927,308 @@ export default function Dashboard() {
   onMount(async () => {
     setStartDate("");
     setEndDate("");
+    await loadMasterData(); // Load data master untuk filter
     await reloadData();
   });
 
   const totalCardLabel = (mode) =>
     mode === "penjualan" ? "Total Surat Jalan" : "Total Surat Penerimaan";
+
+  // ==== MODAL FILTER OUTSTANDING ====
+  const OutstandingFilterModal = () => {
+    const block = currentOutstandingBlock();
+    const showModal = showOutstandingModal();
+
+    if (!block || !showModal) {
+      return null;
+    }
+
+    const isPenjualan = block.mode === "penjualan";
+
+    const currentFilter = createMemo(() => {
+      return outstandingFilters()[block.key] || {
+        // Untuk penjualan: customer_id, untuk pembelian: supplier_id
+        ...(isPenjualan ? { customer_id: null } : { supplier_id: null }),
+        color_id: null,
+        fabric_id: null,
+        start_date: startDate(),
+        end_date: endDate()
+      };
+    });
+
+    const handleDateRangeChange = async () => {
+      const { value: rangeVal } = await Swal.fire({
+        title: "Pilih Rentang Tanggal",
+        html: `<input type="text" id="date-range" class="swal2-input" placeholder="Klik untuk pilih rentang" value="${currentFilter().start_date && currentFilter().end_date ? `${currentFilter().start_date} - ${currentFilter().end_date}` : ''}">`,
+        didOpen: () => {
+          new Litepicker({
+            element: document.getElementById("date-range"),
+            singleMode: false,
+            format: "YYYY-MM-DD",
+            autoApply: true,
+            numberOfMonths: 2,
+            numberOfColumns: 2,
+          });
+        },
+        preConfirm: () => {
+          const val = document.getElementById("date-range").value;
+          if (!val) {
+            Swal.showValidationMessage("Rentang tanggal wajib dipilih!");
+            return null;
+          }
+          const [start, end] = val.split(" - ");
+          return { start, end };
+        },
+        showCancelButton: true,
+        confirmButtonText: "Terapkan",
+        cancelButtonText: "Batal",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+      });
+
+      if (rangeVal) {
+        setOutstandingFilters(prev => ({
+          ...prev,
+          [block.key]: {
+            ...prev[block.key],
+            start_date: rangeVal.start,
+            end_date: rangeVal.end
+          }
+        }));
+        // Juga update filter global
+        // setStartDate(rangeVal.start);
+        // setEndDate(rangeVal.end);
+      }
+    };
+
+    // Handler untuk perubahan
+    const handleSupplierChange = (supplierId) => {
+      setOutstandingFilters(prev => ({
+        ...prev,
+        [block.key]: {
+          ...prev[block.key],
+          supplier_id: supplierId
+        }
+      }));
+    };
+
+    const handleCustomerChange = (customerId) => {
+      setOutstandingFilters(prev => ({
+        ...prev,
+        [block.key]: {
+          ...prev[block.key],
+          customer_id: customerId
+        }
+      }));
+    };
+
+    const handleColorChange = (colorId) => {
+      setOutstandingFilters(prev => ({
+        ...prev,
+        [block.key]: {
+          ...prev[block.key],
+          color_id: colorId
+        }
+      }));
+    };
+
+    const handleFabricChange = (fabricId) => {
+      setOutstandingFilters(prev => ({
+        ...prev,
+        [block.key]: {
+          ...prev[block.key],
+          fabric_id: fabricId
+        }
+      }));
+    };
+
+  const handlePreviewFilter = async () => {
+    setOutstandingLoading(true);
+    try {
+      // Ambil data PO untuk block ini
+      let poRows = [];
+      const poList = await PO_LIST_FETCHER[block.key]?.(user?.token);
+      const list = filterByDate(rowsFromResponse(poList));
+      
+      // Fetch detail setiap PO
+      poRows = await Promise.all(
+        list.map(async (po) => {
+          try {
+            const detail = await PO_DETAIL_FETCHER[block.key]?.(po.id, user?.token);
+            let items = [];
+            
+            if (detail?.order?.items) {
+              items = detail.order.items;
+            } else if (detail?.mainRow?.items) {
+              items = detail.mainRow.items;
+            } else if (detail?.items) {
+              items = detail.items;
+            } else if (po.items) {
+              items = po.items;
+            }
+
+            return {
+              ...po,
+              items: items,
+              supplier_id: po.supplier_id || detail?.order?.supplier_id || detail?.mainRow?.supplier_id
+            };
+          } catch (error) {
+            console.error(`Gagal fetch detail PO ${po.id}:`, error);
+            return po;
+          }
+        })
+      );
+      
+      const currentFilter = outstandingFilters()[block.key];
+      
+      // Buat filter gabungan yang konsisten
+      const combinedFilter = {
+        ...currentFilter,
+        // Untuk penjualan, selalu sertakan customer_id dari salesCustomerForm jika ada
+        ...(block.mode === "penjualan" && salesCustomerForm().customer_id 
+          ? { customer_id: salesCustomerForm().customer_id }
+          : {})
+      };
+      
+      const filteredPoRows = filterPOByOutstanding(poRows, block.key, block.mode);
+      
+      // Set data untuk preview - TAMBAHKAN CUSTOMER_ID
+      setPreviewData({
+        block: block,
+        poRows: filteredPoRows,
+        outstanding_filter: combinedFilter, // GUNAKAN COMBINED FILTER
+        customer_id: block.mode === "penjualan" ? salesCustomerForm().customer_id : null
+      });
+      
+      // Tutup modal filter dan buka modal preview
+      setShowOutstandingModal(false);
+      setShowOutstandingPreview(true);
+      
+    } catch (error) {
+      console.error("Error preparing preview data:", error);
+      Swal.fire("Error", "Gagal memuat data preview", "error");
+    } finally {
+      setOutstandingLoading(false);
+    }
+  };
+
+    // Hide filter warna kalau greige
+    const showColorFilter = createMemo(() => {
+      return block.key !== 'greige';
+    });
+
+    return (
+      <div class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <h3 class="text-lg font-semibold mb-4">
+            Filter Outstanding - {block.label}
+          </h3>
+
+          <div class="mb-6">
+            <label class="block text-sm font-medium mb-2">Rentang Tanggal</label>
+            <div class="flex gap-2">
+              <button
+                class="flex-1 px-3 py-2 border border-b rounded text-left bg-white hover:bg-gray-50"
+                onClick={handleDateRangeChange}
+              >
+                {currentFilter().start_date && currentFilter().end_date 
+                  ? `${currentFilter().start_date} s/d ${currentFilter().end_date}`
+                  : "Pilih Rentang Tanggal"}
+              </button>
+              {(currentFilter().start_date || currentFilter().end_date) && (
+                <button
+                  class="px-3 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50"
+                  onClick={() => {
+                    setOutstandingFilters(prev => ({
+                      ...prev,
+                      [block.key]: {
+                        ...prev[block.key],
+                        start_date: null,
+                        end_date: null
+                      }
+                    }));
+                    // setStartDate("");
+                    // setEndDate("");
+                  }}
+                >
+                  Hapus
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            {isPenjualan ? (
+              <div>
+                <label class="block text-sm font-medium mb-1">Customer</label>
+                <CustomerDropdownOutstanding
+                  customers={masterData().customers}
+                  value={currentFilter().customer_id}
+                  onChange={handleCustomerChange}
+                />
+              </div>
+            ) : (
+              <div>
+                <label class="block text-sm font-medium mb-1">Supplier</label>
+                <SupplierDropdownOutstanding
+                  suppliers={masterData().suppliers}
+                  value={currentFilter().supplier_id}
+                  onChange={handleSupplierChange}
+                />
+              </div>
+            )}
+
+            {/* Filter Warna - KEMBALI KE KOMPONEN KUSTOM */}
+            <Show when={showColorFilter()}>
+              <div>
+                <label class="block text-sm font-medium mb-1">Warna</label>
+                <ColorDropdownOutstanding
+                  colors={masterData().colors}
+                  value={currentFilter().color_id}
+                  onChange={handleColorChange}
+                />
+              </div>
+            </Show>
+
+            {/* Filter Kain - KEMBALI KE KOMPONEN KUSTOM */}
+            <div>
+              <label class="block text-sm font-medium mb-1">Kain</label>
+              <FabricDropdownOutstanding
+                fabrics={masterData().fabrics}
+                value={currentFilter().fabric_id}
+                onChange={handleFabricChange}
+              />
+            </div>
+          </div>
+
+          {/* Preview Filter Aktif */}
+          <div class="mt-6 p-4 bg-gray-50 rounded">
+
+          </div>
+
+          <div class="flex justify-end gap-3 mt-6">
+            <button
+              class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+              onClick={() => setShowOutstandingModal(false)}
+              disabled={outstandingLoading()}
+            >
+              Batal
+            </button>
+            <button
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
+              onClick={handlePreviewFilter}
+              disabled={outstandingLoading()}
+            >
+              <Show when={outstandingLoading()}>
+                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </Show>
+              {outstandingLoading() ? 'Memproses...' : 'Preview Filter'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ==== UI ====
   return (
@@ -643,46 +1307,6 @@ export default function Dashboard() {
 
             <For each={section.blocks}>
               {(block) => {
-                // ==== KODE UNTUK DEBUGGING ====
-
-                // (function () {
-                //     try {
-                //       console.groupCollapsed(
-                //         `[DEBUG] Laporan block key=${block?.key ?? "?"} mode=${block?.mode ?? "?"}`
-                //       );
-
-                //       console.log("page URL:", JSON.stringify(window?.location?.href ?? null, null, 2));
-                //       console.log("block keys:", JSON.stringify(Object.keys(block || {}), null, 2));
-                //       console.log("poRows length:", JSON.stringify((block.poRows || []).length, null, 2));
-                //       console.log("customers length:", JSON.stringify((block.customers || []).length, null, 2));
-
-                //       console.log(
-                //         "poRows[0]:",
-                //         JSON.stringify((block.poRows && block.poRows[0]) ?? null, null, 2)
-                //       );
-                //       console.log(
-                //         "poRows first 3:",
-                //         JSON.stringify((block.poRows || []).slice(0, 3), null, 2)
-                //       );
-
-                //       console.log("block.customers:", JSON.stringify(block.customers ?? null, null, 2));
-
-                //       try {
-                //         console.log(
-                //           "salesCustomerForm():",
-                //           JSON.stringify(typeof salesCustomerForm === "function" ? salesCustomerForm() : null, null, 2)
-                //         );
-                //       } catch (e) {
-                //         console.log("salesCustomerForm() read error:", String(e));
-                //       }
-
-                //       console.groupEnd();
-                //     } catch (err) {
-                //       console.error("[DEBUG] unexpected error:", err);
-                //     }
-                //     return null;
-                //   })();
-                
                 // ==== RENDER KHUSUS SUMMARY ====
                 if (section.key === "summary" && block.key === "summary") {
                   const s = block.summaryCounts?.sales ?? {
@@ -812,17 +1436,63 @@ export default function Dashboard() {
                 // ==== RENDER BLOK LAIN (PEMBELIAN / PENJUALAN) ====
                 const [done, notDone] = block.chart.series || [0, 0];
                 const isGreige = block.key === "greige";
+                const outstandingFilterLabel = getOutstandingFilterLabel(block);
+
                 return (
                   <div class="bg-white rounded shadow mb-8">
                     <div class="p-6 border-b">
-                      <h3 class="text-lg font-semibold mb-4">{block.label}</h3>
+                      <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        {/* Tombol Filter Outstanding untuk Pembelian DAN Penjualan */}
+                        {(section.key === "pembelian" || section.key === "penjualan") && (
+                          <div class="flex gap-2">
+                            {outstandingFilterLabel && (
+                              <button
+                                class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                onClick={() => clearOutstandingFilter(block.key)}
+                                disabled={outstandingLoading()}
+                                title="Hapus filter outstanding"
+                              >
+                                <Show when={outstandingLoading()}>
+                                  <div class="w-3 h-3 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                                </Show>
+                                Hapus Filter
+                              </button>
+                            )}
+                            <button
+                              class="flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => openOutstandingFilter(block)}
+                              disabled={filterButtonLoading() || outstandingLoading()}
+                              title="Filter outstanding"
+                            >
+                              <Show when={filterButtonLoading()}>
+                                <div class="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                              </Show>
+                              <Funnel size={16} />
+                              {filterButtonLoading() ? 'Memuat...' : 'Filter Outstanding'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tampilkan Filter Aktif */}
+                      {outstandingFilterLabel && (
+                        <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                          <div class="text-sm font-medium text-yellow-800">
+                            Filter Aktif: {outstandingFilterLabel}
+                          </div>
+                          <div class="text-xs text-yellow-600 mt-1">
+                            Rentang: {currentFilterLabel()}
+                          </div>
+                        </div>
+                      )}
+
                       {section.key === "penjualan" && block.key === "sales" && (
                         <div class="p-4 border-b">
                           <CustomerDropdownSearch
                             customersList={() => block.customers || []}
                             form={salesCustomerForm}
                             setForm={setSalesCustomerForm}
-                            // onChangeCustomer={reloadData}
                           />
                         </div>
                       )}
@@ -859,7 +1529,8 @@ export default function Dashboard() {
                                   startDate: startDate(),
                                   endDate: endDate(),
                                   filterLabel: currentFilterLabel(),
-                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null
+                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null,
+                                  outstanding_filter: (section.key === "pembelian" || section.key === "penjualan") ? outstandingFilters()[block.key] : null
                                 })}>
                                 <FileSpreadsheet size={20} />
                             </button>
@@ -868,7 +1539,8 @@ export default function Dashboard() {
                                   token: user?.token,
                                   startDate: startDate(),
                                   endDate: endDate(),
-                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null
+                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null,
+                                  outstanding_filter: (section.key === "pembelian" || section.key === "penjualan") ? outstandingFilters()[block.key] : null
                                 })}>
                                 <Printer size={20} />
                             </button>
@@ -885,7 +1557,6 @@ export default function Dashboard() {
                             class="text-gray-500 hover:text-green-600"
                             title="Export Laporan ke Excel"
                             onClick={() => {
-                              // ambil selected id saat klik
                               const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null                            
 
                               const filteredPoRows = (block.poRows || []).filter((r) =>
@@ -897,10 +1568,11 @@ export default function Dashboard() {
                                 status: "done",
                                 filterLabel: currentFilterLabel(),
                                 token: user?.token,
-                                poRows: filteredPoRows, // <-- hasil filter
+                                poRows: filteredPoRows,
                                 isGreige: isGreige,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
+                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
                               });
                             }}
                           >
@@ -927,6 +1599,7 @@ export default function Dashboard() {
                                 token: user?.token,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
+                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
                               });
                             }}
                           >
@@ -960,6 +1633,7 @@ export default function Dashboard() {
                                 isGreige: isGreige,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
+                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
                               });
                             }}
                           >
@@ -986,6 +1660,7 @@ export default function Dashboard() {
                                 token: user?.token,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
+                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
                               });
                             }}
                           >
@@ -1001,6 +1676,28 @@ export default function Dashboard() {
           </div>
         )}
       </For>
+
+      {/* Modal Filter Outstanding */}
+      <Show when={showOutstandingModal() && currentOutstandingBlock()}>
+        <OutstandingFilterModal />
+      </Show>
+
+      <Show when={showOutstandingPreview()}>
+        <OutstandingPreviewModal
+          show={showOutstandingPreview()}
+          block={previewData().block}
+          poRows={previewData().poRows}
+          outstanding_filter={previewData().outstanding_filter}
+          token={user?.token}
+          PO_DETAIL_FETCHER={PO_DETAIL_FETCHER}
+          customer_id={activeTab() === "penjualan" ? salesCustomerForm().customer_id : null}
+          filterLabel={currentFilterLabel()}
+          masterData={masterData()}
+          onApply={applyFilterFromPreview}
+          onCancel={cancelFilterFromPreview}
+          applyLoading={applyFilterLoading()}
+        />
+      </Show>
 
       <Show when={!loading() && sectionsData().length === 0}>
         <div class="p-6 bg-white rounded shadow text-gray-500">
