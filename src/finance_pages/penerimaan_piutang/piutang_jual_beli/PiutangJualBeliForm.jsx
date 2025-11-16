@@ -9,8 +9,7 @@ import {
 } from "../../../utils/financeAuth";
 import { 
   getAllJBDeliveryNotes,
-  getJBDeliveryNotes, // Tambahkan import untuk get detail SJ JB
-  //getLastSequence,
+  getJBDeliveryNotes,
   getUser, 
 } from "../../../utils/auth";
 import Swal from "sweetalert2";
@@ -19,7 +18,7 @@ import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 import JenisPotonganDropdownSearch from "../../../components/JenisPotonganDropdownSearch";
 import BanksDropdownSearch from "../../../components/BanksDropdownSearch";
 import PaymentMethodsDropdownSearch from "../../../components/PaymentMethodsDropdownSearch";
-import SuratPenerimaanJualBeliDropdownSearch from "../../../components/SuratPenerimaanJualBeliDropdownSearch";
+import SuratPenerimaanJualBeliPiutangDropdownSearch from "../../../components/SuratPenerimaanJualBeliPiutangDropdownSearch";
 
 export default function PiutangJualBeliForm() {
   const [params] = useSearchParams();
@@ -34,10 +33,16 @@ export default function PiutangJualBeliForm() {
   const [paymentMethodsOptions, setPaymentMethodsOptions] = createSignal([]);
   const [banksOptions, setBanksOptions] = createSignal([]);
   const [spOptions, setSpOptions] = createSignal([]);
-  const [nominalInvoice, setNominalInvoice] = createSignal(""); // State untuk nominal invoice
+  const [nominalInvoice, setNominalInvoice] = createSignal("");
+  const [sisaUtang, setSisaUtang] = createSignal("");
+  const [sisaUtangPerSJ, setSisaUtangPerSJ] = createSignal("");
+
+  // Cache states
+  const [deliveryNotesCache, setDeliveryNotesCache] = createSignal({});
+  const [penerimaanCache, setPenerimaanCache] = createSignal([]);
+  const [supplierCalculationsCache, setSupplierCalculationsCache] = createSignal({});
 
   const [form, setForm] = createSignal({
-    // no_penerimaan: "",
     sequence_number: "",
     no_seq: 0,
     sj_id: "",
@@ -56,12 +61,10 @@ export default function PiutangJualBeliForm() {
   // ========= HELPER FUNCTIONS =========
   const parseNumber = (str) => {
     if (typeof str !== "string" || !str) return 0;
-    // Hapus semua karakter non-numerik KECUALI koma, lalu ganti koma dengan titik
     const cleaned = str.replace(/[^0-9,]/g, "").replace(",", ".");
     return parseFloat(cleaned) || 0;
   };
 
-  // Format angka untuk mata uang rupiah
   const formatIDR = (val, showCurrency = true, showZero = true) => {
     const num = typeof val === "string" ? parseNumber(val) : (val === 0 ? 0 : (val || 0));
     if ((val === null || val === undefined || val === "") && !showZero) return "";
@@ -80,16 +83,6 @@ export default function PiutangJualBeliForm() {
     }
   };
 
-  // Format angka 2 desimal
-  const formatNumber = (val, decimals = 2, showZero = true) => {
-    const num = typeof val === "string" ? parseNumber(val) : (val === 0 ? 0 : (val || 0));
-    if ((val === null || val === undefined || val === "") && !showZero) return "";
-    return new Intl.NumberFormat("id-ID", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(num);
-  };
-
   const normalizeId = (v) => {
     if (v === null || v === undefined || v === "") return null;
     if (typeof v === "object") {
@@ -101,25 +94,159 @@ export default function PiutangJualBeliForm() {
     return isNaN(n) ? null : n;
   };  
 
-  // Fungsi untuk mengambil data detail Surat Penerimaan Jual Beli
-  const fetchSuratPenerimaanDetail = async (sjId) => {
+  // ========= CACHED DATA LOADING =========
+  const loadAllData = async () => {
+    setLoading(true);
     try {
-      const response = await getJBDeliveryNotes(sjId, user?.token);
-      const sjData = response?.suratJalan || response?.data;
-      
-      if (sjData && sjData.summary) {
-        // Ambil subtotal dari summary dan format sebagai IDR
-        const subtotal = sjData.summary.subtotal || 0;
-        setNominalInvoice(formatIDR(subtotal));
-      } else {
-        setNominalInvoice(formatIDR(0));
-        console.warn("Data summary tidak ditemukan dalam response Surat Penerimaan Jual Beli");
-      }
+      // Load data in parallel
+      const [allSP, allPenerimaan] = await Promise.all([
+        getAllJBDeliveryNotes(user?.token),
+        PenerimaanPiutangJualBeli.getAll()
+      ]);
+
+      const rawList = allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
+      const filteredSP = Array.isArray(rawList) 
+        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
+        : [];
+
+      const penerimaanList = allPenerimaan?.data || [];
+      setPenerimaanCache(penerimaanList);
+
+      // Process with caching
+      const spWithCalculations = await processSisaUtangBatch(filteredSP, penerimaanList);
+      setSpOptions(spWithCalculations);
+
+      // Pre-calculate supplier data
+      await preCalculateSupplierData(spWithCalculations, penerimaanList);
+
     } catch (error) {
-      console.error("Gagal mengambil detail Surat Penerimaan Jual Beli:", error);
-      setNominalInvoice(formatIDR(0));
-      Swal.fire("Error", "Gagal memuat data Surat Penerimaan", "error");
+      console.error("Gagal memuat data:", error);
+      Swal.fire("Error", "Gagal memuat data", "error");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const processSisaUtangBatch = async (suratJalanList, penerimaanList) => {
+    // Group payments by SJ
+    const penerimaanPerSJ = {};
+    penerimaanList.forEach(p => {
+      const sjId = p.sj_id;
+      const amount = parseFloat(p.pembayaran) || 0;
+      if (sjId) {
+        if (!penerimaanPerSJ[sjId]) penerimaanPerSJ[sjId] = 0;
+        penerimaanPerSJ[sjId] += amount;
+      }
+    });
+
+    const results = [];
+    const batchSize = 3;
+    
+    for (let i = 0; i < suratJalanList.length; i += batchSize) {
+      const batch = suratJalanList.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map(async (sp) => {
+        try {
+          // Check cache first
+          if (deliveryNotesCache()[sp.id]) {
+            const detail = deliveryNotesCache()[sp.id];
+            const nominalInvoice = detail?.suratJalan?.summary?.subtotal || detail?.summary?.subtotal || 0;
+            const totalPembayaranSJ = penerimaanPerSJ[sp.id] || 0;
+            const sisaUtangPerSJ = Math.max(0, nominalInvoice - totalPembayaranSJ);
+
+            return {
+              ...sp,
+              nominal_invoice: nominalInvoice,
+              sisa_utang_per_sj: sisaUtangPerSJ
+            };
+          }
+
+          // Fetch if not in cache
+          const detail = await getJBDeliveryNotes(sp.id, user?.token);
+          setDeliveryNotesCache(prev => ({ ...prev, [sp.id]: detail }));
+          
+          const nominalInvoice = detail?.suratJalan?.summary?.subtotal || detail?.summary?.subtotal || 0;
+          const totalPembayaranSJ = penerimaanPerSJ[sp.id] || 0;
+          const sisaUtangPerSJ = Math.max(0, nominalInvoice - totalPembayaranSJ);
+
+          return {
+            ...sp,
+            nominal_invoice: nominalInvoice,
+            sisa_utang_per_sj: sisaUtangPerSJ
+          };
+        } catch (error) {
+          console.error(`Gagal memproses SJ ${sp.id}:`, error);
+          return {
+            ...sp,
+            nominal_invoice: 0,
+            sisa_utang_per_sj: 0
+          };
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
+
+    return results;
+  };
+
+  const preCalculateSupplierData = async (suratJalanList, penerimaanList) => {
+    const supplierData = {};
+    
+    // Group by supplier
+    suratJalanList.forEach(sp => {
+      const supplierName = sp.supplier_name || sp.supplier;
+      if (!supplierName) return;
+      
+      if (!supplierData[supplierName]) {
+        supplierData[supplierName] = {
+          totalUtang: 0,
+          sjIds: []
+        };
+      }
+      
+      supplierData[supplierName].totalUtang += sp.nominal_invoice;
+      supplierData[supplierName].sjIds.push(sp.id);
+    });
+
+    // Calculate payments per supplier
+    Object.keys(supplierData).forEach(supplierName => {
+      const supplierSjIds = supplierData[supplierName].sjIds;
+      const totalPembayaran = penerimaanList.reduce((sum, p) => 
+        supplierSjIds.includes(p.sj_id) ? sum + (parseFloat(p.pembayaran) || 0) : sum
+      , 0);
+      
+      supplierData[supplierName].totalPembayaran = totalPembayaran;
+      supplierData[supplierName].sisaUtang = Math.max(0, supplierData[supplierName].totalUtang - totalPembayaran);
+    });
+
+    setSupplierCalculationsCache(supplierData);
+  };
+
+  // ========= OPTIMIZED UTILITY FUNCTIONS =========
+  const updateSisaUtangDisplay = (sjId) => {
+    const selectedSP = spOptions().find(sp => sp.id === sjId);
+    if (!selectedSP) return;
+
+    // Use cached data - no API calls
+    setNominalInvoice(formatIDR(selectedSP.nominal_invoice));
+    setSisaUtangPerSJ(formatIDR(selectedSP.sisa_utang_per_sj));
+    
+    // Use pre-calculated supplier data
+    const supplierName = selectedSP.supplier_name || selectedSP.supplier;
+    if (supplierName && supplierCalculationsCache()[supplierName]) {
+      const supplierData = supplierCalculationsCache()[supplierName];
+      setSisaUtang(formatIDR(supplierData.sisaUtang));
+    } else {
+      setSisaUtang(formatIDR(0));
+    }
+  };
+
+  const resetSisaUtangDisplay = () => {
+    setNominalInvoice("");
+    setSisaUtang("");
+    setSisaUtangPerSJ("");
   };
 
   const handleSuratPenerimaanChange = async (val) => {
@@ -138,84 +265,74 @@ export default function PiutangJualBeliForm() {
       setForm({ ...form(), sj_id: newSjId });
     }
 
-    // Jika ada SJ ID yang dipilih, ambil data detailnya
     if (newSjId) {
-      await fetchSuratPenerimaanDetail(newSjId);
+      updateSisaUtangDisplay(newSjId);
     } else {
-      setNominalInvoice(""); // Reset jika tidak ada SJ yang dipilih
+      resetSisaUtangDisplay();
     }
-  };  
+  };
 
+  // ========= COMPONENT LIFECYCLE =========
   onMount(async () => {
-    setLoading(true);
+    // Load dropdown options in parallel with main data
+    await Promise.all([
+      loadAllData(),
+      loadDropdownOptions()
+    ]);
 
+    if (isEdit) {
+      await loadEditData();
+    }
+  });
+
+  const loadDropdownOptions = async () => {
     try {
-      const resJenisPotongan = await JenisPotongan.getAll();
+      const [resJenisPotongan, resPaymentMethods, resBanks] = await Promise.all([
+        JenisPotongan.getAll(),
+        PaymentMethods.getAll(),
+        Banks.getAll()
+      ]);
+
       setJenisPotonganOptions(resJenisPotongan?.data ?? resJenisPotongan ?? []);
-
-      const resPaymentMethods = await PaymentMethods.getAll();
-      setPaymentMethodsOptions(
-        resPaymentMethods?.data ?? resPaymentMethods ?? []
-      );
-
-      const resBanks = await Banks.getAll();
+      setPaymentMethodsOptions(resPaymentMethods?.data ?? resPaymentMethods ?? []);
       setBanksOptions(resBanks?.data ?? resBanks ?? []);
-
-      const allSP = await getAllJBDeliveryNotes(user?.token);
-      const rawList =
-        allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
-
-      // Filter hanya Surat Penerimaan dengan delivered_status = 1/true
-      const filteredSP = Array.isArray(rawList) 
-        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
-        : [];
-
-      setSpOptions(filteredSP);
-
     } catch (err) {
       console.error("Gagal memuat opsi dropdown:", err);
     }
+  };
 
-    if (isEdit) {
-      try {
-        const res = await PenerimaanPiutangJualBeli.getById(params.id);
+  const loadEditData = async () => {
+    try {
+      const res = await PenerimaanPiutangJualBeli.getById(params.id);
+      const data = (Array.isArray(res.data) && res.data.length > 0)
+        ? res.data[0]
+        : res.data;
 
-        const data = (Array.isArray(res.data) && res.data.length > 0)
-          ? res.data[0]
-          : res.data;
+      if (!data) throw new Error("Data penerimaan tidak ditemukan.");
 
-        if (!data) {
-          throw new Error("Data penerimaan tidak ditemukan.");
-        }
+      setForm({
+        ...data,
+        sequence_number: data.no_penerimaan || "",
+        potongan: formatIDR(parseFloat(data.potongan || 0)),
+        pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
+        pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
+        tanggal_pembayaran: data.tanggal_pembayaran || "",
+        tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
+        status: data.status || "",
+        keterangan: data.keterangan || "",
+      });
 
-        setForm({
-          ...data,
-
-          sequence_number: data.no_penerimaan || "",
-
-          potongan: formatIDR(parseFloat(data.potongan || 0)),
-          pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
-          pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
-
-          tanggal_pembayaran: data.tanggal_pembayaran || "",
-          tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
-          status: data.status || "",
-          keterangan: data.keterangan || "",
-        });
-
-        // Jika ada sj_id dalam data edit, ambil detail Surat Penerimaan untuk menampilkan nominal invoice
-        if (data.sj_id) {
-          await fetchSuratPenerimaanDetail(data.sj_id);
-        }
-        
-      } catch (err) {
-        console.error("Gagal memuat data edit:", err);
-        Swal.fire("Error", err.message || "Gagal memuat data", "error");
+      if (data.sj_id) {
+        // Wait a bit for data to be loaded, then update display
+        setTimeout(() => updateSisaUtangDisplay(data.sj_id), 100);
       }
+    } catch (err) {
+      console.error("Gagal memuat data edit:", err);
+      Swal.fire("Error", err.message || "Gagal memuat data", "error");
     }
-    setLoading(false);
-  });
+  };
 
+  // ========= REMAINING FUNCTIONS =========
   const generateNomor = async () => {
     try {
         const selectedSJId = form().sj_id;
@@ -240,18 +357,10 @@ export default function PiutangJualBeliForm() {
             console.warn("Format No SJ tidak terduga, default ke 'N'.", no_sj);
         }
 
-        // TENTUKAN PPN BERDASARKAN taxFlag
-        let ppnValue = null;
-        if (taxFlag === "P") {
-            ppnValue = 11; // Untuk PPN
-        } else {
-            ppnValue = 0;  // Untuk non-PPN
-        }
+        let ppnValue = taxFlag === "P" ? 11 : 0;
 
         const lastSeq = await getLastSequence("penerimaan_jb", "", ppnValue);
         
-        //console.log("Last sequence response:", lastSeq); // Debug log
-
         if (!lastSeq || lastSeq.last_sequence === undefined) {
         throw new Error("Gagal mendapatkan sequence dari server");
         }
@@ -273,11 +382,7 @@ export default function PiutangJualBeliForm() {
         setManualGenerateDone(true);
     } catch (err) {
         console.error("Generate nomor error:", err);
-        Swal.fire(
-            "Gagal",
-            err?.message || "Gagal mendapatkan nomor terakhir",
-            "error"
-        );
+        Swal.fire("Gagal", err?.message || "Gagal mendapatkan nomor terakhir", "error");
     }
   };
 
@@ -296,22 +401,15 @@ export default function PiutangJualBeliForm() {
       return;
     }
 
-    // Ambil data mentah dari form input
     const rawForm = form();
-
-    // Payload untuk passing data ke backend
     const payload = {
       no_penerimaan: rawForm.sequence_number,
-      
-      // Passing data input manipulasi "string" untuk di konversi menjadi number
       sj_id: normalizeId(rawForm.sj_id),
       jenis_potongan_id: normalizeId(rawForm.jenis_potongan_id),
       potongan: parseNumber(rawForm.potongan),
       pembulatan: parseNumber(rawForm.pembulatan),
       pembayaran: parseNumber(rawForm.pembayaran),
       payment_method_id: normalizeId(rawForm.payment_method_id),
-
-      // Fallback jika data kosong kirim sebagai null
       bank_id: normalizeId(rawForm.bank_id) || null,
       tanggal_pembayaran: rawForm.tanggal_pembayaran || null,
       tanggal_jatuh_tempo: rawForm.tanggal_jatuh_tempo || null,
@@ -321,12 +419,8 @@ export default function PiutangJualBeliForm() {
 
     try {
       if (isEdit) {
-        //console.log("Payload update penerimaan hutang jual beli:", JSON.stringify(payload, null, 2));
-
         await PenerimaanPiutangJualBeli.update(params.id, payload);
       } else {
-        //console.log("Payload create penerimaan hutang jual beli:", JSON.stringify(payload, null, 2));
-
         await PenerimaanPiutangJualBeli.create(payload);
       }
 
@@ -352,6 +446,7 @@ export default function PiutangJualBeliForm() {
     }
   };
 
+  // ========= RENDER =========
   return (
     <FinanceMainLayout>
       {loading() && (
@@ -387,7 +482,7 @@ export default function PiutangJualBeliForm() {
 
           <div>
             <label class="block mb-1 font-medium">Surat Penerimaan</label>
-            <SuratPenerimaanJualBeliDropdownSearch
+            <SuratPenerimaanJualBeliPiutangDropdownSearch
               items={spOptions()}
               value={form().sj_id}
               onChange={handleSuratPenerimaanChange}
@@ -396,7 +491,6 @@ export default function PiutangJualBeliForm() {
             />
           </div>
 
-          {/* Tambahkan field Nominal Invoice di sini */}
           <div>
             <label class="block mb-1 font-medium">Nominal Invoice</label>
             <input
@@ -405,6 +499,29 @@ export default function PiutangJualBeliForm() {
               value={nominalInvoice()}
               readOnly
             />
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">Sisa Utang</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={sisaUtangPerSJ()}
+              readOnly
+            />
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">Total Utang</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={sisaUtang()}
+              readOnly
+            />
+            <div class="text-xs text-gray-500 mt-1">
+              * Total sisa utang untuk semua invoice atau surat penerimaan jual beli
+            </div>
           </div>
 
           <div>
@@ -425,15 +542,13 @@ export default function PiutangJualBeliForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().potongan}
-              onInput={(e) =>
-                setForm({ ...form(), potongan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), potongan: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), potongan: formatIDR(num) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -443,15 +558,13 @@ export default function PiutangJualBeliForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().pembulatan}
-              onInput={(e) =>
-                setForm({ ...form(), pembulatan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), pembulatan: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), pembulatan: formatIDR(num, 2) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -461,15 +574,13 @@ export default function PiutangJualBeliForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().pembayaran}
-              onInput={(e) =>
-                setForm({ ...form(), pembayaran: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), pembayaran: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), pembayaran: formatIDR(num) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
               required
             />
           </div>
@@ -498,21 +609,14 @@ export default function PiutangJualBeliForm() {
           </div>
 
           <div>
-            <label class="block mb-1 font-medium">
-              Tanggal Penerimaan
-            </label>
+            <label class="block mb-1 font-medium">Tanggal Penerimaan</label>
             <input
               type="date"
               class="w-full border p-2 rounded"
               value={form().tanggal_pembayaran}
-              onInput={(e) =>
-                setForm({
-                  ...form(),
-                  tanggal_pembayaran: e.target.value,
-                })
-              }
+              onInput={(e) => setForm({ ...form(), tanggal_pembayaran: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -522,14 +626,9 @@ export default function PiutangJualBeliForm() {
               type="date"
               class="w-full border p-2 rounded"
               value={form().tanggal_jatuh_tempo}
-              onInput={(e) =>
-                setForm({
-                  ...form(),
-                  tanggal_jatuh_tempo: e.target.value,
-                })
-              }
+              onInput={(e) => setForm({ ...form(), tanggal_jatuh_tempo: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
               required
             />
           </div>
@@ -542,7 +641,7 @@ export default function PiutangJualBeliForm() {
               value={form().status}
               onInput={(e) => setForm({ ...form(), status: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -552,11 +651,9 @@ export default function PiutangJualBeliForm() {
               class="w-full border p-2 rounded"
               rows="3"
               value={form().keterangan}
-              onInput={(e) =>
-                setForm({ ...form(), keterangan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
         </div>

@@ -18,7 +18,7 @@ import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 import JenisPotonganDropdownSearch from "../../../components/JenisPotonganDropdownSearch";
 import BanksDropdownSearch from "../../../components/BanksDropdownSearch";
 import PaymentMethodsDropdownSearch from "../../../components/PaymentMethodsDropdownSearch";
-import SuratJalanDropdownSearch from "../../../components/SuratJalanDropdownSearch";
+import SuratJalanPiutangDropdownSearch from "../../../components/SuratJalanPiutangDropdownSearch";
 
 export default function PiutangSalesForm() {
   const [params] = useSearchParams();
@@ -33,7 +33,14 @@ export default function PiutangSalesForm() {
   const [paymentMethodsOptions, setPaymentMethodsOptions] = createSignal([]);
   const [banksOptions, setBanksOptions] = createSignal([]);
   const [spOptions, setSpOptions] = createSignal([]);
-  const [nominalInvoice, setNominalInvoice] = createSignal(""); // State untuk nominal invoice
+  const [nominalInvoice, setNominalInvoice] = createSignal("");
+  const [sisaUtang, setSisaUtang] = createSignal("");
+  const [sisaUtangPerSJ, setSisaUtangPerSJ] = createSignal("");
+
+  // Cache states
+  const [deliveryNotesCache, setDeliveryNotesCache] = createSignal({});
+  const [penerimaanCache, setPenerimaanCache] = createSignal([]);
+  const [customerCalculationsCache, setCustomerCalculationsCache] = createSignal({});
 
   const [form, setForm] = createSignal({
     sequence_number: "",
@@ -58,7 +65,6 @@ export default function PiutangSalesForm() {
     return parseFloat(cleaned) || 0;
   };
 
-  // Format angka untuk mata uang rupiah
   const formatIDR = (val, showCurrency = true, showZero = true) => {
     const num = typeof val === "string" ? parseNumber(val) : (val === 0 ? 0 : (val || 0));
     if ((val === null || val === undefined || val === "") && !showZero) return "";
@@ -88,25 +94,159 @@ export default function PiutangSalesForm() {
     return isNaN(n) ? null : n;
   };  
 
-  // Fungsi untuk mengambil data detail Surat Jalan
-  const fetchSuratJalanDetail = async (sjId) => {
+  // ========= CACHED DATA LOADING =========
+  const loadAllData = async () => {
+    setLoading(true);
     try {
-      const response = await getDeliveryNotes(sjId, user?.token);
-      const sjData = response?.order || response?.data;
-      
-      if (sjData && sjData.summary) {
-        // Ambil subtotal dari summary dan format sebagai IDR
-        const subtotal = sjData.summary.subtotal || 0;
-        setNominalInvoice(formatIDR(subtotal));
-      } else {
-        setNominalInvoice(formatIDR(0));
-        console.warn("Data summary tidak ditemukan dalam response Surat Jalan");
-      }
+      // Load data in parallel
+      const [allSP, allPenerimaan] = await Promise.all([
+        getAllDeliveryNotes(user?.token),
+        PenerimaanPiutangSales.getAll()
+      ]);
+
+      const rawList = allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
+      const filteredSP = Array.isArray(rawList) 
+        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
+        : [];
+
+      const penerimaanList = allPenerimaan?.data || [];
+      setPenerimaanCache(penerimaanList);
+
+      // Process with caching
+      const spWithCalculations = await processSisaUtangBatch(filteredSP, penerimaanList);
+      setSpOptions(spWithCalculations);
+
+      // Pre-calculate customer data
+      await preCalculateCustomerData(spWithCalculations, penerimaanList);
+
     } catch (error) {
-      console.error("Gagal mengambil detail Surat Jalan:", error);
-      setNominalInvoice(formatIDR(0));
-      Swal.fire("Error", "Gagal memuat data Surat Jalan", "error");
+      console.error("Gagal memuat data:", error);
+      Swal.fire("Error", "Gagal memuat data", "error");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const processSisaUtangBatch = async (suratJalanList, penerimaanList) => {
+    // Group payments by SJ
+    const penerimaanPerSJ = {};
+    penerimaanList.forEach(p => {
+      const sjId = p.sj_id;
+      const amount = parseFloat(p.pembayaran) || 0;
+      if (sjId) {
+        if (!penerimaanPerSJ[sjId]) penerimaanPerSJ[sjId] = 0;
+        penerimaanPerSJ[sjId] += amount;
+      }
+    });
+
+    const results = [];
+    const batchSize = 3; // Reduced batch size for better performance
+    
+    for (let i = 0; i < suratJalanList.length; i += batchSize) {
+      const batch = suratJalanList.slice(i, i + batchSize);
+      
+      const batchPromises = batch.map(async (sp) => {
+        try {
+          // Check cache first
+          if (deliveryNotesCache()[sp.id]) {
+            const detail = deliveryNotesCache()[sp.id];
+            const nominalInvoice = detail?.order?.summary?.subtotal || 0;
+            const totalPembayaranSJ = penerimaanPerSJ[sp.id] || 0;
+            const sisaUtangPerSJ = Math.max(0, nominalInvoice - totalPembayaranSJ);
+
+            return {
+              ...sp,
+              nominal_invoice: nominalInvoice,
+              sisa_utang_per_sj: sisaUtangPerSJ
+            };
+          }
+
+          // Fetch if not in cache
+          const detail = await getDeliveryNotes(sp.id, user?.token);
+          setDeliveryNotesCache(prev => ({ ...prev, [sp.id]: detail }));
+          
+          const nominalInvoice = detail?.order?.summary?.subtotal || 0;
+          const totalPembayaranSJ = penerimaanPerSJ[sp.id] || 0;
+          const sisaUtangPerSJ = Math.max(0, nominalInvoice - totalPembayaranSJ);
+
+          return {
+            ...sp,
+            nominal_invoice: nominalInvoice,
+            sisa_utang_per_sj: sisaUtangPerSJ
+          };
+        } catch (error) {
+          console.error(`Gagal memproses SJ ${sp.id}:`, error);
+          return {
+            ...sp,
+            nominal_invoice: 0,
+            sisa_utang_per_sj: 0
+          };
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
+    }
+
+    return results;
+  };
+
+  const preCalculateCustomerData = async (suratJalanList, penerimaanList) => {
+    const customerData = {};
+    
+    // Group by customer
+    suratJalanList.forEach(sp => {
+      const customerName = sp.customer_name;
+      if (!customerName) return;
+      
+      if (!customerData[customerName]) {
+        customerData[customerName] = {
+          totalUtang: 0,
+          sjIds: []
+        };
+      }
+      
+      customerData[customerName].totalUtang += sp.nominal_invoice;
+      customerData[customerName].sjIds.push(sp.id);
+    });
+
+    // Calculate payments per customer
+    Object.keys(customerData).forEach(customerName => {
+      const customerSjIds = customerData[customerName].sjIds;
+      const totalPembayaran = penerimaanList.reduce((sum, p) => 
+        customerSjIds.includes(p.sj_id) ? sum + (parseFloat(p.pembayaran) || 0) : sum
+      , 0);
+      
+      customerData[customerName].totalPembayaran = totalPembayaran;
+      customerData[customerName].sisaUtang = Math.max(0, customerData[customerName].totalUtang - totalPembayaran);
+    });
+
+    setCustomerCalculationsCache(customerData);
+  };
+
+  // ========= OPTIMIZED UTILITY FUNCTIONS =========
+  const updateSisaUtangDisplay = (sjId) => {
+    const selectedSP = spOptions().find(sp => sp.id === sjId);
+    if (!selectedSP) return;
+
+    // Use cached data - no API calls
+    setNominalInvoice(formatIDR(selectedSP.nominal_invoice));
+    setSisaUtangPerSJ(formatIDR(selectedSP.sisa_utang_per_sj));
+    
+    // Use pre-calculated customer data
+    const customerName = selectedSP.customer_name;
+    if (customerName && customerCalculationsCache()[customerName]) {
+      const customerData = customerCalculationsCache()[customerName];
+      setSisaUtang(formatIDR(customerData.sisaUtang));
+    } else {
+      setSisaUtang(formatIDR(0));
+    }
+  };
+
+  const resetSisaUtangDisplay = () => {
+    setNominalInvoice("");
+    setSisaUtang("");
+    setSisaUtangPerSJ("");
   };
 
   const handleSuratPenerimaanChange = async (val) => {
@@ -125,81 +265,74 @@ export default function PiutangSalesForm() {
       setForm({ ...form(), sj_id: newSjId });
     }
 
-    // Jika ada SJ ID yang dipilih, ambil data detailnya
     if (newSjId) {
-      await fetchSuratJalanDetail(newSjId);
+      updateSisaUtangDisplay(newSjId); // No await - synchronous now
     } else {
-      setNominalInvoice(""); // Reset jika tidak ada SJ yang dipilih
+      resetSisaUtangDisplay();
     }
-  };  
+  };
 
+  // ========= COMPONENT LIFECYCLE =========
   onMount(async () => {
-    setLoading(true);
+    // Load dropdown options in parallel with main data
+    await Promise.all([
+      loadAllData(),
+      loadDropdownOptions()
+    ]);
 
+    if (isEdit) {
+      await loadEditData();
+    }
+  });
+
+  const loadDropdownOptions = async () => {
     try {
-      const resJenisPotongan = await JenisPotongan.getAll();
+      const [resJenisPotongan, resPaymentMethods, resBanks] = await Promise.all([
+        JenisPotongan.getAll(),
+        PaymentMethods.getAll(),
+        Banks.getAll()
+      ]);
+
       setJenisPotonganOptions(resJenisPotongan?.data ?? resJenisPotongan ?? []);
-
-      const resPaymentMethods = await PaymentMethods.getAll();
-      setPaymentMethodsOptions(
-        resPaymentMethods?.data ?? resPaymentMethods ?? []
-      );
-
-      const resBanks = await Banks.getAll();
+      setPaymentMethodsOptions(resPaymentMethods?.data ?? resPaymentMethods ?? []);
       setBanksOptions(resBanks?.data ?? resBanks ?? []);
-
-      const allSP = await getAllDeliveryNotes(user?.token);
-      const rawList =
-        allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
-
-      // Filter hanya Surat Jalan dengan delivered_status = 1/true
-      const filteredSP = Array.isArray(rawList) 
-        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
-        : [];
-
-      setSpOptions(filteredSP);
-
     } catch (err) {
       console.error("Gagal memuat opsi dropdown:", err);
     }
+  };
 
-    if (isEdit) {
-      try {
-        const res = await PenerimaanPiutangSales.getById(params.id);
+  const loadEditData = async () => {
+    try {
+      const res = await PenerimaanPiutangSales.getById(params.id);
+      const data = (Array.isArray(res.data) && res.data.length > 0)
+        ? res.data[0]
+        : res.data;
 
-        const data = (Array.isArray(res.data) && res.data.length > 0)
-          ? res.data[0]
-          : res.data;
+      if (!data) throw new Error("Data penerimaan tidak ditemukan.");
 
-        if (!data) {
-          throw new Error("Data penerimaan tidak ditemukan.");
-        }
+      setForm({
+        ...data,
+        sequence_number: data.no_penerimaan || "",
+        potongan: formatIDR(parseFloat(data.potongan || 0)),
+        pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
+        pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
+        tanggal_pembayaran: data.tanggal_pembayaran || "",
+        tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
+        status: data.status || "",
+        keterangan: data.keterangan || "",
+      });
 
-        setForm({
-          ...data,
-          sequence_number: data.no_penerimaan || "",
-          potongan: formatIDR(parseFloat(data.potongan || 0)),
-          pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
-          pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
-          tanggal_pembayaran: data.tanggal_pembayaran || "",
-          tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
-          status: data.status || "",
-          keterangan: data.keterangan || "",
-        });
-
-        // Jika ada sj_id dalam data edit, ambil detail Surat Jalan untuk menampilkan nominal invoice
-        if (data.sj_id) {
-          await fetchSuratJalanDetail(data.sj_id);
-        }
-        
-      } catch (err) {
-        console.error("Gagal memuat data edit:", err);
-        Swal.fire("Error", err.message || "Gagal memuat data", "error");
+      if (data.sj_id) {
+        // Wait a bit for data to be loaded, then update display
+        setTimeout(() => updateSisaUtangDisplay(data.sj_id), 100);
       }
+    } catch (err) {
+      console.error("Gagal memuat data edit:", err);
+      Swal.fire("Error", err.message || "Gagal memuat data", "error");
     }
-    setLoading(false);
-  });
+  };
 
+  // ========= REMAINING FUNCTIONS (unchanged) =========
   const generateNomor = async () => {
     try {
         const selectedSJId = form().sj_id;
@@ -219,36 +352,20 @@ export default function PiutangSalesForm() {
         let taxFlag = "N";
         let region = "D";
 
-        // Parse Tax Flag (P/N) dan Region (E/D)
         if (parts.length >= 3) {
-            const regionPart = parts[1]; // Index 1 untuk Region
-            const taxPart = parts[2];    // Index 2 untuk Tax Flag
+            const regionPart = parts[1];
+            const taxPart = parts[2];
 
-            // Cek Tax Flag
             if (taxPart === "P" || taxPart === "N") {
                 taxFlag = taxPart;
-            } else {
-                console.warn("Format Tax Flag tidak terduga, default ke 'N'.", no_sj);
             }
 
-            // Cek Region
             if (regionPart === "E" || regionPart === "D") {
                 region = regionPart;
-            } else {
-                console.warn("Format Region tidak terduga, default ke 'D'.", no_sj);
             }
-        } else {
-            console.warn("Format No SJ tidak standar, default ke 'D' dan 'N'.", no_sj);
         }
 
-        // TENTUKAN PPN BERDASARKAN taxFlag
-        let ppnValue = null;
-        if (taxFlag === "P") {
-            ppnValue = 11; // Untuk PPN
-        } else {
-            ppnValue = 0;  // Untuk non-PPN
-        }
-
+        let ppnValue = taxFlag === "P" ? 11 : 0;
         let regionValue = region === "E" ? "Ekspor" : "Domestik";
 
         const lastSeq = await getLastSequence("penerimaan_s", regionValue, ppnValue);
@@ -258,7 +375,6 @@ export default function PiutangSalesForm() {
         }
 
         const nextNum = String(lastSeq.last_sequence + 1).padStart(5, "0");
-
         const now = new Date();
         const month = String(now.getMonth() + 1).padStart(2, "0");
         const year = String(now.getFullYear()).slice(2);
@@ -274,11 +390,7 @@ export default function PiutangSalesForm() {
         setManualGenerateDone(true);
     } catch (err) {
         console.error("Generate nomor error:", err);
-        Swal.fire(
-            "Gagal",
-            err?.message || "Gagal mendapatkan nomor terakhir",
-            "error"
-        );
+        Swal.fire("Gagal", err?.message || "Gagal mendapatkan nomor terakhir", "error");
     }
   };
 
@@ -297,10 +409,7 @@ export default function PiutangSalesForm() {
       return;
     }
 
-    // Ambil data mentah dari form input
     const rawForm = form();
-
-    // Payload untuk passing data ke backend
     const payload = {
       no_penerimaan: rawForm.sequence_number,
       sj_id: normalizeId(rawForm.sj_id),
@@ -345,6 +454,7 @@ export default function PiutangSalesForm() {
     }
   };
 
+  // ========= RENDER =========
   return (
     <FinanceMainLayout>
       {loading() && (
@@ -380,7 +490,7 @@ export default function PiutangSalesForm() {
 
           <div>
             <label class="block mb-1 font-medium">Surat Jalan</label>
-            <SuratJalanDropdownSearch
+            <SuratJalanPiutangDropdownSearch
               items={spOptions()}
               value={form().sj_id}
               onChange={handleSuratPenerimaanChange}
@@ -389,7 +499,6 @@ export default function PiutangSalesForm() {
             />
           </div>
 
-          {/* Tambahkan field Nominal Invoice di sini */}
           <div>
             <label class="block mb-1 font-medium">Nominal Invoice</label>
             <input
@@ -400,6 +509,30 @@ export default function PiutangSalesForm() {
             />
           </div>
 
+          <div>
+            <label class="block mb-1 font-medium">Total Utang Customer</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={sisaUtang()}
+              readOnly
+            />
+            <div class="text-xs text-gray-500 mt-1">
+              * Total sisa utang customer untuk semua invoice penjualan atau surat jalan
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">Sisa Utang</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={sisaUtangPerSJ()}
+              readOnly
+            />
+          </div>
+
+          {/* Rest of the form fields remain the same */}
           <div>
             <label class="block mb-1 font-medium">Jenis Potongan</label>
             <JenisPotonganDropdownSearch
@@ -418,15 +551,13 @@ export default function PiutangSalesForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().potongan}
-              onInput={(e) =>
-                setForm({ ...form(), potongan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), potongan: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), potongan: formatIDR(num) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -436,15 +567,13 @@ export default function PiutangSalesForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().pembulatan}
-              onInput={(e) =>
-                setForm({ ...form(), pembulatan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), pembulatan: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), pembulatan: formatIDR(num, 2) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -454,15 +583,13 @@ export default function PiutangSalesForm() {
               type="text"
               class="w-full border p-2 rounded"
               value={form().pembayaran}
-              onInput={(e) =>
-                setForm({ ...form(), pembayaran: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), pembayaran: e.target.value })}
               onBlur={(e) => {
                 const num = parseNumber(e.target.value);
                 setForm({ ...form(), pembayaran: formatIDR(num) });
               }}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
               required
             />
           </div>
@@ -491,21 +618,14 @@ export default function PiutangSalesForm() {
           </div>
 
           <div>
-            <label class="block mb-1 font-medium">
-              Tanggal Penerimaan
-            </label>
+            <label class="block mb-1 font-medium">Tanggal Penerimaan</label>
             <input
               type="date"
               class="w-full border p-2 rounded"
               value={form().tanggal_pembayaran}
-              onInput={(e) =>
-                setForm({
-                  ...form(),
-                  tanggal_pembayaran: e.target.value,
-                })
-              }
+              onInput={(e) => setForm({ ...form(), tanggal_pembayaran: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -515,14 +635,9 @@ export default function PiutangSalesForm() {
               type="date"
               class="w-full border p-2 rounded"
               value={form().tanggal_jatuh_tempo}
-              onInput={(e) =>
-                setForm({
-                  ...form(),
-                  tanggal_jatuh_tempo: e.target.value,
-                })
-              }
+              onInput={(e) => setForm({ ...form(), tanggal_jatuh_tempo: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
               required
             />
           </div>
@@ -535,7 +650,7 @@ export default function PiutangSalesForm() {
               value={form().status}
               onInput={(e) => setForm({ ...form(), status: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
 
@@ -545,11 +660,9 @@ export default function PiutangSalesForm() {
               class="w-full border p-2 rounded"
               rows="3"
               value={form().keterangan}
-              onInput={(e) =>
-                setForm({ ...form(), keterangan: e.target.value })
-              }
+              onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
               disabled={isView}
-              classList={{ "bg-gray-200" : isView}}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
         </div>
