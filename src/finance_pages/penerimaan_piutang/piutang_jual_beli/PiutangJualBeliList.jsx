@@ -5,20 +5,39 @@ import Swal from "sweetalert2";
 import { Edit, Trash, Eye } from "lucide-solid";
 import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 
+import SearchSortFilter from "../../../components/SearchSortFilter";
+import useSimpleFilter from "../../../utils/useSimpleFilter";
+
 export default function PiutangJualBeliList() {
   const [penerimaanPiutang, setPenerimaanPiutang] = createSignal([]);
+  const [searchActive, setSearchActive] = createSignal(false);
+  const [currentSearch, setCurrentSearch] = createSignal("");
+  const { filteredData, applyFilter } = useSimpleFilter(penerimaanPiutang, [
+    "no_penerimaan",
+    "no_sj",
+    "supplier_name",
+    "customer_name",
+    "tanggal_jatuh_tempo",
+    "tanggal_pembayaran",
+    "payment_method",
+  ]);
   const navigate = useNavigate();
   const tokUser = User.getUser();
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
+  const totalPenerimaan = createMemo(() => {
+    const data = filteredData();
+    return data.reduce((sum, item) => sum + parseFloat(item.pembayaran || 0), 0);
+  });  
+
   const totalPages = createMemo(() =>
-    Math.max(1, Math.ceil(penerimaanPiutang().length / pageSize))
+    Math.max(1, Math.ceil(filteredData().length / pageSize))
   );
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return penerimaanPiutang().slice(startIndex, startIndex + pageSize);
+    return filteredData().slice(startIndex, startIndex + pageSize);
   };
 
   function formatTanggal(tanggalString) {
@@ -113,11 +132,33 @@ export default function PiutangJualBeliList() {
         const data = res?.data ?? res ?? [];
         setCurrentPage(Array.isArray(data) ? data : []);
       }
+        applyFilter({});  
+        setCurrentPage(1);
+        setSearchActive(false); // Reset search active ketika load data baru
     } catch (err) {
       console.error("Gagal ambil data penerimaan piutang jual beli:", err);
       setPenerimaanPiutang([]);
     }
   };
+
+  // Handle ketika search/filter diaplikasikan
+  const handleFilterChange = (filters) => {
+    applyFilter(filters);
+    
+    // Cek apakah ada pencarian aktif
+    const hasSearch = filters.search && filters.search.trim() !== "";
+    const hasFilter = filters.filter && filters.filter !== "";
+    
+    setSearchActive(hasSearch || hasFilter);
+    setCurrentSearch(filters.search || "");
+  };
+
+  // Reset search
+  const handleResetSearch = () => {
+    applyFilter({});
+    setSearchActive(false);
+    setCurrentSearch("");
+  };  
 
   createEffect(() => {
     if (tokUser?.token) {
@@ -145,6 +186,38 @@ export default function PiutangJualBeliList() {
           + Penerimaan Piutang Jual Beli
         </button>
       </div>
+
+      <div class="mb-4">
+        <SearchSortFilter
+          sortOptions={[
+            { label: "Nama Supplier", value: "supplier_name" },
+            { label: "Nama Customer", value: "customer_name" },
+            { label: "Tanggal Jatuh Tempo", value: "tanggal_jatuh_tempo" },
+            { label: "Tanggal Penerimaan", value: "tanggal_pembayaran" },
+            { label: "Payment Method", value: "payment_method" },
+          ]}
+          filterOptions={[
+            { label: "Order (Pajak)", value: "/P/" },
+            { label: "Order (Non Pajak)", value: "/N/" },
+            // { label: "Payment Method (Cash)", value: "Cash" },
+            // { label: "Payment Method (Hutang)", value: "Hutang" },
+            // { label: "Payment Method (Transfer)", value: "Transfer" },
+          ]}
+          onChange={handleFilterChange}
+        />
+        
+        {/* Tombol reset search */}
+        {searchActive() && (
+          <div class="mt-2 flex justify-end">
+            <button
+              class="text-sm text-gray-600 hover:text-gray-800 underline"
+              onClick={handleResetSearch}
+            >
+              Reset Pencarian
+            </button>
+          </div>
+        )}
+      </div>      
 
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white shadow-md rounded">
@@ -205,6 +278,26 @@ export default function PiutangJualBeliList() {
             ))}
           </tbody>
         </table>
+
+        {filteredData().length === 0 && (
+          <div class="text-center py-8 text-gray-500">
+            {searchActive() ? "Tidak ada data yang sesuai dengan pencarian" : "Tidak ada data pembayaran hutang greige"}
+          </div>
+        )}
+
+        {/* Total Pembayaran - Muncul hanya setelah search dan ada data */}
+        {searchActive() && filteredData().length > 0 && (
+          <div class="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div class="flex justify-between items-center">
+              <div>
+                <span class="font-bold text-green-800">Total Penerimaan: </span>
+              </div>
+              <span class="font-bold text-green-800 text-xl">
+                {formatIDR(totalPenerimaan())}
+              </span>
+            </div>
+          </div>
+        )}    
 
         <div class="w-full mt-8 flex justify-between space-x-2">
           <button
