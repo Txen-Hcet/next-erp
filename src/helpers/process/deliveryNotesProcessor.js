@@ -133,7 +133,7 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
               : parseNum(item.kilogram_total) || parseNum(item.kilogram);
 
             const unitLower = String(mainData.unit || "").toLowerCase();
-            const quantity = unitLower === "yard" ? totalYard : totalMeter;
+            const quantity = unitLower === "yard" ? totalYard : unitLower === "kilogram" ? totalKilogram : totalMeter;
 
             let harga1 = isKainJadi ? parseNum(item.harga_greige) : parseNum(item.harga);
             let harga2 = isKainJadi ? parseNum(item.harga_maklun) : null;
@@ -176,7 +176,7 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
           const kilogram = parseNum(item.kilogram_total ?? item.kilogram);
 
           const unitLower = String(mainDataPurchase.unit || "").toLowerCase();
-          const quantity = unitLower === "yard" ? yard : meter;
+          const quantity = unitLower === "yard" ? yard : unitLower === "kilogram" ? kilogram : meter;
 
           const harga1 = isKainJadi ? parseNum(item.harga_greige) : parseNum(item.harga);
           const harga2 = isKainJadi ? parseNum(item.harga_maklun) : null;
