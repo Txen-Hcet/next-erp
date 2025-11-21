@@ -25,6 +25,7 @@ import SearchableCustomerSelect from "../../components/CustomerDropdownSearch";
 import ColorDropdownSearch from "../../components/ColorDropdownSearch";
 import BankAccountDropDownSearch from "../../components/BankAccountDropdownSearch";
 import AgentDropdownSearch from "../../components/AgentDropdownSearch";
+import GradeDropdownSearch from "../../components/GradeDropdownSearch";
 
 export default function ExporSalesContractForm() {
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ export default function ExporSalesContractForm() {
   const [colorOptions, setColorOptions] = createSignal([]);
   const [loading, setLoading] = createSignal(true);
   const [purchaseContractData, setPurchaseContractData] = createSignal(null);
+  const [gradeOptions, setGradeOptions] = createSignal([]);
   const [isChecked, setIsChecked] = createSignal(true);
 
   const [params] = useSearchParams();
@@ -277,6 +279,7 @@ export default function ExporSalesContractForm() {
     setCustomersList(getCustomers.customers || []);
     setAgentList(getAgent.data || []);
     setBankAccountList(getBankAccounts?.data || []);
+    setGradeOptions(grades?.data || []);
     setColorOptions(colors?.warna || ["Pilih"]);
 
     const eksporType = (dataCustomerTypes.data || []).find(
@@ -510,6 +513,10 @@ export default function ExporSalesContractForm() {
         const intVal = sanitizeInt(value);
         item.lebarValue = intVal;
         item.lebar = formatNumber(intVal, { decimals: 0, showZero: true });
+      } else if ( field === "gramasi"){
+        const numValue = roundTo(parseNumber(value), 2);
+        item.gramasiValue = numValue;
+        item.gramasi = formatNumber(numValue, { decimals: 2, showZero: true });
       } else if (field === "description_of_goods") {
         item.description_of_goods = value;
       } else {
@@ -1031,6 +1038,9 @@ export default function ExporSalesContractForm() {
               <th hidden class="border p-2">
                 Design (Color)
               </th>
+              <th class="border p-2">Grade</th>
+              <th class="border p-2">Lebar</th>
+              <th class="border p-2">Gramasi</th>
               <th class="border p-2">Desc of Goods</th>
               <th class="border p-2">Yard</th>
               <th class="border p-2">Meter</th>
@@ -1044,7 +1054,7 @@ export default function ExporSalesContractForm() {
               {(item, i) => (
                 <tr>
                   <td class="border p-2 text-center">{i() + 1}</td>
-                  <td class="border w-72 p-2">
+                  <td class="border w-62 p-2">
                     <FabricDropdownSearch
                       fabrics={fabricOptions}
                       item={item}
@@ -1062,6 +1072,45 @@ export default function ExporSalesContractForm() {
                       onChange={(val) => handleItemChange(i(), "warna_id", val)}
                       disabled={isView}
                       classList={{ "bg-gray-200": isView }}
+                    />
+                  </td>
+                  <td class="border p-2">
+                    <GradeDropdownSearch
+                      grades={gradeOptions}
+                      item={item}
+                      onChange={(val) => handleItemChange(i(), "grade_id", val)}
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
+                    />
+                  </td>
+                  
+                  {/* TAMBAH KOLOM LEBAR */}
+                  <td class="border p-2">
+                    <input
+                      type="text"
+                      inputmode="decimal"
+                      class="border p-1 rounded w-full text-right"
+                      value={item.lebar}
+                      onBlur={(e) =>
+                        handleItemChange(i(), "lebar", e.target.value)
+                      }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
+                      placeholder="0"
+                    />
+                  </td>
+                  <td class="border p-2">
+                    <input
+                      type="text"
+                      inputmode="decimal"
+                      class="border p-1 rounded w-full text-right"
+                      value={item.gramasi}
+                      onBlur={(e) =>
+                        handleItemChange(i(), "gramasi", e.target.value)
+                      }
+                      disabled={isView}
+                      classList={{ "bg-gray-200": isView }}
+                      placeholder="0.00"
                     />
                   </td>
                   <td class="border p-2">
@@ -1157,7 +1206,7 @@ export default function ExporSalesContractForm() {
           </tbody>
           <tfoot>
             <tr class="font-bold bg-gray-100">
-              <td colSpan="6" class="text-right p-2">
+              <td colSpan="9" class="text-right p-2">
                 TOTAL
               </td>
               <td class="border p-2">{displayMoney(totalAll())}</td>
