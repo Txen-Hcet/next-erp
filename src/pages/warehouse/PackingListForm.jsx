@@ -1015,7 +1015,7 @@ export default function PackingListForm() {
                     <li class="text-sm list-disc">
                       <div class="flex flex-wrap items-baseline gap-x-2">
                         <span class="font-semibold">
-                          {item.corak_kain} | {item.konstruksi_kain}
+                          {item.kode_warna}
                         </span>
                         <span class="text-gray-500">—</span>
                         <span class="text-gray-700">Quantity:</span>
