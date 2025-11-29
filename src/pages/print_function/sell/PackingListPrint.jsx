@@ -316,7 +316,7 @@ export default function PackingListPrint(props) {
 
         /* Untuk Continuous */
         body[data-paper="CONTINUOUS95"] .roll-number {
-          font-size: 16px !important;
+          font-size: 12px !important;
           font-weight: 500 !important;
           -webkit-text-stroke: 0.15px;
         }
