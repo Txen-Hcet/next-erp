@@ -23,6 +23,9 @@ export default function SalesInvoicePrint(props) {
     return fromItemsWithRolls;
   });
 
+  // ===== Currency =====
+  const currency = createMemo(() => data()?.currency || 'IDR');
+  
   // ===== Formatter =====
   function formatTanggal(s) {
     if (!s) return "-";
@@ -33,11 +36,30 @@ export default function SalesInvoicePrint(props) {
     return `${dd}-${mm}-${yy}`;
   }
 
-  function formatRupiah(v, decimals = 2) {
+  function formatCurrency(v, decimals = 2) {
     const n = typeof v === "number" ? v : parseFloat(v) || 0;
-    return new Intl.NumberFormat("id-ID", {
+    const curr = currency();
+    
+    if (curr === 'IDR') {
+      return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(n);
+    } else if (curr === 'USD') {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }).format(n);
+    }
+    
+    // Fallback untuk currency lain
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "IDR",
+      currency: curr,
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(n);
@@ -156,6 +178,8 @@ export default function SalesInvoicePrint(props) {
           display: flex;
           flex-direction: column;
           align-items: center;
+          break-after: page;
+          page-break-after: always;
         }
         .safe {
           width: 100%;
@@ -215,7 +239,8 @@ export default function SalesInvoicePrint(props) {
                 isPPN={isPPN()}
                 isLast={isLast}
                 totals={totals()}
-                formatters={{ formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal }}
+                currency={currency()}
+                formatters={{ formatTanggal, formatCurrency, formatAngka, formatAngkaNonDecimal }}
                 logoNavel={logoNavel}
               />
             );
@@ -227,8 +252,8 @@ export default function SalesInvoicePrint(props) {
 }
 
 function PrintPage(props) {
-  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, logoNavel } = props;
-  const { formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal } = formatters;
+  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, currency, formatters, logoNavel } = props;
+  const { formatTanggal, formatCurrency, formatAngka, formatAngkaNonDecimal } = formatters;
 
   const { extraRows, bind, recalc } = createStretch({ fudge: 40 });
 
@@ -407,6 +432,12 @@ function PrintPage(props) {
                 <td className="w-[5%]  text-center">:</td>
                 <td className="px-2  break-words w-[65%]">{validityDisplay}</td>
               </tr>
+              {/* Tampilkan currency info */}
+              {/* <tr>
+                <td className="font-semibold px-2  w-[30%] whitespace-nowrap">Mata Uang</td>
+                <td className="w-[5%]  text-center">:</td>
+                <td className="px-2  break-words w-[65%]">{currency}</td>
+              </tr> */}
             </tbody>
           </table>
         </div>
@@ -452,13 +483,13 @@ function PrintPage(props) {
                     {formatAngka(getItemQuantity(item))}
                   </td>
 
-                  <td className="p-1 text-center break-words">{formatRupiah(item?.harga)}</td>
+                  <td className="p-1 text-center break-words">{formatCurrency(item?.harga)}</td>
                   <td className="p-1 text-right break-words">
                     {/* UBAH: Gunakan getItemQuantity() yang support Kilogram */}
                     {(() => {
                       const qty   = getItemQuantity(item);
                       const harga = parseFloat(item?.harga || 0);
-                      return harga && qty ? formatRupiah(harga * qty) : "-";
+                      return harga && qty ? formatCurrency(harga * qty) : "-";
                     })()}
                   </td>
                 </tr>
@@ -501,7 +532,7 @@ function PrintPage(props) {
                 <td className="border border-black px-2 py-1 text-right font-bold">
                   {isPPN ? 'Sub Total' : 'Grand Total'}
                 </td>
-                <td className="border border-black px-2 py-1 text-right">{formatRupiah(totals.subTotal)}</td>
+                <td className="border border-black px-2 py-1 text-right">{formatCurrency(totals.subTotal)}</td>
               </tr>
 
               {/* Baris label+nilai: kosongkan 9 kolom di kiri (11 - 2) */}
@@ -509,22 +540,22 @@ function PrintPage(props) {
                 <tr>
                   <td colSpan={7} className="px-2 py-1" />
                   <td className="px-2 py-1 text-right font-semibold">DPP</td>
-                  <td className="px-2 py-1 text-right">{formatRupiah(totals.dpp)}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(totals.dpp)}</td>
                 </tr>
                 <tr>
                   <td colSpan={7} className="px-2 py-1" />
                   <td className="px-2 py-1 text-right font-semibold">Nilai Lain</td>
-                  <td className="px-2 py-1 text-right">{formatRupiah(totals.nilaiLain)}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(totals.nilaiLain)}</td>
                 </tr>
                 <tr>
                   <td colSpan={7} className="px-2 py-1" />
                   <td className="px-2 py-1 text-right font-semibold">PPN</td>
-                  <td className="px-2 py-1 text-right">{formatRupiah(totals.ppn)}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(totals.ppn)}</td>
                 </tr>
                 <tr>
                   <td colSpan={7} className="px-2 py-1" />
                   <td className="px-2 py-1 text-right font-semibold">Jumlah Total</td>
-                  <td className="px-2 py-1 text-right">{formatRupiah(totals.grand)}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(totals.grand)}</td>
                 </tr>
               </Show>
               {/* <tr>
