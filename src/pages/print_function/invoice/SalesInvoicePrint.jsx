@@ -144,6 +144,48 @@ export default function SalesInvoicePrint(props) {
     totalRolls: totalRolls(),
   }));
 
+  // ===== Deteksi Ekspor berdasarkan no_sj =====
+  const isExport = createMemo(() => {
+    const noSj = data()?.no_sj || "";
+    return noSj.includes("/E/");
+  });
+
+  // ===== Hitung ulang SubTotal untuk Ekspor =====
+  const exportSubTotal = createMemo(() => {
+    if (!isExport()) return 0;
+    
+    const items = invoiceItems();
+    const activeUnit = data()?.satuan_unit || "Meter";
+    
+    return items.reduce((total, item) => {
+      // Tentukan quantity berdasarkan satuan
+      let qty = 0;
+      switch(activeUnit) {
+        case "Meter": 
+          qty = parseFloat(item?.meter_total || 0);
+          break;
+        case "Yard": 
+          qty = parseFloat(item?.yard_total || 0);
+          break;
+        case "Kilogram": 
+          qty = parseFloat(item?.kilogram_total || 0);
+          break;
+        default: 
+          qty = parseFloat(item?.meter_total || 0);
+      }
+      
+      const harga = parseFloat(item?.harga || 0);
+      return total + (qty * harga);
+    }, 0);
+  });
+
+  // ===== Update totals untuk include isExport dan exportSubTotal =====
+  const displayTotals = createMemo(() => ({
+    ...totals(),
+    isExport: isExport(),
+    exportSubTotal: exportSubTotal()
+  }));
+
   // ===== Pagination =====
   const ROWS_FIRST_PAGE  = 18;
   const ROWS_OTHER_PAGES = 18;
@@ -238,7 +280,7 @@ export default function SalesInvoicePrint(props) {
                 pageCount={count}
                 isPPN={isPPN()}
                 isLast={isLast}
-                totals={totals()}
+                totals={displayTotals()}
                 currency={currency()}
                 formatters={{ formatTanggal, formatCurrency, formatAngka, formatAngkaNonDecimal }}
                 logoNavel={logoNavel}
@@ -519,44 +561,68 @@ function PrintPage(props) {
           <tfoot ref={bind("tfootRef")}>
             {/* Total lengkap hanya di halaman terakhir */}
             <Show when={isLast}>
-              <tr>
-                {/* 6 kolom kiri (No, Jenis, Hidden, Warna, Lebar, Grade) */}
-                <td colSpan={5} className="border border-black font-bold text-right px-2 py-1">Total:</td>
-                {/* 3 kolom quantity */}
-                <td className="border border-black px-2 py-1 text-center font-semibold">{totals.totalRolls}</td>
-                {/* UBAH: Gunakan getTotalQuantity() yang support Kilogram */}
-                <td className="border border-black px-2 py-1 text-center font-semibold">
-                  {formatAngka(getTotalQuantity())}
-                </td>
-                {/* 2 kolom nominal */}
-                <td className="border border-black px-2 py-1 text-right font-bold">
-                  {isPPN ? 'Sub Total' : 'Grand Total'}
-                </td>
-                <td className="border border-black px-2 py-1 text-right">{formatCurrency(totals.subTotal)}</td>
-              </tr>
+              {/* Untuk EKSPOR: Hanya tampilkan Grand Total */}
+              <Show when={totals.isExport}>
+                <tr>
+                  {/* 6 kolom kiri (No, Jenis, Hidden, Warna, Lebar, Grade) */}
+                  <td colSpan={5} className="border border-black font-bold text-right px-2 py-1">Total:</td>
+                  {/* 3 kolom quantity */}
+                  <td className="border border-black px-2 py-1 text-center font-semibold">{totals.totalRolls}</td>
+                  {/* UBAH: Gunakan getTotalQuantity() yang support Kilogram */}
+                  <td className="border border-black px-2 py-1 text-center font-semibold">
+                    {formatAngka(getTotalQuantity())}
+                  </td>
+                  {/* 2 kolom nominal */}
+                  <td className="border border-black px-2 py-1 text-right font-bold">
+                    Grand Total
+                  </td>
+                  <td className="border border-black px-2 py-1 text-right">
+                    {formatCurrency(totals.exportSubTotal || totals.subTotal)}
+                  </td>
+                </tr>
+              </Show>
 
-              {/* Baris label+nilai: kosongkan 9 kolom di kiri (11 - 2) */}
-              <Show when={isPPN}>
+              {/* Untuk DOMESTIK: Tampilkan sesuai kondisi PPN */}
+              <Show when={!totals.isExport}>
                 <tr>
-                  <td colSpan={7} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-semibold">DPP</td>
-                  <td className="px-2 py-1 text-right">{formatCurrency(totals.dpp)}</td>
+                  {/* 6 kolom kiri (No, Jenis, Hidden, Warna, Lebar, Grade) */}
+                  <td colSpan={5} className="border border-black font-bold text-right px-2 py-1">Total:</td>
+                  {/* 3 kolom quantity */}
+                  <td className="border border-black px-2 py-1 text-center font-semibold">{totals.totalRolls}</td>
+                  {/* UBAH: Gunakan getTotalQuantity() yang support Kilogram */}
+                  <td className="border border-black px-2 py-1 text-center font-semibold">
+                    {formatAngka(getTotalQuantity())}
+                  </td>
+                  {/* 2 kolom nominal */}
+                  <td className="border border-black px-2 py-1 text-right font-bold">
+                    {isPPN ? 'Sub Total' : 'Grand Total'}
+                  </td>
+                  <td className="border border-black px-2 py-1 text-right">{formatCurrency(totals.subTotal)}</td>
                 </tr>
-                <tr>
-                  <td colSpan={7} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-semibold">Nilai Lain</td>
-                  <td className="px-2 py-1 text-right">{formatCurrency(totals.nilaiLain)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={7} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-semibold">PPN</td>
-                  <td className="px-2 py-1 text-right">{formatCurrency(totals.ppn)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={7} className="px-2 py-1" />
-                  <td className="px-2 py-1 text-right font-semibold">Jumlah Total</td>
-                  <td className="px-2 py-1 text-right">{formatCurrency(totals.grand)}</td>
-                </tr>
+
+                {/* Baris label+nilai: kosongkan 9 kolom di kiri (11 - 2) */}
+                <Show when={isPPN}>
+                  <tr>
+                    <td colSpan={7} className="px-2 py-1" />
+                    <td className="px-2 py-1 text-right font-semibold">DPP</td>
+                    <td className="px-2 py-1 text-right">{formatCurrency(totals.dpp)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={7} className="px-2 py-1" />
+                    <td className="px-2 py-1 text-right font-semibold">Nilai Lain</td>
+                    <td className="px-2 py-1 text-right">{formatCurrency(totals.nilaiLain)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={7} className="px-2 py-1" />
+                    <td className="px-2 py-1 text-right font-semibold">PPN</td>
+                    <td className="px-2 py-1 text-right">{formatCurrency(totals.ppn)}</td>
+                  </tr>
+                  <tr>
+                    <td colSpan={7} className="px-2 py-1" />
+                    <td className="px-2 py-1 text-right font-semibold">Jumlah Total</td>
+                    <td className="px-2 py-1 text-right">{formatCurrency(totals.grand)}</td>
+                  </tr>
+                </Show>
               </Show>
               {/* <tr>
                 <td colSpan={9} className="border border-black p-2 align-top">
