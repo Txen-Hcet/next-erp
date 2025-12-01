@@ -1,37 +1,49 @@
 import { onCleanup, onMount, createSignal } from "solid-js";
+import { get } from "idb-keyval";
 import SalesInvoicePrint from "../../pages/print_function/invoice/SalesInvoicePrint";
 
 export default function SalesInvoiceDummyPrint() {
   const [data, setData] = createSignal(null);
 
-  onMount(() => {
+  onMount(async () => {
     let parsedData = null;
+
     try {
-      const raw = window.location.hash.slice(1);
-      parsedData = JSON.parse(decodeURIComponent(raw));
+      // Ambil KEY dari URL ?key=xxxxx
+      const url = new URL(window.location.href);
+      const key = url.searchParams.get("key");
+      if (!key) throw new Error("Missing key");
+
+      // Ambil data besar dari IndexedDB
+      parsedData = await get(key);
+      if (!parsedData) throw new Error("IndexedDB return NULL");
+
       setData(parsedData);
     } catch (e) {
-      console.error("Gagal parse data print:", e);
+      console.error("Gagal load data print:", e);
       alert("Data print tidak valid.");
       window.close();
       return;
     }
 
+    // Kalau bukan PDF mode dan bukan preview → auto-print
     if (!parsedData._pdfMode && !parsedData._previewMode) {
       const closeAfterPrint = () => window.close();
       window.addEventListener("afterprint", closeAfterPrint);
 
-      // Tunggu render, lalu print
+      // Tunggu render
       setTimeout(() => {
         requestAnimationFrame(() =>
           requestAnimationFrame(() => window.print())
         );
-      }, 500); 
+      }, 500);
 
-      // Fallback auto-close
+      // fallback auto close
       setTimeout(() => window.close(), 5000);
 
-      onCleanup(() => window.removeEventListener("afterprint", closeAfterPrint));
+      onCleanup(() =>
+        window.removeEventListener("afterprint", closeAfterPrint)
+      );
     }
   });
 

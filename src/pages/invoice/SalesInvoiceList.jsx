@@ -16,6 +16,7 @@ import html2pdf from "html2pdf.js";
 
 import SearchSortFilter from "../../components/SearchSortFilter";
 import useSimpleFilter from "../../utils/useSimpleFilter";
+import { set } from "idb-keyval";
 
 export default function SalesInvoiceList() {
   const [suratJalan, setSuratJalan] = createSignal([]);
@@ -151,23 +152,56 @@ export default function SalesInvoiceList() {
     }
   };
 
+  // async function handlePrint(sc) {
+  //   try {
+  //     let updatedSc = { ...sc };
+  //     if (!sc.delivered_status) {
+  //       await setInvoiceSales(tokUser?.token, sc.id, { delivered_status: 1 });
+  //       updatedSc = { ...sc, delivered_status: 1 };
+  //       setSuratJalan((prev) =>
+  //         prev.map((item) => (item.id === sc.id ? updatedSc : item))
+  //       );
+  //     }
+  //     const detail = await getDeliveryNotes(sc.id, tokUser?.token);
+  //     if (!detail) {
+  //       Swal.fire("Error", "Data cetak tidak ditemukan.", "error");
+  //       return;
+  //     }
+  //     const encoded = encodeURIComponent(JSON.stringify(detail));
+  //     window.open(`/print/deliverynote-invoice#${encoded}`, "_blank");
+  //   } catch (err) {
+  //     console.error(err);
+  //     Swal.fire("Error", err.message || "Gagal memproses print", "error");
+  //   }
+  // }
+
   async function handlePrint(sc) {
     try {
       let updatedSc = { ...sc };
+
+      // Update delivered_status jika belum
       if (!sc.delivered_status) {
         await setInvoiceSales(tokUser?.token, sc.id, { delivered_status: 1 });
         updatedSc = { ...sc, delivered_status: 1 };
+
         setSuratJalan((prev) =>
           prev.map((item) => (item.id === sc.id ? updatedSc : item))
         );
       }
+
+      // Ambil detail untuk diprint
       const detail = await getDeliveryNotes(sc.id, tokUser?.token);
       if (!detail) {
         Swal.fire("Error", "Data cetak tidak ditemukan.", "error");
         return;
       }
-      const encoded = encodeURIComponent(JSON.stringify(detail));
-      window.open(`/print/deliverynote-invoice#${encoded}`, "_blank");
+
+      // Simpan ke IndexedDB → aman untuk data besar
+      const key = "dn_" + Date.now();
+      await set(key, detail);
+
+      // Buka window print berdasarkan key
+      window.open(`/print/deliverynote-invoice?key=${key}`, "_blank");
     } catch (err) {
       console.error(err);
       Swal.fire("Error", err.message || "Gagal memproses print", "error");
