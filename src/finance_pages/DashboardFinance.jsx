@@ -1,0 +1,1472 @@
+// src/pages/Dashboard.jsx
+import FinanceMainLayout from "../layouts/FinanceMainLayout";
+import { onMount, createSignal, For, Show } from "solid-js";
+import ApexChart from "../components/ApexChart";
+import { Printer, FileText, Filter } from "lucide-solid";
+import Litepicker from "litepicker";
+import Swal from "sweetalert2";
+
+import { User, PurchaseAksesorisEkspedisi } from "../utils/financeAuth";
+
+// IMPORT SERVICES & UTILS
+import PurchaseAksesorisEkspedisiService from "../services/PurchaseAksesorisEkspedisiService";
+import { printPurchaseAksesorisEkspedisi } from "../pages/reports/finance/printPurchaseAksesorisEkspedisi";
+import { exportPurchaseAksesorisEkspedisiToExcel } from "../helpers/export_excel/exportPurchaseAksesorisEkspedisiToExcel";
+
+// IMPORT SERVICES & UTILS UNTUK PAYMENT HUTANG
+import PaymentHutangAksesorisEkspedisiService from "../services/PaymentHutangAksesorisEkspedisiService";
+import { printPaymentHutangAksesorisEkspedisi } from "../pages/reports/finance/printPaymentHutangAksesorisEkspedisi";
+import { exportPaymentHutangAksesorisEkspedisiToExcel } from "../helpers/export_excel/exportPaymentHutangAksesorisEkspedisiToExcel";
+
+import { printPaymentHutangPurchaseGreige } from "../pages/reports/finance/printPaymentHutangPurchaseGreige";
+import { exportPaymenntHutangPurchaseGreigeToExcel } from "../helpers/export_excel/exportPaymentHutangPurchaseGreigeToExcel";
+import PaymentHutangPurchaseGreigeService from "../services/PaymentHutangPurchaseGreigeService";
+
+import { printPaymentHutangPurchaseCelup } from "../pages/reports/finance/printPaymentHutangPurchaseCelup";
+import { exportPaymenntHutangPurchaseCelupToExcel } from "../helpers/export_excel/exportPaymentHutangPurchaseCelupToExcel";
+import PaymentHutangPurchaseCelupService from "../services/PaymentHutangPurchaseCelupService";
+
+import { printPaymentHutangPurchaseFinish } from "../pages/reports/finance/printPaymentHutangPurchaseFinish";
+import { exportPaymenntHutangPurchaseFinishToExcel } from "../helpers/export_excel/exportPaymentHutangPurchaseFinishToExcel";
+import PaymentHutangPurchaseFinishService from "../services/PaymentHutangPurchaseFinishService";
+
+import { printPaymentHutangPurchaseJualBeli } from "../pages/reports/finance/printPaymentHutangPurchaseJualBeli";
+import { exportPaymenntHutangPurchaseJualBeliToExcel } from "../helpers/export_excel/exrpotPaymentPurchaseJualBeliToExcel";
+import PaymentHutangPurchaseJualBeliService from "../services/PaymentHutangPurchaseJualBeliService";
+
+// IMPORT SERVICE & UTILS UNTUK PENERIMAAN PIUTANG
+import PenerimaanPiutangSalesService from "../services/PenerimaanPiutangSalesService";
+import { exportPenerimaanPiutangSalesToExcel } from "../helpers/export_excel/exportPenerimaanPiutangSalesToExcel";
+import { printPenerimaanPiutangSales } from "../pages/reports/finance/printPenerimaanPiutangSales";
+
+import PenerimaanPiutangJualBeliService from "../services/PenerimaanPiutangJualBeliService";
+import { exportPenerimaanPiutangJualBeliToExcel } from "../helpers/export_excel/exportPenerimaanPiutangJualBeliToExcel";
+import { printPenerimaanPiutangJualBeli } from "../pages/reports/finance/printPenerimaanPiutangJualBeli";
+
+// IMPORT COMPONENTS FILTER
+import FinanceFilterModal from "../components/finance/FinanceFilterModal";
+import FinancePreviewModal from "../components/finance/FinancePreviewModal";
+
+const [activeTab, setActiveTab] = createSignal("purchase");
+
+export default function DashboardFinance() {
+  const user = User.getUser();
+
+  // ==== STATE FILTER ====
+  const [showFilterModal, setShowFilterModal] = createSignal(false);
+  const [showPreviewModal, setShowPreviewModal] = createSignal(false);
+  const [currentBlock, setCurrentBlock] = createSignal(null);
+  const [currentFilter, setCurrentFilter] = createSignal({});
+  const [previewData, setPreviewData] = createSignal([]);
+  const [applyLoading, setApplyLoading] = createSignal(false);
+
+  // ==== FORMATTERS ====
+  const formatTanggalIndo = (tanggalString) => {
+    if (!tanggalString) return "-";
+    const tanggal = new Date(tanggalString);
+    const bulanIndo = [
+      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ];
+    return `${tanggal.getDate()} ${bulanIndo[tanggal.getMonth()]} ${tanggal.getFullYear()}`;
+  };
+
+  const normalizeDate = (d) => {
+    if (!d) return null;
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return null;
+    return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  };
+
+  // ==== LAYOUT CONFIG ====
+  const SECTIONS = [
+    {
+      key: "purchase",
+      title: "Laporan Purchase Aksesoris Ekspedisi",
+      blocks: [
+        {
+          key: "purchase_aksesoris_ekspedisi",
+          label: "Purchase Aksesoris Ekspedisi",
+          filterConfig: { type: "purchase" },
+          //perm: "view_purchase_aksesoris_ekspedisi",
+        },
+      ],
+    },
+    {
+      key: "hutang",
+      title: "Laporan Pembayaran Hutang",
+      blocks: [
+        {
+          key: "payment_hutang_purchase_greige",
+          label: "Pembayaran Hutang Purchase Greige",
+          filterConfig: { type: "payment_hutang" },
+          //perm: "",
+        },
+        {
+          key: "payment_hutang_purchase_celup",
+          label: "Pembayaran Hutang Purchase Celup",
+          filterConfig: { type: "payment_hutang" },
+          // perm: ""
+        },
+        {
+          key: "payment_hutang_purchase_finish",
+          label: "Pembayaran Hutang Purchase Finish",
+          filterConfig: { type: "payment_hutang" },
+          // perm: "",
+        },
+        {
+          key: "payment_hutang_purchase_jual_beli",
+          label: "Pembayaran Hutang Purchase Jual Beli",
+          filterConfig: { type: "payment_hutang" },
+          // perm: "",
+        },
+        {
+          key: "payment_hutang_aksesoris_ekspedisi",
+          label: "Pembayaran Hutang Aksesoris Ekspedisi",
+          filterConfig: { type: "payment_hutang" },
+          //perm: "view_payment_hutang_aksesoris_ekspedisi",
+        },
+      ],
+    },
+    {
+      key: "piutang",
+      title: "Laporan Penerimaan Piutang",
+      blocks: [
+        {
+          key: "penerimaan_piutang_sales",
+          label: "Penerimaan Piutang Sales",
+          filterConfig: { type: "penerimaan_piutang" },
+          //perm: "",
+        },
+        {
+          key: "penerimaan_piutang_jual_beli",
+          label: "Penerimaan Piutang Jual Beli",
+          filterConfig: { type: "penerimaan_piutang" },
+          //perm: "",
+        }
+      ],
+    },
+  ];
+
+  // ---- state
+  const [sectionsData, setSectionsData] = createSignal([]);
+  const [loading, setLoading] = createSignal(true);
+
+  // filter tanggal
+  const [startDate, setStartDate] = createSignal("");
+  const [endDate, setEndDate] = createSignal("");
+
+  const currentFilterLabel = () => {
+    if (!startDate() && !endDate()) return "Semua tanggal";
+    return `${startDate()} s/d ${endDate()}`;
+  };
+
+  // ==== HANDLERS FILTER ====
+  const handleOpenFilter = (block) => {
+    setCurrentBlock(block);
+    setCurrentFilter(block.filter || {});
+    setShowFilterModal(true);
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setCurrentFilter(newFilter);
+  };
+
+  const handlePreviewFilter = async (block, filter) => {
+    try {
+      setApplyLoading(true);
+      
+      let data = [];
+      const filterParams = {
+        startDate: startDate(),
+        endDate: endDate(),
+        ...filter
+      };
+
+      // Load data berdasarkan tipe block
+      if (block.key === "purchase_aksesoris_ekspedisi") {
+        data = await PurchaseAksesorisEkspedisiService.getAllWithDetails(filterParams);
+      } else if (block.key === "payment_hutang_purchase_greige") {
+        data = await PaymentHutangPurchaseGreigeService.getAllWithDetails(filterParams);
+      } else if (block.key === "payment_hutang_purchase_celup") {
+        data = await PaymentHutangPurchaseCelupService.getAllWithDetails(filterParams);
+      } else if (block.key === "payment_hutang_purchase_finish") {
+        data = await PaymentHutangPurchaseFinishService.getAllWithDetails(filterParams);
+      } else if (block.key === "payment_hutang_purchase_jual_beli") {
+        data = await PaymentHutangPurchaseJualBeliService.getAllWithDetails(filterParams);
+      } else if (block.key === "payment_hutang_aksesoris_ekspedisi") {
+        data = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(filterParams);
+      } else if (block.key === "penerimaan_piutang_sales") {
+        data = await PenerimaanPiutangSalesService.getAllWithDetails(filterParams);
+      } else if (block.key === "penerimaan_piutang_jual_beli") {
+        data = await PenerimaanPiutangJualBeliService.getAllWithDetails(filterParams);
+      }
+
+      setPreviewData(Array.isArray(data) ? data : []);
+      setShowPreviewModal(true);
+      setShowFilterModal(false);
+    } catch (error) {
+      console.error('Error preview filter:', error);
+      Swal.fire('Error', 'Gagal memuat data preview', 'error');
+    } finally {
+      setApplyLoading(false);
+    }
+  };
+
+  const handleApplyFilter = async () => {
+    try {
+      setApplyLoading(true);
+      
+      // Update filter untuk block yang sedang aktif
+      const updatedSections = sectionsData().map(section => ({
+        ...section,
+        blocks: section.blocks.map(block => 
+          block.key === currentBlock().key 
+            ? { ...block, filter: currentFilter() }
+            : block
+        )
+      }));
+      
+      setSectionsData(updatedSections);
+      setShowPreviewModal(false);
+      
+      // Reload data dengan filter baru
+      await reloadData();
+      
+      Swal.fire('Sukses', 'Filter berhasil diterapkan', 'success');
+    } catch (error) {
+      console.error('Error applying filter:', error);
+      Swal.fire('Error', 'Gagal menerapkan filter', 'error');
+    } finally {
+      setApplyLoading(false);
+    }
+  };
+
+  // ==== LOAD DATA ====
+  const reloadData = async () => {
+    setLoading(true);
+    const assembled = [];
+
+    for (const sec of SECTIONS) {
+      const blocks = [];
+      
+      for (const b of sec.blocks) {
+        const filterParams = {
+          startDate: startDate(),
+          endDate: endDate(),
+          ...(b.filter || {})
+        };
+
+        // === PURCHASE AKSESORIS EKSPEDISI ===
+        if (b.key === "purchase_aksesoris_ekspedisi") {
+          try {
+            const dataWithDetails = await PurchaseAksesorisEkspedisiService.getAllWithDetails(filterParams);
+            
+            // Pastikan data adalah array
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PurchaseAksesorisEkspedisiService.calculateTotals(safeData);
+            const status = PurchaseAksesorisEkspedisiService.calculateStatus(safeData);
+            
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [ status.belumJatuhTempo, status.lewatJatuhTempo],
+                categories: [ "Belum Jatuh Tempo", "Lewat Jatuh Tempo"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading purchase aksesoris ekspedisi:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { totalSuratJalan: 0, totalNilai: 0 },
+              status: { belumJatuhTempo: 0, lewatJatuhTempo: 0 },
+              chart: { 
+                series: [ 0, 0], 
+                categories: ["Belum Jatuh Tempo", "Lewat Jatuh Tempo"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PAYMENT HUTANG PURCHASE GREIGE ===
+        if (b.key === "payment_hutang_purchase_greige") {
+          try {
+            const dataWithDetails = await PaymentHutangPurchaseGreigeService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PaymentHutangPurchaseGreigeService.calculateTotals(safeData);
+            const status = PaymentHutangPurchaseGreigeService.calculateStatus(safeData);
+            
+            const totalPembayaran = typeof status.totalPembayaran === 'string' 
+              ? parseFloat(status.totalPembayaran) 
+              : (status.totalPembayaran || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPembayaran, totalPotongan],
+                categories: ["Total Pembayaran", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading payment hutang purchase greige:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPembayaran: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Pembayaran", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PAYMENT HUTANG PURCHASE CELUP ===
+        if (b.key === "payment_hutang_purchase_celup") {
+          try {
+            const dataWithDetails = await PaymentHutangPurchaseCelupService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PaymentHutangPurchaseCelupService.calculateTotals(safeData);
+            const status = PaymentHutangPurchaseCelupService.calculateStatus(safeData);
+            
+            const totalPembayaran = typeof status.totalPembayaran === 'string' 
+              ? parseFloat(status.totalPembayaran) 
+              : (status.totalPembayaran || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPembayaran, totalPotongan],
+                categories: ["Total Pembayaran", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading payment hutang purchase celup:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPembayaran: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Pembayaran", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PAYMENT HUTANG PURCHASE FINISH ===
+        if (b.key === "payment_hutang_purchase_finish") {
+          try {
+            const dataWithDetails = await PaymentHutangPurchaseFinishService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PaymentHutangPurchaseFinishService.calculateTotals(safeData);
+            const status = PaymentHutangPurchaseFinishService.calculateStatus(safeData);
+            
+            const totalPembayaran = typeof status.totalPembayaran === 'string' 
+              ? parseFloat(status.totalPembayaran) 
+              : (status.totalPembayaran || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPembayaran, totalPotongan],
+                categories: ["Total Pembayaran", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading payment hutang purchase finish:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPembayaran: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Pembayaran", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PAYMENT HUTANG PURCHASE JUAL BELI ===
+        if (b.key === "payment_hutang_purchase_jual_beli") {
+          try {
+            const dataWithDetails = await PaymentHutangPurchaseJualBeliService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PaymentHutangPurchaseJualBeliService.calculateTotals(safeData);
+            const status = PaymentHutangPurchaseJualBeliService.calculateStatus(safeData);
+            
+            const totalPembayaran = typeof status.totalPembayaran === 'string' 
+              ? parseFloat(status.totalPembayaran) 
+              : (status.totalPembayaran || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPembayaran, totalPotongan],
+                categories: ["Total Pembayaran", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading payment hutang purchase jual beli:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPembayaran: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Pembayaran", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PAYMENT HUTANG AKSESORIS EKSPEDISI ===
+        if (b.key === "payment_hutang_aksesoris_ekspedisi") {
+          try {
+            const dataWithDetails = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PaymentHutangAksesorisEkspedisiService.calculateTotals(safeData);
+            const status = PaymentHutangAksesorisEkspedisiService.calculateStatus(safeData);
+            
+            const totalPembayaran = typeof status.totalPembayaran === 'string' 
+              ? parseFloat(status.totalPembayaran) 
+              : (status.totalPembayaran || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPembayaran, totalPotongan],
+                categories: ["Total Pembayaran", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading payment hutang aksesoris ekspedisi:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPembayaran: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Pembayaran", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PENERIMAAN PIUTANG SALES ===
+        if (b.key === "penerimaan_piutang_sales") {
+          try {
+            const dataWithDetails = await PenerimaanPiutangSalesService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PenerimaanPiutangSalesService.calculateTotals(safeData);
+            const status = PenerimaanPiutangSalesService.calculateStatus(safeData);
+            
+            const totalPenerimaan = typeof status.totalPenerimaan === 'string' 
+              ? parseFloat(status.totalPenerimaan) 
+              : (status.totalPenerimaan || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPenerimaan, totalPotongan],
+                categories: ["Total Penerimaan", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading penerimaan piutang sales:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPenerimaan: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Penerimaan", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+
+        // === PENERIMAAN PIUTANG JUAL BELI ===
+        if (b.key === "penerimaan_piutang_jual_beli") {
+          try {
+            const dataWithDetails = await PenerimaanPiutangJualBeliService.getAllWithDetails(filterParams);
+            
+            const safeData = Array.isArray(dataWithDetails) ? dataWithDetails : [];
+            
+            const totals = PenerimaanPiutangJualBeliService.calculateTotals(safeData);
+            const status = PenerimaanPiutangJualBeliService.calculateStatus(safeData);
+            
+            const totalPenerimaan = typeof status.totalPenerimaan === 'string' 
+              ? parseFloat(status.totalPenerimaan) 
+              : (status.totalPenerimaan || 0);
+            
+            const totalPotongan = typeof status.totalPotongan === 'string'
+              ? parseFloat(status.totalPotongan)
+              : (status.totalPotongan || 0);
+
+            blocks.push({
+              ...b,
+              data: safeData,
+              totals: totals,
+              status: status,
+              chart: {
+                series: [totalPenerimaan, totalPotongan],
+                categories: ["Total Penerimaan", "Total Potongan"],
+              }
+            });
+          } catch (error) {
+            console.error('Error loading penerimaan piutang jual belu:', error);
+            blocks.push({
+              ...b,
+              data: [],
+              totals: { 
+                totalSuratJalan: 0, 
+                totalNilai: 0 
+              },
+              status: { 
+                totalPenerimaan: 0, 
+                totalPotongan: 0 
+              },
+              chart: { 
+                series: [ 0, 0 ], 
+                categories: ["Total Penerimaan", "Total Potongan"] 
+              }
+            });
+          }
+          continue;
+        }
+      }
+      
+      if (blocks.length) assembled.push({ key: sec.key, title: sec.title, blocks });
+    }
+
+    setSectionsData(assembled);
+    setLoading(false);
+  };
+
+  // ==== FILTER MODAL ====
+  const askFilterMode = async () => {
+    const { value: choice } = await Swal.fire({
+      title: "Tampilkan Data",
+      input: "radio",
+      inputOptions: { all: "Semua tanggal", range: "Rentang tanggal…" },
+      inputValue: "all",
+      confirmButtonText: "Lanjut",
+      showCancelButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    });
+
+    if (choice === "range") {
+      const { value: rangeVal } = await Swal.fire({
+        title: "Pilih Rentang Tanggal",
+        html: `<input type="text" id="date-range" class="swal2-input" placeholder="Klik untuk pilih rentang">`,
+        didOpen: () => {
+          new Litepicker({
+            element: document.getElementById("date-range"),
+            singleMode: false,
+            format: "YYYY-MM-DD",
+            autoApply: true,
+            numberOfMonths: 2,
+            numberOfColumns: 2,
+          });
+        },
+        preConfirm: () => {
+          const val = document.getElementById("date-range").value;
+          if (!val) {
+            Swal.showValidationMessage("Rentang tanggal wajib dipilih!");
+            return null;
+          }
+          const [start, end] = val.split(" - ");
+          return { start, end };
+        },
+        showCancelButton: true,
+        confirmButtonText: "Terapkan",
+        cancelButtonText: "Batal",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+      });
+
+      if (rangeVal) {
+        setStartDate(rangeVal.start);
+        setEndDate(rangeVal.end);
+      } else {
+        setStartDate("");
+        setEndDate("");
+      }
+    } else {
+      setStartDate("");
+      setEndDate("");
+    }
+  };
+
+  onMount(async () => {
+    setStartDate("");
+    setEndDate("");
+    await reloadData();
+  });
+
+  // ==== EXPORT EXCEL ====
+  const exportToExcel = (data, type = "purchase") => {
+    if (type === "purchase") {
+      exportPurchaseAksesorisEkspedisiToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "payment_hutang_aksesoris") {
+      exportPaymentHutangAksesorisEkspedisiToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "payment_hutang_greige") {
+      exportPaymenntHutangPurchaseGreigeToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "payment_hutang_celup") {
+      exportPaymenntHutangPurchaseCelupToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "payment_hutang_finish") {
+      exportPaymenntHutangPurchaseFinishToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "payment_hutang_jual_beli") {
+      exportPaymenntHutangPurchaseJualBeliToExcel({
+        startDate: startDate(),
+        endDate: endDate()
+      });
+    } else if (type === "penerimaan_piutang_sales"){
+      exportPenerimaanPiutangSalesToExcel({
+        startDate: startDate(),
+        endDate: endDate(),
+      })
+    } else if (type === "penerimaan_piutang_jual_beli"){
+      exportPenerimaanPiutangJualBeliToExcel({
+        startDate: startDate(),
+        endDate: endDate(),
+      })
+    }
+  };
+
+  // ==== UI ====
+  return (
+    <FinanceMainLayout>
+      <h1 class="text-2xl font-bold mb-6">Dashboard Finance</h1>
+
+      {/* Filter Bar */}
+      <div class="bg-white rounded shadow p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm text-gray-700">
+          <span class="font-semibold">Filter:</span> {currentFilterLabel()}
+        </div>
+        <div class="flex gap-2">
+          <button
+            class="px-3 py-2 rounded border border-gray-300 hover:bg-gray-50"
+            onClick={async () => {
+              await askFilterMode();
+              await reloadData();
+            }}
+            title="Ubah rentang / mode tanggal"
+          >
+            Ubah Rentang
+          </button>
+          <button
+            class="px-3 py-2 rounded border border-gray-300 hover:bg-gray-50"
+            onClick={async () => {
+              setStartDate("");
+              setEndDate("");
+              await reloadData();
+            }}
+            title="Reset ke semua tanggal"
+          >
+            Reset ke Semua
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div class="flex gap-2 mb-6 border-b">
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "purchase"
+              ? "border-b-2 border-blue-600 font-bold text-blue-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("purchase")}
+        >
+          Laporan Purchase Aksesoris Ekspedisi
+        </button>
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "hutang"
+              ? "border-b-2 border-blue-600 font-bold text-blue-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("hutang")}
+        >
+          Laporan Pembayaran Hutang
+        </button>
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "piutang"
+              ? "border-b-2 border-blue-600 font-bold text-blue-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("piutang")}
+        >
+          Laporan Penerimaan Piutang
+        </button>
+      </div>
+
+      <Show when={loading()}>
+        <div class="p-6 bg-white rounded shadow text-center">Loading…</div>
+      </Show>
+
+      <For each={sectionsData().filter((s) => s.key === activeTab())}>
+        {(section) => (
+          <div class="mb-12">
+            <h2 class="text-xl font-bold mb-4">{section.title}</h2>
+
+            <For each={section.blocks}>
+              {(block) => {
+                // === PURCHASE AKSESORIS EKSPEDISI ===
+                if (block.key === "purchase_aksesoris_ekspedisi") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%`
+                            },
+                            colors: ['#10B981', '#EF4444']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Kartu Total Surat Jalan */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembelian</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPurchaseAksesorisEkspedisi({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Nilai */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Nilai Pembelian</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "purchase")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Status Pembayaran */}
+                        <div class="bg-white p-6 rounded shadow border">
+                          <p class="text-sm text-gray-500 mb-2">Status Pembayaran</p>
+                          <div class="space-y-1 text-sm">
+                            <div class="flex justify-between">
+                              <span class="text-green-600">Belum Jatuh Tempo:</span>
+                              <span class="font-semibold">{block.status.belumJatuhTempo}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-red-600">Lewat Jatuh Tempo:</span>
+                              <span class="font-semibold">{block.status.lewatJatuhTempo}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PAYMENT HUTANG PURCHASE GREIGE ===
+                if (block.key === "payment_hutang_purchase_greige") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%` // UBAH KE PERSENTASE
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPaymentHutangPurchaseGreige({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "payment_hutang_greige")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PAYMENT HUTANG PURCHASE CELUP ===
+                if (block.key === "payment_hutang_purchase_celup") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%` // UBAH KE PERSENTASE
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPaymentHutangPurchaseCelup({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "payment_hutang_celup")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PAYMENT HUTANG PURCHASE FINISH ===
+                if (block.key === "payment_hutang_purchase_finish") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%` // UBAH KE PERSENTASE
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPaymentHutangPurchaseFinish({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "payment_hutang_finish")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PAYMENT HUTANG PURCHASE JUAL BELI ===
+                if (block.key === "payment_hutang_purchase_jual_beli") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%` // UBAH KE PERSENTASE
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPaymentHutangPurchaseJualBeli({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "payment_hutang_jual_beli")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PAYMENT HUTANG AKSESORIS EKSPEDISI ===
+                if (block.key === "payment_hutang_aksesoris_ekspedisi") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%` // UBAH KE PERSENTASE
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPaymentHutangAksesorisEkspedisi({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Pembayaran Hutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "payment_hutang_aksesoris")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PENERIMAAN PIUTANG SALES ===
+                if (block.key === "penerimaan_piutang_sales") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%`
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Penerimaan Piutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPenerimaanPiutangSales({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Penerimaan Piutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "penerimaan_piutang_sales")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // === PENERIMAAN PIUTANG JUAL BELI ===
+                if (block.key === "penerimaan_piutang_jual_beli") {
+                  return (
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">{block.label}</h3>
+                        <button
+                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                          onClick={() => handleOpenFilter(block)}
+                          title="Filter Data"
+                        >
+                          <Filter size={16} />
+                          Filter
+                        </button>
+                      </div>
+                      <div class="p-6 border-b">
+                        <ApexChart
+                          type="donut"
+                          height={320}
+                          series={block.chart.series}
+                          options={{
+                            labels: block.chart.categories,
+                            legend: { position: "bottom" },
+                            dataLabels: { 
+                              enabled: true,
+                              formatter: (val) => `${val.toFixed(1)}%`
+                            },
+                            colors: ['#3B82F6', '#10B981']
+                          }}
+                        />
+                      </div>
+
+                      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Kartu Total Laporan Penerimaan Piutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Laporan Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Cetak Laporan"
+                            onClick={() => printPenerimaanPiutangJualBeli({
+                              startDate: startDate(),
+                              endDate: endDate()
+                            })}
+                          >
+                            <Printer size={20} />
+                          </button>
+                        </div>
+
+                        {/* Kartu Total Penerimaan Piutang */}
+                        <div class="bg-white p-6 rounded shadow relative border">
+                          <p class="text-sm text-gray-500">Total Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-green-600">
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              minimumFractionDigits: 0
+                            }).format(block.totals.totalNilai)}
+                          </p>
+                          <button
+                            class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
+                            title="Export Excel"
+                            onClick={() => exportToExcel(block.data, "penerimaan_piutang_jual_beli")}
+                          >
+                            <FileText size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            </For>
+          </div>
+        )}
+      </For>
+
+      <Show when={!loading() && sectionsData().length === 0}>
+        <div class="p-6 bg-white rounded shadow text-gray-500 text-center">
+          Tidak ada laporan yang dapat ditampilkan.
+        </div>
+      </Show>
+
+      {/* Filter Modal */}
+      <Show when={showFilterModal()}>
+        <FinanceFilterModal
+          block={currentBlock()}
+          filter={currentFilter()}
+          onFilterChange={handleFilterChange}
+          onPreview={handlePreviewFilter}
+          onApply={handleApplyFilter}
+          onCancel={() => setShowFilterModal(false)}
+          loading={applyLoading()}
+        />
+      </Show>
+
+      {/* Preview Modal */}
+      <Show when={showPreviewModal()}>
+        <FinancePreviewModal
+          show={showPreviewModal()}
+          block={currentBlock()}
+          data={previewData()}
+          finance_filter={currentFilter()}
+          onApply={handleApplyFilter}
+          onCancel={() => setShowPreviewModal(false)}
+          applyLoading={applyLoading()}
+        />
+      </Show>
+    </FinanceMainLayout>
+  );
+}

@@ -277,7 +277,7 @@ export default function PiutangSalesList() {
 
         {filteredData().length === 0 && (
           <div class="text-center py-8 text-gray-500">
-            {searchActive() ? "Tidak ada data yang sesuai dengan pencarian" : "Tidak ada data pembayaran hutang greige"}
+            {searchActive() ? "Tidak ada data yang sesuai dengan pencarian" : "Tidak ada data penerimaan piutang sales"}
           </div>
         )}
 

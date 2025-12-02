@@ -150,11 +150,13 @@ import PiutangJualBeliList from "./finance_pages/penerimaan_piutang/piutang_jual
 import PiutangJualBeliForm from "./finance_pages/penerimaan_piutang/piutang_jual_beli/PiutangJualBeliForm";
 import PiutangSalesList from "./finance_pages/penerimaan_piutang/piutang_sales/PiutangSalesList";
 import PiutangSalesForm from "./finance_pages/penerimaan_piutang/piutang_sales/PiutangSalesForm";
+import DashboardFinance from "./finance_pages/DashboardFinance";
 
 function App() {
   return (
     <Router>
       <Route path="/" component={LoginPage} />
+      {/* <Route path="/dashboard-finance" component={DashboardFinance} /> */}
       <Route path="/dashboard-finance" component={FinanceMainLayout} />
       <Route path="/users" component={UsersList} />
       <Route path="/users/form" component={UserForm} />

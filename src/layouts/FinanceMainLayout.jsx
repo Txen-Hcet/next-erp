@@ -163,9 +163,9 @@ export default function FinanceMainLayout(props) {
             {/* Main Menu */}
             <li>
               <A
-                href="/dashboard"
+                href="/dashboard-finance"
                 class={`block p-4 hover:bg-gray-700 ${
-                  location.pathname === "/dashboard"
+                  location.pathname === "/dashboard=finance"
                     ? "bg-gray-700 text-white"
                     : ""
                 }`}
