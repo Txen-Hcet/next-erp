@@ -87,6 +87,7 @@ export default function MainLayout(props) {
   const invoiceRoutes = {
     transaction: ["/deliverynote-invoice", "/deliverynote-invoice/form"],
     jualbeli: ["/jualbeli-invoice", "/jualbeli-invoice/form"],
+    invoicevia: ["/invoice-via", "/invoice-via/form"],
   };
 
   // ==== RETUR ROUTES (dipisah agar auto-expand submenu tepat) ====
@@ -150,6 +151,8 @@ export default function MainLayout(props) {
         [
           "/salescontract",
           "/salescontract/form",
+          "/salescontractvia",
+          "/salescontractvia/form",
           "/expor/salescontract",
           "/expor/salescontract/form",
           "/salesorder",
@@ -874,12 +877,17 @@ export default function MainLayout(props) {
                   </ul>
                 </li>
                 {/* PENJUALAN */}
-                {hasAllPermission([
+                {(hasAllPermission([
                   "view_sales_contracts",
                   "view_sales_orders",
                   "create_sales_contracts",
                   "create_sales_orders",
-                ]) && (
+                ]) || hasAnyPermission([
+                  "view_bank",
+                  "view_payment_methods",
+                  "view_jenis_potongan",
+                  "view_jenis_hutang",
+                ])) && (
                   <li>
                     <button
                       class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
@@ -901,47 +909,78 @@ export default function MainLayout(props) {
                   }`}
                 >
                   <ul>
-                    <li>
-                      <A
-                        href="/salescontract"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salescontract" ||
-                          location.pathname === "/salescontract/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Sales Contract (Lokal)
-                      </A>
-                    </li>
-                    {hasPermission("edit_sales_contracts") && (
-                      <li>
-                        <A
-                          href="/expor/salescontract"
-                          class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                            location.pathname === "/expor/salescontract" ||
-                            location.pathname === "/expor/salescontract/form"
-                              ? "bg-gray-700 text-white"
-                              : ""
-                          }`}
-                        >
-                          Sales Contract (Ekspor)
-                        </A>
-                      </li>
+                    {/* Menu untuk Sales (marketing) */}
+                    {hasAllPermission([
+                      "view_sales_contracts",
+                      "view_sales_orders",
+                      "create_sales_contracts",
+                      "create_sales_orders",
+                    ]) && (
+                      <>
+                        <li>
+                          <A
+                            href="/salescontract"
+                            class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/salescontract" ||
+                              location.pathname === "/salescontract/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Sales Contract (Lokal)
+                          </A>
+                        </li>
+                        {hasPermission("edit_sales_contracts") && (
+                          <li>
+                            <A
+                              href="/expor/salescontract"
+                              class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                                location.pathname === "/expor/salescontract" ||
+                                location.pathname === "/expor/salescontract/form"
+                                  ? "bg-gray-700 text-white"
+                                  : ""
+                              }`}
+                            >
+                              Sales Contract (Ekspor)
+                            </A>
+                          </li>
+                        )}
+                        {/* Menu untuk Finance (VIA) */}
+                        {hasAnyPermission([
+                          "view_bank",
+                          "view_payment_methods",
+                          "view_jenis_potongan",
+                          "view_jenis_hutang",
+                        ]) && (
+                          <li>
+                            <A
+                              href="/salescontractvia"
+                              class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                                location.pathname === "/salescontractvia" ||
+                                location.pathname === "/salescontractvia/form"
+                                  ? "bg-gray-700 text-white"
+                                  : ""
+                              }`}
+                            >
+                              Sales Contract (VIA)
+                            </A>
+                          </li>
+                        )}
+                        <li>
+                          <A
+                            href="/salesorder"
+                            class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/salesorder" ||
+                              location.pathname === "/salesorder/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Sales Order
+                          </A>
+                        </li>
+                      </>
                     )}
-                    <li>
-                      <A
-                        href="/salesorder"
-                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
-                          location.pathname === "/salesorder" ||
-                          location.pathname === "/salesorder/form"
-                            ? "bg-gray-700 text-white"
-                            : ""
-                        }`}
-                      >
-                        Sales Order
-                      </A>
-                    </li>
                   </ul>
                 </li>
 
@@ -1249,6 +1288,19 @@ export default function MainLayout(props) {
                         Invoice Penjualan
                       </A>
                     </li>
+                    {/* <li>
+                      <A
+                        href="/invoice-via"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/invoice-via" ||
+                          location.pathname === "/invoice-via/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Invoice Penjualan (VIA)
+                      </A>
+                    </li> */}
                     <li>
                       <A
                         href="/jualbeli-invoice"
