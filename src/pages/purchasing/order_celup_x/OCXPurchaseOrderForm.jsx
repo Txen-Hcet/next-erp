@@ -436,18 +436,6 @@ export default function OCXPurchaseOrderForm() {
   };
 
   const generateNomorKontrak = async () => {
-    if (!validateContractSelected()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Pilih Contract Terlebih Dahulu",
-        text: "Silakan pilih Purchase Contract sebelum generate nomor PO.",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-      });
-      return;
-    }
-
     const lastSeq = await getLastSequence(
       user?.token,
       "oc_o",
@@ -521,36 +509,76 @@ export default function OCXPurchaseOrderForm() {
     };
   };
 
+  const createEmptyItem = () => {
+    return {
+      id: null,
+      pc_item_id: null,
+      fabric_id: "",
+      kain_id: "",
+      warna_id: null,
+      keterangan_warna: "",
+      
+      // Default string kosong atau 0
+      lebar_greige: "", 
+      lebar_finish: "",
+      
+      corak_kain: "-",
+      konstruksi_kain: "-",
+      
+      meter_total: 0,
+      yard_total: 0,
+      meter_dalam_proses: 0,
+      yard_dalam_proses: 0,
+      
+      std_susutValue: 0,
+      std_susut: "",
+      
+      meter: "",
+      meterValue: 0,
+      yard: "",
+      yardValue: 0,
+      
+      harga: "",
+      hargaValue: 0,
+      hargaFormatted: "",
+      
+      subtotal: 0,
+      subtotalFormatted: "",
+      
+      readOnly: false, // Penting: agar input tidak dikunci
+    };
+  };
+
   // CHANGED: tambah item mengikuti satuan yang dipilih user (fallback kontrak bila kosong)
   const addItem = async () => {
-    const pcId = form().pc_id;
-    if (!pcId) {
-      Swal.fire(
-        "Peringatan",
-        "Silakan pilih Purchase Contract terlebih dahulu.",
-        "warning"
-      );
-      return;
-    }
-
     let baseItems = contractItems();
     let contractSatuan = form().satuan_unit_id;
 
-    if (!baseItems || baseItems.length === 0) {
-      const detail = await getOrderCelups(pcId, user?.token);
-      baseItems = detail?.contract?.items || [];
-      contractSatuan = detail?.contract?.satuan_unit_id || contractSatuan;
-    }
-
-    if (!baseItems.length) {
-      Swal.fire("Info", "Item pada Purchase Contract tidak ditemukan.", "info");
-      return;
+    // Coba ambil dari cache/API jika PC ID ada tapi items kosong
+    if (form().pc_id && (!baseItems || baseItems.length === 0)) {
+      try {
+        const detail = await getOrderCelups(form().pc_id, user?.token);
+        baseItems = detail?.contract?.items || [];
+        contractSatuan = detail?.contract?.satuan_unit_id || contractSatuan;
+      } catch (e) {
+        console.warn("Gagal fetch contract item", e);
+      }
     }
 
     const selectedSatuan = form().satuan_unit_id || contractSatuan || 1;
-    const paketBaru = baseItems.map((ci) =>
-      templateFromOCContractItem(ci, selectedSatuan)
-    );
+
+    let paketBaru = [];
+
+    // JIKA ADA KONTRAK: Clone item dari kontrak
+    if (baseItems && baseItems.length > 0) {
+      paketBaru = baseItems.map((ci) =>
+        templateFromOCContractItem(ci, selectedSatuan)
+      );
+    } 
+    // JIKA TIDAK ADA KONTRAK (Manual): Tambah 1 baris kosong
+    else {
+      paketBaru = [createEmptyItem()];
+    }
 
     setForm((prev) => ({ ...prev, items: [...prev.items, ...paketBaru] }));
   };
@@ -578,15 +606,31 @@ export default function OCXPurchaseOrderForm() {
 
         if (field === "fabric_id" || field === "kain_id") {
           item.kain_id = value;
+          item.fabric_id = value;
+
+          // 1. Cek apakah ada di Contract (Existing logic)
           const contract = purchaseContracts().find(
             (sc) => sc.id == prev.pc_id
           );
+          let matchedItem = null;
+          
           if (contract && contract.items) {
-            const matchedItem = contract.items.find(
+            matchedItem = contract.items.find(
               (i) => i.fabric_id == value || i.kain_id == value
             );
-            if (matchedItem) {
-              item.pc_item_id = matchedItem.id;
+          }
+
+          if (matchedItem) {
+            // Jika match dengan kontrak, ambil ID-nya
+            item.pc_item_id = matchedItem.id;
+          } else {
+            // Jika manual (tidak ada kontrak), ambil detail dari Master Kain (fabricOptions)
+            const selectedFabric = fabricOptions().find(f => f.id == value);
+            if (selectedFabric) {
+                item.corak_kain = selectedFabric.corak_kain || "-";
+                item.konstruksi_kain = selectedFabric.konstruksi_kain || "-";
+                // Jika ingin auto-fill lebar default dari master kain, bisa ditambahkan di sini
+                // item.lebar_greige = selectedFabric.lebar_default || ""; 
             }
           }
         }
@@ -666,17 +710,7 @@ export default function OCXPurchaseOrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form().no_seq && !isEdit) {
-      Swal.fire({
-        icon: "warning",
-        title: "Generate Nomor PO",
-        text: "Silakan klik tombol 'Generate' untuk membuat nomor PO terlebih dahulu.",
-        showConfirmButton: false,
-        timer: 1500,
-        timerProgressBar: true,
-      });
-      return;
-    }
+
     try {
       if (isEdit) {
         const payload = {
@@ -884,7 +918,7 @@ export default function OCXPurchaseOrderForm() {
             <label class="block mb-1 font-medium">Termin</label>
             <input type="hidden" name="termin" value={form().termin} />
             <select
-              class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
+              class="w-full border p-2 rounded"
               value={form().termin}
               // disabled
             >
@@ -1038,26 +1072,31 @@ export default function OCXPurchaseOrderForm() {
                       <FabricDropdownSearch
                         fabrics={fabricOptions}
                         item={item}
-                        onChange={(val) =>
-                          handleItemChange(i(), "kain_id", val)
-                        }
-                        disabled={true}
+                        onChange={(val) => handleItemChange(i(), "kain_id", val)}
+                        // CHANGED: Hanya disable jika item ini hasil turunan dari Purchase Contract
+                        disabled={!!item.pc_item_id || isView} 
                       />
                     </td>
                     <td class="border p-2">
                       <input
                         type="number"
-                        class="border p-1 rounded w-30 bg-gray-200"
+                        class="border p-1 rounded w-30"
                         value={item.lebar_greige}
-                        disabled={true}
+                        // CHANGED: Enable jika manual (tidak ada pc_item_id)
+                        disabled={!!item.pc_item_id || isView}
+                        classList={{ "bg-gray-200": !!item.pc_item_id || isView }}
+                        onInput={(e) => handleItemChange(i(), "lebar_greige", e.target.value)}
                       />
                     </td>
                     <td class="border p-2">
                       <input
                         type="number"
-                        class="border p-1 rounded w-30 bg-gray-200"
+                        class="border p-1 rounded w-30"
                         value={item.lebar_finish}
-                        disabled={true}
+                        // CHANGED: Enable jika manual
+                        disabled={!!item.pc_item_id || isView}
+                        classList={{ "bg-gray-200": !!item.pc_item_id || isView }}
+                        onInput={(e) => handleItemChange(i(), "lebar_finish", e.target.value)}
                       />
                     </td>
                     <td hidden class="border p-2">
