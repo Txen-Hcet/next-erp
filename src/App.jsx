@@ -271,11 +271,11 @@ function App() {
 
       {/* ORDER CELUP X */}
       <Route
-        path="/ordercelup-purchaseorderx"
+        path="/ordercelup-purchaseocx"
         component={OrderCelupXPurchaseOrderList}
       />
       <Route
-        path="/ordercelup-purchaseorderx/form"
+        path="/ordercelup-purchaseocx/form"
         component={OrderCelupXPurchaseOrderForm}
       />
 

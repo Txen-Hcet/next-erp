@@ -181,7 +181,7 @@ export default function OCXPurchaseOrderList() {
         <h1 class="text-2xl font-bold">Daftar OCX</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/ordercelup-purchaseorder/form")}
+          onClick={() => navigate("/ordercelup-purchaseocx/form")}
         >
           + Tambah OCX
         </button>

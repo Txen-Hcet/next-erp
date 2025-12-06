@@ -63,6 +63,7 @@ export default function MainLayout(props) {
       "/ordercelup-purchaseorder",
       "/ordercelup-purchaseorder/form",
     ],
+    ocx: ["/ordercelup-purchaseocx", "/ordercelup-purchaseocx/form"],
     finish: [
       "/kainjadi-purchasecontract",
       "/kainjadi-purchasecontract/form",
@@ -274,6 +275,10 @@ export default function MainLayout(props) {
           purchasingRoutes.celup.some((p) => location.pathname.startsWith(p))
         ) {
           setCelupIsOpen(true);
+        }
+
+        if (purchasingRoutes.ocx.some((p) => location.pathname.startsWith(p))) {
+          setCelupXIsOpen(true);
         }
 
         if (
@@ -815,12 +820,11 @@ export default function MainLayout(props) {
                         </li> */}
                         <li>
                           <A
-                            href="/ordercelup-purchaseorderx"
+                            href="/ordercelup-purchaseocx"
                             class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname === "/ordercelup-purchaseocx" ||
                               location.pathname ===
-                                "/ordercelup-purchaseorderx" ||
-                              location.pathname ===
-                                "/ordercelup-purchaseorderx/form"
+                                "/ordercelup-purchaseocx/form"
                                 ? "bg-gray-700 text-white"
                                 : ""
                             }`}

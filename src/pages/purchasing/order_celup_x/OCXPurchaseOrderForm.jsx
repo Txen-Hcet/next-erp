@@ -769,7 +769,7 @@ export default function OCXPurchaseOrderForm() {
         </div>
       )}
       <h1 class="text-2xl font-bold mb-4">
-        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Order Celup X
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} OCX
       </h1>
 
       <div class="flex flex-wrap gap-2 mb-4" hidden={!isEdit}>
@@ -825,8 +825,17 @@ export default function OCXPurchaseOrderForm() {
               </button>
             </div>
           </div>
-
           <div>
+            <label class="block mb-1 font-medium">Supplier</label>
+            <SupplierDropdownSearch
+              suppliers={supplierOptions}
+              form={form}
+              setForm={setForm}
+              onChange={(id) => setForm({ ...form(), supplier_id: id })}
+              // disabled={true}
+            />
+          </div>
+          {/* <div>
             <label class="block mb-1 font-medium">No Purchase Contract</label>
             <PurchasingContractDropdownSearch
               purchaseContracts={purchaseContracts}
@@ -835,7 +844,7 @@ export default function OCXPurchaseOrderForm() {
               onChange={handlePurchaseContractChange}
               disabled={isView || isEdit}
             />
-          </div>
+          </div> */}
 
           <div>
             <label class="block mb-1 font-medium">Tanggal</label>
@@ -849,17 +858,6 @@ export default function OCXPurchaseOrderForm() {
         </div>
 
         <div class="grid grid-cols-4 gap-4">
-          <div>
-            <label class="block mb-1 font-medium">Supplier</label>
-            <SupplierDropdownSearch
-              suppliers={supplierOptions}
-              form={form}
-              setForm={setForm}
-              onChange={(id) => setForm({ ...form(), supplier_id: id })}
-              disabled={true}
-            />
-          </div>
-
           {/* CHANGED: Satuan Unit selectable & triggers recalc */}
           <div>
             <label class="block mb-1 font-medium">Satuan Unit</label>
@@ -888,7 +886,7 @@ export default function OCXPurchaseOrderForm() {
             <select
               class="w-full border p-2 rounded bg-gray-200 cursor-not-allowed"
               value={form().termin}
-              disabled
+              // disabled
             >
               <option value="">-- Pilih Termin --</option>
               <option value="0">Cash</option>
@@ -907,7 +905,7 @@ export default function OCXPurchaseOrderForm() {
                 <input
                   type="checkbox"
                   checked={parseFloat(form().ppn) > 0}
-                  disabled
+                  // disabled
                   class="sr-only peer"
                 />
                 <div class="w-24 h-10 bg-gray-200 rounded-full peer-checked:bg-green-600 transition-colors"></div>
