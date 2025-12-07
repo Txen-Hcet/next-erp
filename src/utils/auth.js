@@ -3861,6 +3861,151 @@ export async function softDeleteOrderCelupOrder(id, token) {
 }
 // #endregion ORDER CELUP ORDER FUNCTION
 
+// #startregion ORDER CELUP EX
+export async function createOCX(token, payload) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    //console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat order celup ex");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllOCX(token) {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/purchase-celup-ex-order`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "ngrok-skip-browser-warning": "any-value",
+      },
+    });
+
+    const data = await response.json();
+
+    return {
+      status: response.status,
+      ...data,
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data order celup ex",
+    };
+  }
+}
+
+
+export async function getOCX(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/purchase-celup-ex-order/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis order celup order ex dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateOCX(token, id, payload) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/update-purchase-celup-ex-order/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    //console.log(payload);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal mengubah dat order celup ex");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteOCX(id, token) {
+  try {
+    const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-ex-order/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data order celup order ex dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion ORDER CELUP EX
+
 // #region ORDER CELUP DELIVERY NOTE FUNCTION
 
 export async function createOCDeliveryNote(token, payload) {
@@ -4041,6 +4186,155 @@ export async function softDeleteOCDeliveryNote(id, token) {
 }
 
 // #endregion ORDER CELUP DELIVERY NOTE FUNCTION
+
+// #startregion SP OCX
+export async function createSJOCX(token, payload) {
+  try {
+    const response = await fetch(
+        //`https://nexttechenterprise.site/api/create-purchase-celup-surat-jalan`,
+        `${import.meta.env.VITE_API_URL}/create-purchase-celup-surat-jalan`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Gagal membuat Surat Penerimaan Order Celup EX");
+    }
+
+    return data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+export async function getAllSJOCX(token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/purchase-celup-surat-jalan`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    return {
+      status: response.status,
+      ...data,            
+    };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data Surat Penerimaan Order Celup EX",
+    };
+  }
+}
+
+export async function getSJOCX(id, token) {
+  try {
+    const response = await fetch(
+        //`https://nexttechenterprise.site/api/purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/purchase-celup-surat-jalan/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal mengambil jenis Surat Penerimaan Order Celup EX dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function updateSJOCX(token, id, payload) {
+  try {
+    const response = await fetch(
+        //`https://nexttechenterprise.site/api/update-purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/update-purchase-celup-surat-jalan/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message || "Gagal mengubah data Surat Penerimaan Order Celup EX"
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function softDeleteSJOCX(id, token) {
+  try {
+    const response = await fetch(
+        //`https://nexttechenterprise.site/api/delete-purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-surat-jalan/${id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-type",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.message ||
+          `Gagal menghapus data Surat Penerimaan Order Celup EX dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+// #endregion SP OCX
 
 // #region KAIN JADI CONTRACT FUNCTION
 export async function createKainJadi(token, payload) {
