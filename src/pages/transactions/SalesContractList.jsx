@@ -31,12 +31,14 @@ export default function SalesContractList() {
 
   const transactionType = createMemo(() =>
     filteredData().filter(
-      (c) => (c.transaction_type || "").toLowerCase() === "domestik"
+      (c) =>
+        (c.transaction_type || "").toLowerCase() === "domestik" &&
+        (c.is_via === 0 || c.is_via === false)
     )
   );
 
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(filteredData().length / pageSize));
+    return Math.max(1, Math.ceil(transactionType().length / pageSize));
   });
 
   const paginatedData = () => {
@@ -295,6 +297,16 @@ export default function SalesContractList() {
                       class="text-blue-600 hover:underline"
                       onClick={() =>
                         navigate(`/salescontract/form?id=${sc.id}`)
+                      }
+                    >
+                      <Edit size={25} />
+                    </button>
+                  )}
+                  {sc.is_create_updated === 0 && (
+                    <button
+                      class="text-green-600 hover:underline"
+                      onClick={() =>
+                        navigate(`/salescontract/form?id=${sc.id}&quick_edit=true`)
                       }
                     >
                       <Edit size={25} />
