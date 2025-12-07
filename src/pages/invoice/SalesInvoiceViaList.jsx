@@ -18,7 +18,7 @@ import SearchSortFilter from "../../components/SearchSortFilter";
 import useSimpleFilter from "../../utils/useSimpleFilter";
 import { set } from "idb-keyval";
 
-export default function SalesInvoiceList() {
+export default function SalesInvoiceViaList() {
   const [suratJalan, setSuratJalan] = createSignal([]);
   const { filteredData, applyFilter } = useSimpleFilter(suratJalan, [
     "no_sj",
@@ -37,9 +37,19 @@ export default function SalesInvoiceList() {
   const transactionType = createMemo(() =>
     filteredData().filter(
       (c) =>
-        (c.is_via === 0 || c.is_via === false || c.is_via == null)
+        (c.is_via === 1 || c.is_via === true)
     )
   );
+
+  const getViaStatus = (sc) => {
+    if (sc.is_via === 1) {
+      return <span class="text-green-600 font-medium">VIA</span>;
+    } else if (sc.is_via === 0) {
+      return <span class="text-gray-600">Tidak</span>;
+    } else {
+      return <span class="text-gray-400">-</span>;
+    }
+  };
 
   const formatNumber = (num, decimals = 2) => {
     if (num === null || num === undefined) return "0";
@@ -131,7 +141,7 @@ export default function SalesInvoiceList() {
       } else if (result.status === 403) {
         await Swal.fire({
           title: "Tidak Ada Akses",
-          text: "Anda tidak memiliki izin untuk melihat Invoice Penjualan",
+          text: "Anda tidak memiliki izin untuk melihat Invoice Penjualan (VIA)",
           icon: "warning",
           confirmButtonColor: "#6496df",
         });
@@ -139,7 +149,7 @@ export default function SalesInvoiceList() {
       } else {
         Swal.fire({
           title: "Gagal",
-          text: result.message || "Gagal mengambil data Invoice Penjualan",
+          text: result.message || "Gagal mengambil data Invoice Penjualan (VIA)",
           icon: "error",
           showConfirmButton: false,
           timer: 1000,
@@ -343,7 +353,7 @@ export default function SalesInvoiceList() {
     try {
       const result = await Swal.fire({
         title: "Batalkan Invoice?",
-        text: `Apakah anda yakin ingin membatalkan invoice dengan ID ${sc.id}?`,
+        text: `Apakah anda yakin ingin membatalkan invoice VIA dengan ID ${sc.id}?`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
@@ -394,7 +404,7 @@ export default function SalesInvoiceList() {
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Invoice Penjualan</h1>
+        <h1 class="text-2xl font-bold">Invoice Penjualan (VIA)</h1>
       </div>
       <SearchSortFilter
         sortOptions={[
@@ -429,6 +439,7 @@ export default function SalesInvoiceList() {
               <th class="py-2 px-2">Satuan Unit</th>
               <th class="py-2 px-2 text-center">Total</th>
               <th class="py-2 px-2 text-center">Status Invoice</th>
+              <th class="py-2 px-2 text-center">Status VIA</th>
               <th class="py-2 px-4 text-center">Preview</th>
               <th hidden class="py-2 px-4 text-center">
                 Download PDF
@@ -466,6 +477,7 @@ export default function SalesInvoiceList() {
                     </span>
                   )}
                 </td>
+                <td class="py-2 px-4 text-center">{getViaStatus(sc)}</td>
                 <td class="py-2 px-4 text-center">
                   <button
                     class="text-blue-600 hover:underline"

@@ -12,13 +12,13 @@ class PaymentHutangAksesorisEkspedisiService {
   }
 
   // Method untuk mendapatkan data lengkap dengan items + SUPPORT FILTER
-  async getAllWithDetails(startDate = "", endDate = "", financeFilter = null) {
+  async getAllWithDetails(filterParams = {}) {
     try {
       // Ambil data header
       const headers = await this.getAll();
       
-      // Filter berdasarkan tanggal DAN financeFilter
-      const filteredHeaders = this.processDataForReport(headers, startDate, endDate, financeFilter);
+      // Filter berdasarkan filterParams
+      const filteredHeaders = this.processDataForReport(headers, filterParams);
       
       // Untuk setiap header, ambil detail items
       const dataWithDetails = [];
@@ -53,25 +53,36 @@ class PaymentHutangAksesorisEkspedisiService {
     }
   }
 
-  // MODIFIKASI: Tambah parameter financeFilter
-  processDataForReport(data, startDate = "", endDate = "", financeFilter = null) {
-    const normalizeDate = (d) => {
-      if (!d) return null;
-      const x = new Date(d);
-      if (Number.isNaN(x.getTime())) return null;
-      return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-    };
+  // METHOD UTAMA: Normalize date - dipindahkan ke method class
+  normalizeDate(d) {
+    if (!d) return null;
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return null;
+    return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  }
 
-    const s = normalizeDate(startDate);
-    const e = normalizeDate(endDate);
+  // MODIFIKASI: Hanya menerima satu parameter object filterParams
+  processDataForReport(data, filterParams = {}) {
+    const { 
+      startDate = "", 
+      endDate = "", 
+      tanggal_jatuh_tempo_start, 
+      tanggal_jatuh_tempo_end, 
+      tanggal_pengambilan_giro_start, 
+      tanggal_pengambilan_giro_end,
+      no_giro
+    } = filterParams;
+
+    const s = this.normalizeDate(startDate);
+    const e = this.normalizeDate(endDate);
 
     let filteredData = data;
     
-    // Filter tanggal global
+    // Filter tanggal global (startDate, endDate)
     if (s || e) {
       filteredData = data.filter(item => {
         // Gunakan created_at sebagai fallback jika field spesifik tidak ada
-        const itemDate = normalizeDate(item.tanggal_jatuh_tempo || item.tanggal_pengambilan_giro || item.created_at);
+        const itemDate = this.normalizeDate(item.tanggal_jatuh_tempo || item.tanggal_pengambilan_giro || item.created_at);
         if (itemDate === null) return false;
         if (s && itemDate < s) return false;
         if (e && itemDate > e) return false;
@@ -80,8 +91,10 @@ class PaymentHutangAksesorisEkspedisiService {
     }
 
     // TERAPKAN FILTER FINANCE JIKA ADA
-    if (financeFilter) {
-      filteredData = this.applyFinanceFilter(filteredData, financeFilter);
+    if (tanggal_jatuh_tempo_start || tanggal_jatuh_tempo_end || 
+        tanggal_pengambilan_giro_start || tanggal_pengambilan_giro_end || 
+        no_giro) {
+      filteredData = this.applyFinanceFilter(filteredData, filterParams);
     }
 
     return filteredData;
@@ -89,37 +102,54 @@ class PaymentHutangAksesorisEkspedisiService {
 
   // METHOD BARU: Terapkan filter finance khusus payment hutang
   applyFinanceFilter(data, financeFilter) {
+    
+    if (!financeFilter) return data;
+    
     return data.filter(item => {
+      let passes = true;
+      
       // Filter tanggal jatuh tempo
-      if (financeFilter.tanggal_jatuh_tempo_start || financeFilter.tanggal_jatuh_tempo_end) {
-        const itemDate = new Date(item.tanggal_jatuh_tempo);
-        const startDate = financeFilter.tanggal_jatuh_tempo_start ? new Date(financeFilter.tanggal_jatuh_tempo_start) : null;
-        const endDate = financeFilter.tanggal_jatuh_tempo_end ? new Date(financeFilter.tanggal_jatuh_tempo_end) : null;
+      if (passes && (financeFilter.tanggal_jatuh_tempo_start || financeFilter.tanggal_jatuh_tempo_end)) {
+        const itemDate = this.normalizeDate(item.tanggal_jatuh_tempo);
+        const startDate = financeFilter.tanggal_jatuh_tempo_start ? 
+          this.normalizeDate(financeFilter.tanggal_jatuh_tempo_start) : null;
+        const endDate = financeFilter.tanggal_jatuh_tempo_end ? 
+          this.normalizeDate(financeFilter.tanggal_jatuh_tempo_end) : null;
         
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
-      }
-
-      // Filter tanggal pengambilan giro
-      if (financeFilter.tanggal_pengambilan_giro_start || financeFilter.tanggal_pengambilan_giro_end) {
-        const itemDate = new Date(item.tanggal_pengambilan_giro);
-        const startDate = financeFilter.tanggal_pengambilan_giro_start ? new Date(financeFilter.tanggal_pengambilan_giro_start) : null;
-        const endDate = financeFilter.tanggal_pengambilan_giro_end ? new Date(financeFilter.tanggal_pengambilan_giro_end) : null;
-        
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
-      }
-
-      // Filter no giro (case-insensitive partial match)
-      if (financeFilter.no_giro && item.no_giro) {
-        const filterNoGiro = financeFilter.no_giro.toLowerCase();
-        const itemNoGiro = (item.no_giro || '').toLowerCase();
-        if (!itemNoGiro.includes(filterNoGiro)) {
-          return false;
+        if (startDate && itemDate < startDate) {
+          passes = false;
+        }
+        if (endDate && itemDate > endDate) {
+          passes = false;
         }
       }
 
-      return true;
+      // Filter tanggal pengambilan giro
+      if (passes && (financeFilter.tanggal_pengambilan_giro_start || financeFilter.tanggal_pengambilan_giro_end)) {
+        const itemDate = this.normalizeDate(item.tanggal_pengambilan_giro);
+        const startDate = financeFilter.tanggal_pengambilan_giro_start ? 
+          this.normalizeDate(financeFilter.tanggal_pengambilan_giro_start) : null;
+        const endDate = financeFilter.tanggal_pengambilan_giro_end ? 
+          this.normalizeDate(financeFilter.tanggal_pengambilan_giro_end) : null;
+        
+        if (startDate && itemDate < startDate) {
+          passes = false;
+        }
+        if (endDate && itemDate > endDate) {
+          passes = false;
+        }
+      }
+
+      // Filter no giro (case-insensitive partial match)
+      if (passes && financeFilter.no_giro) {
+        const filterNoGiro = financeFilter.no_giro.toLowerCase();
+        const itemNoGiro = (item.no_giro || '').toLowerCase();
+        if (!itemNoGiro.includes(filterNoGiro)) {
+          passes = false;
+        }
+      }
+
+      return passes;
     });
   }
 

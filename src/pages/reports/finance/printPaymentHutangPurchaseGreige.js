@@ -2,7 +2,7 @@ import { PaymentHutangPurchaseGreigeProcessor } from '../../../helpers/process/P
 import PaymentHutangPurchaseGreigeService from '../../../services/PaymentHutangPurchaseGreigeService';
 import Swal from 'sweetalert2';
 
-export async function printPaymentHutangPurchaseGreige({ startDate = "", endDate = "" }) {
+export async function printPaymentHutangPurchaseGreige({ startDate = "", endDate = "", filter = null }) {
   try {
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -14,7 +14,50 @@ export async function printPaymentHutangPurchaseGreige({ startDate = "", endDate
       }
     });
 
-    const dataWithDetails = await PaymentHutangPurchaseGreigeService.getAllWithDetails(startDate, endDate);
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParams.tanggal_pengambilan_giro_start = filter.tanggal_pengambilan_giro_start;
+        filterParams.tanggal_pengambilan_giro_end = filter.tanggal_pengambilan_giro_end;
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParams.no_giro = filter.no_giro;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'tanggal_jatuh_tempo_start', 
+          'tanggal_jatuh_tempo_end',
+          'tanggal_pengambilan_giro_start',
+          'tanggal_pengambilan_giro_end',
+          'no_giro'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+
+    // Gunakan method yang mengambil data lengkap dengan items
+    const dataWithDetails = await PaymentHutangPurchaseGreigeService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
     
@@ -23,7 +66,36 @@ export async function printPaymentHutangPurchaseGreige({ startDate = "", endDate
       return;
     }
 
-    openPrintWindow(dataWithDetails, startDate, endDate);
+    // Buat label filter untuk tampilan di print
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParts.push(`Pengambilan Giro: ${filter.tanggal_pengambilan_giro_start} s/d ${filter.tanggal_pengambilan_giro_end}`);
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParts.push(`No. Giro: ${filter.no_giro}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
+
+    openPrintWindow(dataWithDetails, filterLabel);
   } catch (error) {
     console.error('Error printing data:', error);
     Swal.close();
@@ -31,10 +103,9 @@ export async function printPaymentHutangPurchaseGreige({ startDate = "", endDate
   }
 }
 
-function openPrintWindow(data, startDate, endDate) {
+function openPrintWindow(data, filterLabel) {
   const w = window.open("", "", "height=700,width=980");
   const title = "Laporan Pembayaran Hutang Purchase Greige";
-  const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
   
   const style = `<style>
     @page { size: A4; margin: 11mm; }
@@ -64,7 +135,7 @@ function openPrintWindow(data, startDate, endDate) {
   const headers = [
     'No',
     'No. Pembayaran', 
-    'No. Pembelian', 
+    'No. SJ', 
     'Tanggal Jatuh Tempo', 
     'No. Giro', 
     'Tanggal Pengambilan Giro', 
@@ -96,7 +167,7 @@ function openPrintWindow(data, startDate, endDate) {
       <tr>
         <td class="text-center">${index + 1}</td>
         <td>${item.no_pembayaran || '-'}</td>
-        <td>${item.no_pembelian || '-'}</td>
+        <td>${item.no_sj || '-'}</td>
         <td>${PaymentHutangPurchaseGreigeProcessor.formatTanggalIndo(item.tanggal_jatuh_tempo)}</td>
         <td>${item.no_giro || '-'}</td>
         <td>${PaymentHutangPurchaseGreigeProcessor.formatTanggalIndo(item.tanggal_pengambilan_giro)}</td>

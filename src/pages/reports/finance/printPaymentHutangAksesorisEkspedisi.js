@@ -2,7 +2,7 @@ import { PaymentHutangAksesorisEkspedisiProcessor } from '../../../helpers/proce
 import PaymentHutangAksesorisEkspedisiService from '../../../services/PaymentHutangAksesorisEkspedisiService';
 import Swal from 'sweetalert2';
 
-export async function printPaymentHutangAksesorisEkspedisi({ startDate = "", endDate = "" }) {
+export async function printPaymentHutangAksesorisEkspedisi({ startDate = "", endDate = "", filter = null }) {
   try {
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -14,7 +14,50 @@ export async function printPaymentHutangAksesorisEkspedisi({ startDate = "", end
       }
     });
 
-    const dataWithDetails = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(startDate, endDate);
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParams.tanggal_pengambilan_giro_start = filter.tanggal_pengambilan_giro_start;
+        filterParams.tanggal_pengambilan_giro_end = filter.tanggal_pengambilan_giro_end;
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParams.no_giro = filter.no_giro;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'tanggal_jatuh_tempo_start', 
+          'tanggal_jatuh_tempo_end',
+          'tanggal_pengambilan_giro_start',
+          'tanggal_pengambilan_giro_end',
+          'no_giro'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+
+    // Gunakan method yang mengambil data lengkap dengan items
+    const dataWithDetails = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
     
@@ -23,7 +66,36 @@ export async function printPaymentHutangAksesorisEkspedisi({ startDate = "", end
       return;
     }
 
-    openPrintWindow(dataWithDetails, startDate, endDate);
+    // Buat label filter untuk tampilan di print
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParts.push(`Pengambilan Giro: ${filter.tanggal_pengambilan_giro_start} s/d ${filter.tanggal_pengambilan_giro_end}`);
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParts.push(`No. Giro: ${filter.no_giro}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
+
+    openPrintWindow(dataWithDetails, filterLabel);
   } catch (error) {
     console.error('Error printing data:', error);
     Swal.close();
@@ -31,10 +103,9 @@ export async function printPaymentHutangAksesorisEkspedisi({ startDate = "", end
   }
 }
 
-function openPrintWindow(data, startDate, endDate) {
+function openPrintWindow(data, filterLabel) {
   const w = window.open("", "", "height=700,width=980");
   const title = "Laporan Pembayaran Hutang Aksesoris Ekspedisi";
-  const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
   
   const style = `<style>
     @page { size: A4; margin: 11mm; }
@@ -56,7 +127,7 @@ function openPrintWindow(data, startDate, endDate) {
   const header = `
     <h1>${title}</h1>
     <div class="header-info">
-      <div>Periode: ${filterLabel}</div>
+      <div>Filter: ${filterLabel}</div>
       <div>Tanggal cetak: ${new Date().toLocaleString('id-ID')}</div>
     </div>
   `;
@@ -71,7 +142,6 @@ function openPrintWindow(data, startDate, endDate) {
     'Pembayaran', 
     'Jenis Potongan', 
     'Potongan', 
-    //'Subtotal', 
     'Metode Pembayaran'
   ];
   
@@ -108,20 +178,22 @@ function openPrintWindow(data, startDate, endDate) {
     `;
   });
 
-   tbody += `
-    <tr class="summary-row">
-      <td colspan="6" class="text-right">TOTAL PEMBAYARAN</td>
-      <td class="text-right">${PaymentHutangAksesorisEkspedisiProcessor.fmtRp(totalPembayaran)}</td>
-      <td colspan="4"></td>
-    </tr>
-    <tr class="summary-row">
-      <td colspan="8" class="text-right">TOTAL POTONGAN</td>
-      <td class="text-right">${PaymentHutangAksesorisEkspedisiProcessor.fmtRp(totalPotongan)}</td>
-      <td colspan="2"></td>
-    </tr>
+  const tfoot = `
+    <tfoot>
+      <tr class="summary-row">
+        <td colspan="6" class="text-right">TOTAL PEMBAYARAN</td>
+        <td class="text-right">${PaymentHutangAksesorisEkspedisiProcessor.fmtRp(totalPembayaran)}</td>
+        <td colspan="3"></td>
+      </tr>
+      <tr class="summary-row">
+        <td colspan="8" class="text-right">TOTAL POTONGAN</td>
+        <td class="text-right">${PaymentHutangAksesorisEkspedisiProcessor.fmtRp(totalPotongan)}</td>
+        <td></td>
+      </tr>
+    </tfoot>
   `;
 
-  const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody>${tfoot}</table>`;
   const bodyHtml = `<div class="paper">${header}${table}</div>`;
   
   w.document.write(`<html><head><title>${title}</title>${style}</head><body>${bodyHtml}</body></html>`);

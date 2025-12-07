@@ -2,7 +2,7 @@
 import FinanceMainLayout from "../layouts/FinanceMainLayout";
 import { onMount, createSignal, For, Show } from "solid-js";
 import ApexChart from "../components/ApexChart";
-import { Printer, FileText, Filter, Plus } from "lucide-solid";
+import { Printer, FileText, Filter, Funnel, Plus } from "lucide-solid";
 import Litepicker from "litepicker";
 import Swal from "sweetalert2";
 
@@ -64,6 +64,10 @@ export default function DashboardFinance() {
   const [currentFilter, setCurrentFilter] = createSignal({});
   const [previewData, setPreviewData] = createSignal([]);
   const [applyLoading, setApplyLoading] = createSignal(false);
+  const [previewLoading, setPreviewLoading] = createSignal(false);
+  const [applyFilterLoading, setApplyFilterLoading] = createSignal(false);
+  const [activeFilters, setActiveFilters] = createSignal({});
+  const [pendingFilter, setPendingFilter] = createSignal({});
 
   // ==== FORMATTERS ====
   const formatTanggalIndo = (tanggalString) => {
@@ -203,7 +207,7 @@ export default function DashboardFinance() {
   // ==== HANDLERS FILTER ====
   const handleOpenFilter = (block) => {
     setCurrentBlock(block);
-    setCurrentFilter(block.filter || {});
+    setCurrentFilter(activeFilters()[block.key] || {});
     setShowFilterModal(true);
   };
 
@@ -213,14 +217,55 @@ export default function DashboardFinance() {
 
   const handlePreviewFilter = async (block, filter) => {
     try {
-      setApplyLoading(true);
+      setPreviewLoading(true);
 
       let data = [];
-      const filterParams = {
-        startDate: startDate(),
-        endDate: endDate(),
-        ...filter,
-      };
+      
+      const filterParams = {}
+
+      if (startDate() && endDate()) {
+        filterParams.startDate = startDate();
+        filterParams.endDate = endDate();
+      }
+      
+      if (filter) {
+        if (filter.supplier) {
+          if (typeof filter.supplier === 'object' && filter.supplier.value !== undefined) {
+            filterParams.supplier = filter.supplier.value;
+          } else {
+            filterParams.supplier = filter.supplier;
+          }
+        }
+        if (filter.customer) {
+          if (typeof filter.customer === 'object' && filter.customer.value !== undefined) {
+            filterParams.customer = filter.customer.value;
+          } else {
+            filterParams.customer = filter.customer;
+          }
+        }
+        if (filter.tanggal_sj_start && filter.tanggal_sj_end) {
+          filterParams.tanggal_sj_start = filter.tanggal_sj_start;
+          filterParams.tanggal_sj_end = filter.tanggal_sj_end;
+        }
+        if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+          filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+          filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+        }
+        if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+          filterParams.tanggal_pengambilan_giro_start = filter.tanggal_pengambilan_giro_start;
+          filterParams.tanggal_pengambilan_giro_end = filter.tanggal_pengambilan_giro_end;
+        }
+        if (filter.tanggal_pembayaran_start && filter.tanggal_pembayaran_end) {
+          filterParams.tanggal_pembayaran_start = filter.tanggal_pembayaran_start;
+          filterParams.tanggal_pembayaran_end = filter.tanggal_pembayaran_end;
+        }
+        if (filter.customer && filter.customer.value) {
+          filterParams.customer = filter.customer.value;
+        }
+        if (filter.no_giro) {
+          filterParams.no_giro = filter.no_giro;
+        }
+      }
 
       // Load data berdasarkan tipe block
       if (block.key === "laporan_saldo_piutang") {
@@ -252,15 +297,16 @@ export default function DashboardFinance() {
           filterParams
         );
       } else if (block.key === "penerimaan_piutang_sales") {
-        data = await PenerimaanPiutangSalesService.getAllWithDetails(
+        data = await PenerimaanPiutangSalesService.getDataForPreview(
           filterParams
         );
       } else if (block.key === "penerimaan_piutang_jual_beli") {
-        data = await PenerimaanPiutangJualBeliService.getAllWithDetails(
+        data = await PenerimaanPiutangJualBeliService.getDataForPreview(
           filterParams
         );
       }
 
+      setPendingFilter(filter);
       setPreviewData(Array.isArray(data) ? data : []);
       setShowPreviewModal(true);
       setShowFilterModal(false);
@@ -272,34 +318,107 @@ export default function DashboardFinance() {
     }
   };
 
-  const handleApplyFilter = async () => {
+  const handleApplyFilter = async (filterToApply = null) => {
     try {
-      setApplyLoading(true);
-
-      // Update filter untuk block yang sedang aktif
-      const updatedSections = sectionsData().map((section) => ({
-        ...section,
-        blocks: section.blocks.map((block) =>
-          block.key === currentBlock().key
-            ? { ...block, filter: currentFilter() }
-            : block
-        ),
+      setApplyFilterLoading(true);
+      
+      const blockKey = currentBlock().key;
+      
+      // GUNAKAN FILTER DARI PARAMETER ATAU DARI PENDING FILTER
+      const filter = filterToApply || pendingFilter() || currentFilter();
+      
+      // UPDATE ACTIVE FILTERS
+      setActiveFilters(prev => ({
+        ...prev,
+        [blockKey]: filter
       }));
-
-      setSectionsData(updatedSections);
+      
       setShowPreviewModal(false);
-
-      // Reload data dengan filter baru
-      await reloadData();
-
-      Swal.fire("Sukses", "Filter berhasil diterapkan", "success");
+      
+      // RESET PENDING FILTER
+      setPendingFilter({});
+      
+      // TUNGGU SEBENTAR UNTUK STATE TERUPDATE, LALU RELOAD
+      setTimeout(async () => {
+        await reloadData();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Sukses',
+          text: 'Filter berhasil diterapkan',
+          timer: 1000,
+          showConfirmButton: false,
+          timerProgressBar: true
+        });
+        setApplyFilterLoading(false);
+      }, 50);
+      
     } catch (error) {
-      console.error("Error applying filter:", error);
-      Swal.fire("Error", "Gagal menerapkan filter", "error");
-    } finally {
-      setApplyLoading(false);
+      console.error('Error applying filter:', error);
+      Swal.fire('Error', 'Gagal menerapkan filter', 'error');
+      setApplyFilterLoading(false);
     }
   };
+
+  const resetFilter = async (blockKey) => {
+    try {
+      // Reset filter untuk block tertentu
+      setActiveFilters(prev => {
+        const newFilters = { ...prev };
+        delete newFilters[blockKey];
+        return newFilters;
+      });
+      
+      // Reload data tanpa filter
+      setTimeout(async () => {
+        await reloadData();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Sukses',
+          text: 'Filter berhasil direset',
+          timer: 1000,
+          showConfirmButton: false,
+          timerProgressBar: true
+        });
+      }, 50);
+      
+    } catch (error) {
+      console.error('Error resetting filter:', error);
+      Swal.fire('Error', 'Gagal mereset filter', 'error');
+    }
+  };
+
+  // Fungsi untuk mendapatkan filter params yang sudah digabungkan
+  const getCombinedFilterParams = (blockKey) => {
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal range jika ada
+    if (startDate() && endDate()) {
+      filterParams.startDate = startDate();
+      filterParams.endDate = endDate();
+    }
+    
+    // Tambahkan filter aktif untuk block ini jika ada
+    const activeFilter = activeFilters()[blockKey];
+    if (activeFilter) {
+      // Salin semua properti dari activeFilter ke filterParams
+      Object.keys(activeFilter).forEach(key => {
+        const value = activeFilter[key];
+        
+        // Handle object dengan properti value (untuk select options)
+        if (typeof value === 'object' && value !== null && value.value !== undefined) {
+          filterParams[key] = value.value;
+        } else {
+          filterParams[key] = value;
+        }
+      });
+    } else {
+        //console.log(`No active filter for ${blockKey}`);
+    }
+    
+    return filterParams;
+  };  
 
   // ==== LOAD DATA ====
   const reloadData = async () => {
@@ -310,11 +429,7 @@ export default function DashboardFinance() {
       const blocks = [];
 
       for (const b of sec.blocks) {
-        const filterParams = {
-          startDate: startDate(),
-          endDate: endDate(),
-          ...(b.filter || {}),
-        };
+        const filterParams = getCombinedFilterParams(b.key);
 
         // === LAPORAN SALDO PIUTANG ===
         if (b.key === "laporan_saldo_piutang") {
@@ -845,7 +960,7 @@ export default function DashboardFinance() {
               },
             });
           } catch (error) {
-            console.error("Error loading penerimaan piutang jual belu:", error);
+            console.error("Error loading penerimaan piutang jual beli:", error);
             blocks.push({
               ...b,
               data: [],
@@ -938,52 +1053,61 @@ export default function DashboardFinance() {
   });
 
   // ==== EXPORT EXCEL ====
-  const exportToExcel = (data, type = "purchase") => {
+  const exportToExcel = (data, block, type = "purchase") => {
+    const activeFilter = activeFilters()[block.key];
+
     if (type === "purchase") {
       exportPurchaseAksesorisEkspedisiToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "payment_hutang_aksesoris") {
       exportPaymentHutangAksesorisEkspedisiToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "payment_hutang_greige") {
       exportPaymenntHutangPurchaseGreigeToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "payment_hutang_celup") {
       exportPaymenntHutangPurchaseCelupToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "payment_hutang_finish") {
       exportPaymenntHutangPurchaseFinishToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "payment_hutang_jual_beli") {
       exportPaymenntHutangPurchaseJualBeliToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "penerimaan_piutang_sales") {
       exportPenerimaanPiutangSalesToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     } else if (type === "penerimaan_piutang_jual_beli") {
       exportPenerimaanPiutangJualBeliToExcel({
         startDate: startDate(),
         endDate: endDate(),
+        filter: activeFilter
       });
     }
   };
 
   // SALDO LOGIC
-
   const [showForm, setShowForm] = createSignal(false);
   const [editingItem, setEditingItem] = createSignal(null);
 
@@ -1422,6 +1546,7 @@ export default function DashboardFinance() {
             onClick={async () => {
               setStartDate("");
               setEndDate("");
+              setActiveFilters({});
               await reloadData();
             }}
             title="Reset ke semua tanggal"
@@ -1558,14 +1683,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -1575,11 +1711,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`,
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#10B981", "#EF4444"],
+                            colors: ['#10B981', '#EF4444']
                           }}
                         />
                       </div>
@@ -1588,18 +1724,15 @@ export default function DashboardFinance() {
                         {/* Kartu Total Surat Jalan */}
                         <div class="bg-white p-6 rounded shadow relative border">
                           <p class="text-sm text-gray-500">Total Pembelian</p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPurchaseAksesorisEkspedisi({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPurchaseAksesorisEkspedisi({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -1607,22 +1740,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Nilai */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Nilai Pembelian
-                          </p>
+                          <p class="text-sm text-gray-500">Total Nilai Pembelian</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(block.data, "purchase")
-                            }
+                            onClick={() => exportToExcel(block.data, block, "purchase")}
                           >
                             <FileText size={20} />
                           </button>
@@ -1630,25 +1759,15 @@ export default function DashboardFinance() {
 
                         {/* Kartu Status Pembayaran */}
                         <div class="bg-white p-6 rounded shadow border">
-                          <p class="text-sm text-gray-500 mb-2">
-                            Status Pembayaran
-                          </p>
+                          <p class="text-sm text-gray-500 mb-2">Status Pembayaran</p>
                           <div class="space-y-1 text-sm">
                             <div class="flex justify-between">
-                              <span class="text-green-600">
-                                Belum Jatuh Tempo:
-                              </span>
-                              <span class="font-semibold">
-                                {block.status.belumJatuhTempo}
-                              </span>
+                              <span class="text-green-600">Belum Jatuh Tempo:</span>
+                              <span class="font-semibold">{block.status.belumJatuhTempo}</span>
                             </div>
                             <div class="flex justify-between">
-                              <span class="text-red-600">
-                                Lewat Jatuh Tempo:
-                              </span>
-                              <span class="font-semibold">
-                                {block.status.lewatJatuhTempo}
-                              </span>
+                              <span class="text-red-600">Lewat Jatuh Tempo:</span>
+                              <span class="font-semibold">{block.status.lewatJatuhTempo}</span>
                             </div>
                           </div>
                         </div>
@@ -1663,14 +1782,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -1680,11 +1810,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`, // UBAH KE PERSENTASE
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -1692,21 +1822,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Pembayaran Hutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPaymentHutangPurchaseGreige({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPaymentHutangPurchaseGreige({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -1714,22 +1839,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Pembayaran Hutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(block.data, "payment_hutang_greige")
-                            }
+                            onClick={() => exportToExcel(block.data, block, "payment_hutang_greige")}
                           >
                             <FileText size={20} />
                           </button>
@@ -1745,14 +1866,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -1762,11 +1894,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`, // UBAH KE PERSENTASE
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -1774,21 +1906,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Pembayaran Hutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPaymentHutangPurchaseCelup({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPaymentHutangPurchaseCelup({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -1796,22 +1923,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Pembayaran Hutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(block.data, "payment_hutang_celup")
-                            }
+                            onClick={() => exportToExcel(block.data, block, "payment_hutang_celup")}
                           >
                             <FileText size={20} />
                           </button>
@@ -1827,14 +1950,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -1844,11 +1978,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`, // UBAH KE PERSENTASE
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -1856,21 +1990,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Pembayaran Hutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPaymentHutangPurchaseFinish({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPaymentHutangPurchaseFinish({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -1878,22 +2007,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Pembayaran Hutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(block.data, "payment_hutang_finish")
-                            }
+                            onClick={() => exportToExcel(block.data, block, "payment_hutang_finish")}
                           >
                             <FileText size={20} />
                           </button>
@@ -1909,14 +2034,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -1926,11 +2062,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`, // UBAH KE PERSENTASE
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -1938,21 +2074,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Pembayaran Hutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPaymentHutangPurchaseJualBeli({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPaymentHutangPurchaseJualBeli({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -1960,25 +2091,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Pembayaran Hutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(
-                                block.data,
-                                "payment_hutang_jual_beli"
-                              )
-                            }
+                            onClick={() => exportToExcel(block.data, block, "payment_hutang_jual_beli")}
                           >
                             <FileText size={20} />
                           </button>
@@ -1994,14 +2118,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -2011,11 +2146,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`, // UBAH KE PERSENTASE
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -2023,21 +2158,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Pembayaran Hutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Pembayaran Hutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPaymentHutangAksesorisEkspedisi({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPaymentHutangAksesorisEkspedisi({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -2045,25 +2175,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Pembayaran Hutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Pembayaran Hutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Pembayaran Hutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(
-                                block.data,
-                                "payment_hutang_aksesoris"
-                              )
-                            }
+                            onClick={() => exportToExcel(block.data, block, "payment_hutang_aksesoris")}
                           >
                             <FileText size={20} />
                           </button>
@@ -2079,14 +2202,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -2096,11 +2230,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`,
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -2108,21 +2242,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Penerimaan Piutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Penerimaan Piutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPenerimaanPiutangSales({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPenerimaanPiutangSales({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -2130,25 +2259,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Penerimaan Piutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Penerimaan Piutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Penerimaan Piutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(
-                                block.data,
-                                "penerimaan_piutang_sales"
-                              )
-                            }
+                            onClick={() => exportToExcel(block.data, block, "penerimaan_piutang_sales")}
                           >
                             <FileText size={20} />
                           </button>
@@ -2164,14 +2286,25 @@ export default function DashboardFinance() {
                     <div class="bg-white rounded shadow mb-8">
                       <div class="p-6 border-b flex justify-between items-center">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
-                        <button
-                          class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-                          onClick={() => handleOpenFilter(block)}
-                          title="Filter Data"
-                        >
-                          <Filter size={16} />
-                          Filter
-                        </button>
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 rounded border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleOpenFilter(block)}
+                            title="Filter Data"
+                          >
+                            <Funnel size={16} />
+                            Filter {activeFilters()[block.key] ? "(Aktif)" : ""}
+                          </button>
+                          <Show when={activeFilters()[block.key]}>
+                            <button
+                              class="px-3 py-1 rounded border border-red-300 hover:bg-red-50 text-red-600 flex items-center gap-2"
+                              onClick={() => resetFilter(block.key)}
+                              title="Reset Filter"
+                            >
+                              Reset Filter
+                            </button>
+                          </Show>
+                        </div>
                       </div>
                       <div class="p-6 border-b">
                         <ApexChart
@@ -2181,11 +2314,11 @@ export default function DashboardFinance() {
                           options={{
                             labels: block.chart.categories,
                             legend: { position: "bottom" },
-                            dataLabels: {
+                            dataLabels: { 
                               enabled: true,
-                              formatter: (val) => `${val.toFixed(1)}%`,
+                              formatter: (val) => `${val.toFixed(1)}%`
                             },
-                            colors: ["#3B82F6", "#10B981"],
+                            colors: ['#3B82F6', '#10B981']
                           }}
                         />
                       </div>
@@ -2193,21 +2326,16 @@ export default function DashboardFinance() {
                       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Kartu Total Laporan Penerimaan Piutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Laporan Penerimaan Piutang
-                          </p>
-                          <p class="text-3xl font-bold text-blue-600">
-                            {block.totals.totalSuratJalan}
-                          </p>
+                          <p class="text-sm text-gray-500">Total Laporan Penerimaan Piutang</p>
+                          <p class="text-3xl font-bold text-blue-600">{block.totals.totalSuratJalan}</p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Cetak Laporan"
-                            onClick={() =>
-                              printPenerimaanPiutangJualBeli({
-                                startDate: startDate(),
-                                endDate: endDate(),
-                              })
-                            }
+                            onClick={() => printPenerimaanPiutangJualBeli({
+                              startDate: startDate(),
+                              endDate: endDate(),
+                              filter: activeFilters()[block.key]
+                            })}
                           >
                             <Printer size={20} />
                           </button>
@@ -2215,25 +2343,18 @@ export default function DashboardFinance() {
 
                         {/* Kartu Total Penerimaan Piutang */}
                         <div class="bg-white p-6 rounded shadow relative border">
-                          <p class="text-sm text-gray-500">
-                            Total Penerimaan Piutang
-                          </p>
+                          <p class="text-sm text-gray-500">Total Penerimaan Piutang</p>
                           <p class="text-3xl font-bold text-green-600">
                             {new Intl.NumberFormat("id-ID", {
                               style: "currency",
                               currency: "IDR",
-                              minimumFractionDigits: 0,
+                              minimumFractionDigits: 0
                             }).format(block.totals.totalNilai)}
                           </p>
                           <button
                             class="absolute top-4 right-4 text-gray-500 hover:text-blue-600"
                             title="Export Excel"
-                            onClick={() =>
-                              exportToExcel(
-                                block.data,
-                                "penerimaan_piutang_jual_beli"
-                              )
-                            }
+                            onClick={() => exportToExcel(block.data, block, "penerimaan_piutang_jual_beli")}
                           >
                             <FileText size={20} />
                           </button>
@@ -2262,9 +2383,9 @@ export default function DashboardFinance() {
           filter={currentFilter()}
           onFilterChange={handleFilterChange}
           onPreview={handlePreviewFilter}
-          onApply={handleApplyFilter}
+          onApply={() => handleApplyFilter(currentFilter())}
           onCancel={() => setShowFilterModal(false)}
-          loading={applyLoading()}
+          loading={previewLoading()}
         />
       </Show>
 
@@ -2274,10 +2395,10 @@ export default function DashboardFinance() {
           show={showPreviewModal()}
           block={currentBlock()}
           data={previewData()}
-          finance_filter={currentFilter()}
-          onApply={handleApplyFilter}
+          finance_filter={pendingFilter()}
+          onApply={() => handleApplyFilter(pendingFilter())}
           onCancel={() => setShowPreviewModal(false)}
-          applyLoading={applyLoading()}
+          applyLoading={applyFilterLoading()}
         />
       </Show>
 

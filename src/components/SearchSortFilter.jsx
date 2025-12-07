@@ -7,11 +7,17 @@ export default function SearchSortFilter(props) {
   const [filter, setFilter] = createSignal("");
 
   const handleChange = () => {
+    // Cari filter option yang sesuai dengan value yang dipilih
+    const selectedFilterOption = props.filterOptions?.find(
+      (opt) => opt.value === filter()
+    );
+    
     props.onChange({
       search: search(),
       sortField: sortField(),
       sortOrder: sortOrder(),
       filter: filter(),
+      filterType: selectedFilterOption?.type // Kirim type juga
     });
   };
 

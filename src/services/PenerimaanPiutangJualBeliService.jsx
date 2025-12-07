@@ -13,13 +13,13 @@ class PenerimaanPiutangJualBeliService {
   }
 
   // Method untuk mendapatkan data lengkap dengan nominal invoice dari surat jalan
-  async getAllWithDetails(startDate = "", endDate = "", financeFilter = null) {
+  async getAllWithDetails(filterParams = {}) {
     try {
       // Ambil data penerimaan piutang
       const headers = await this.getAll();
       
       // Filter berdasarkan tanggal
-      const filteredHeaders = this.processDataForReport(headers, startDate, endDate, financeFilter);
+      const filteredHeaders = this.processDataForReport(headers, filterParams);
       
       // Dapatkan user untuk mendapatkan token
       const user = getUser();
@@ -91,16 +91,130 @@ class PenerimaanPiutangJualBeliService {
     }
   }
 
-  processDataForReport(data, startDate = "", endDate = "", financeFilter = null) {
-    const normalizeDate = (d) => {
-      if (!d) return null;
-      const x = new Date(d);
-      if (Number.isNaN(x.getTime())) return null;
-      return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-    };
+  async getDataForPreview(filterParams = {}) {
+    try {
+      // Ambil data penerimaan piutang
+      const headers = await this.getAll();
+      
+      // Filter berdasarkan filter yang ada
+      const filteredHeaders = this.processDataForReport(headers, filterParams);
+      
+      // Dapatkan user untuk mendapatkan token
+      const user = getUser();
+      if (!user || !user.token) {
+        console.error('User atau token tidak tersedia');
+        return [];
+      }
 
-    const s = normalizeDate(startDate);
-    const e = normalizeDate(endDate);
+      // Ambil semua surat jalan untuk mendapatkan nominal invoice - DENGAN TOKEN
+      const allDeliveryNotes = await getAllJBDeliveryNotes(user.token);
+      const rawList = allDeliveryNotes?.suratJalans ?? allDeliveryNotes?.surat_jalan_list ?? allDeliveryNotes?.data ?? [];
+      const deliveredSP = Array.isArray(rawList) 
+        ? rawList.filter(sp => sp.delivered_status === 1 || sp.delivered_status === true)
+        : [];
+
+      // Hitung total utang per customer dari semua surat jalan
+      const customerTotalUtang = {};
+      
+      for (const sp of deliveredSP) {
+        const customerName = sp.customer_name;
+        if (!customerName) continue;
+        
+        try {
+          const sjDetail = await getJBDeliveryNotes(sp.id, user.token);
+          const nominalInvoice = sjDetail?.order?.summary?.subtotal || 0;
+          customerTotalUtang[customerName] = (customerTotalUtang[customerName] || 0) + nominalInvoice;
+        } catch (error) {
+          console.error(`Error fetching SJ detail for ${sp.id}:`, error);
+        }
+      }
+
+      // Proses data untuk preview
+      const previewData = [];
+      
+      for (const header of filteredHeaders) {
+        try {
+          const detail = await this.getById(header.id);
+          const sjId = header.sj_id;
+
+          let nominalInvoice = 0;
+          let customerName = '';
+          let noSJ = '';
+
+          // Ambil detail surat jalan
+          if (sjId) {
+            try {
+              const sjDetail = await getJBDeliveryNotes(sjId, user.token);
+              nominalInvoice = sjDetail?.order?.summary?.subtotal || 0;
+              
+              const sjData = deliveredSP.find(sp => sp.id === sjId);
+              if (sjData) {
+                customerName = sjData.customer_name || '';
+                noSJ = sjData.no_sj || '';
+              }
+            } catch (error) {
+              console.error(`Error fetching SJ detail for ID ${sjId}:`, error);
+            }
+          }
+
+          const detailData = detail && detail.length > 0 ? detail[0] : {};
+          const pembayaran = parseFloat(detailData.pembayaran || 0);
+          const potongan = parseFloat(detailData.potongan || 0);
+          const saldoUtang = customerName ? (customerTotalUtang[customerName] || 0) : 0;
+
+          previewData.push({
+            // Data dari header
+            id: header.id,
+            no_penerimaan: header.no_penerimaan || '-',
+            tanggal_pembayaran: header.tanggal_pembayaran,
+            tanggal_jatuh_tempo: header.tanggal_jatuh_tempo,
+            payment_method_name: header.payment_method_name || '-',
+            bank_name: header.bank_name || '-',
+            
+            // Data dari detail
+            ...detailData,
+            
+            // Data tambahan
+            nominal_invoice: nominalInvoice,
+            customer_name: customerName,
+            no_sj: noSJ,
+            saldo_utang: saldoUtang,
+            penerimaan: pembayaran,
+            potongan: potongan,
+            pembayaran: pembayaran // alias untuk kompatibilitas
+          });
+        } catch (error) {
+          console.error(`Error processing header ${header.id}:`, error);
+        }
+      }
+
+      return previewData;
+    } catch (error) {
+      console.error('Error in getDataForPreview:', error);
+      return [];
+    }
+  }
+
+  normalizeDate(d) {
+    if (!d) return null;
+    const x = new Date(d);
+    if (Number.isNaN(x.getTime())) return null;
+    return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  }
+
+  processDataForReport(data, filterParams = {}) {
+    const {
+      startDate = "",
+      endDate = "",
+      customer,
+      tanggal_pembayaran_start,
+      tanggal_pembayaran_end,
+      tanggal_jatuh_tempo_start,
+      tanggal_jatuh_tempo_end,
+    } = filterParams;
+
+    const s = this.normalizeDate(startDate);
+    const e = this.normalizeDate(endDate);
 
     let filteredData = data;
     if (s || e) {
@@ -113,45 +227,74 @@ class PenerimaanPiutangJualBeliService {
       });
     }
 
-    if (financeFilter) {
-      filteredData = this.applyFinanceFilter(filteredData, financeFilter);
+    if (customer || tanggal_pembayaran_start || tanggal_pembayaran_end || tanggal_jatuh_tempo_start || tanggal_jatuh_tempo_end) {
+      filteredData = this.applyFinanceFilter(filteredData, filterParams);
     }
 
     return filteredData;
   }
 
   applyFinanceFilter(data, financeFilter) {
+    
+    if (!financeFilter) return data;
+    
     return data.filter(item => {
-      // Filter customer (case-insensitive partial match)
-      if (financeFilter.customer && item.customer_name) {
-        const filterCustomer = financeFilter.customer.toLowerCase();
-        const itemCustomer = (item.customer_name || '').toLowerCase();
-        if (!itemCustomer.includes(filterCustomer)) {
-          return false;
+      let passes = true;
+      
+      if (financeFilter.customer !== undefined && financeFilter.customer !== null) {
+        
+        let filterCustomerValue = financeFilter.customer;
+        
+        // Jika filter adalah object (dari select)
+        if (typeof filterCustomerValue === 'object' && filterCustomerValue !== null) {
+          if (filterCustomerValue.value !== undefined) {
+            filterCustomerValue = filterCustomerValue.value;
+          } else if (filterCustomerValue.id !== undefined) {
+            filterCustomerValue = filterCustomerValue.id;
+          }
+        }
+        
+        // Sekarang filterCustomerValue bisa string atau number
+        const filterCustomerStr = String(filterCustomerValue).toLowerCase();
+        const itemCustomerId = String(item.customer_id || '').toLowerCase();
+        const itemCustomerName = item.customer_name ? item.customer_name.toLowerCase() : '';
+        
+        // Cek apakah ID atau Nama cocok
+        if (itemCustomerId !== filterCustomerStr && !itemCustomerName.includes(filterCustomerStr)) {
+          // console.log('🔴 Customer tidak match');
+          passes = false;
+        } else {
+          // console.log('🟢 Customer match');
         }
       }
 
-      // Filter tanggal penerimaan
-      if (financeFilter.tanggal_penerimaan_start || financeFilter.tanggal_penerimaan_end) {
-        const itemDate = new Date(item.tanggal_pembayaran);
-        const startDate = financeFilter.tanggal_penerimaan_start ? new Date(financeFilter.tanggal_penerimaan_start) : null;
-        const endDate = financeFilter.tanggal_penerimaan_end ? new Date(financeFilter.tanggal_penerimaan_end) : null;
+      if (passes && (financeFilter.tanggal_pembayaran_start || financeFilter.tanggal_pembayaran_end)) {
+        const itemDate = this.normalizeDate(item.tanggal_pembayaran);
+        const startDate = financeFilter.tanggal_pembayaran_start ? this.normalizeDate(financeFilter.tanggal_pembayaran_start) : null;
+        const endDate = financeFilter.tanggal_pembayaran_end ? this.normalizeDate(financeFilter.tanggal_pembayaran_end) : null;
         
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
+        if (startDate && itemDate < startDate) {
+          passes = false;
+        }
+        if (endDate && itemDate > endDate) {
+          passes = false;
+        }
       }
 
-      // Filter tanggal jatuh tempo
-      if (financeFilter.tanggal_jatuh_tempo_start || financeFilter.tanggal_jatuh_tempo_end) {
-        const itemDate = new Date(item.tanggal_jatuh_tempo);
-        const startDate = financeFilter.tanggal_jatuh_tempo_start ? new Date(financeFilter.tanggal_jatuh_tempo_start) : null;
-        const endDate = financeFilter.tanggal_jatuh_tempo_end ? new Date(financeFilter.tanggal_jatuh_tempo_end) : null;
+      if (passes && (financeFilter.tanggal_jatuh_tempo_start || financeFilter.tanggal_jatuh_tempo_end)) {
+        const itemDate = this.normalizeDate(item.tanggal_jatuh_tempo);
+        const startDate = financeFilter.tanggal_jatuh_tempo_start ? this.normalizeDate(financeFilter.tanggal_jatuh_tempo_start) : null;
+        const endDate = financeFilter.tanggal_jatuh_tempo_end ? this.normalizeDate(financeFilter.tanggal_jatuh_tempo_end) : null;
         
-        if (startDate && itemDate < startDate) return false;
-        if (endDate && itemDate > endDate) return false;
+        if (startDate && itemDate < startDate) {
+          passes = false;
+        }
+        if (endDate && itemDate > endDate) {
+          passes = false;
+        }
       }
 
-      return true;
+      return passes;
     });
   }
 
@@ -181,10 +324,10 @@ class PenerimaanPiutangJualBeliService {
   }
 
   // Method untuk menghitung saldo customer berdasarkan data yang ada
-  async calculateCustomerSaldo(startDate = "", endDate = "", financeFilter = null) {
+  async calculateCustomerSaldo(filterParams = {}) {
     try {
       // Ambil data penerimaan
-      const penerimaanData = await this.getAllWithDetails(startDate, endDate, financeFilter);
+      const penerimaanData = await this.getAllWithDetails(filterParams);
       
       // Dapatkan user untuk mendapatkan token
       const user = getUser();

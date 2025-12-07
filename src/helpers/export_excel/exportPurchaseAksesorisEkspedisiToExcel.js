@@ -13,10 +13,70 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportPurchaseAksesorisEkspedisiToExcel({ startDate = "", endDate = "" }) {
+export async function exportPurchaseAksesorisEkspedisiToExcel({ 
+  startDate = "", 
+  endDate = "", 
+  filter = null 
+}) {
   try {
     const title = "Laporan Purchase Aksesoris Ekspedisi";
-    const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
+    
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      if (filter.supplier) {
+        if (typeof filter.supplier === 'object' && filter.supplier.value !== undefined) {
+          filterParams.supplier = filter.supplier.value;
+        } else {
+          filterParams.supplier = filter.supplier;
+        }
+      }
+      
+      if (filter.tanggal_sj_start && filter.tanggal_sj_end) {
+        filterParams.tanggal_sj_start = filter.tanggal_sj_start;
+        filterParams.tanggal_sj_end = filter.tanggal_sj_end;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (!['supplier', 'tanggal_sj_start', 'tanggal_sj_end'].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+    
+    // Buat label filter untuk tampilan
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      if (filter.supplier) {
+        const supplierName = typeof filter.supplier === 'object' 
+          ? filter.supplier.label || filter.supplier.value 
+          : filter.supplier;
+        filterParts.push(`Supplier: ${supplierName}`);
+      }
+      
+      if (filter.tanggal_sj_start && filter.tanggal_sj_end) {
+        filterParts.push(`Tanggal SJ: ${filter.tanggal_sj_start} s/d ${filter.tanggal_sj_end}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
 
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -29,7 +89,7 @@ export async function exportPurchaseAksesorisEkspedisiToExcel({ startDate = "", 
     });
 
     // Ambil data lengkap dengan items
-    const dataWithDetails = await PurchaseAksesorisEkspedisiService.getAllWithDetails(startDate, endDate);
+    const dataWithDetails = await PurchaseAksesorisEkspedisiService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
 
@@ -250,8 +310,15 @@ export async function exportPurchaseAksesorisEkspedisiToExcel({ startDate = "", 
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
-
-    Swal.fire("Sukses", "File Excel berhasil diunduh!", "success");
+            
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: 'File Excel berhasil diunduh!',
+      timer: 1000,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
 
   } catch (error) {
     console.error('Error exporting to Excel:', error);

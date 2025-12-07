@@ -2,27 +2,27 @@ import { createEffect, createMemo, createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import MainLayout from "../../layouts/MainLayout";
 import {
-  getAllFabrics,
-  getAllSalesContracts,
+  getAllDeliveryNotes,
   getUser,
-  softDeleteCustomer,
-  softDeleteSalesContract,
+  softDeleteDeliveryNote,
   hasPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
-import { Edit, Eye, Trash } from "lucide-solid";
+import { Edit, Trash, Eye } from "lucide-solid";
 
 import SearchSortFilter from "../../components/SearchSortFilter";
 import useSimpleFilter from "../../utils/useSimpleFilter";
 
-export default function SalesContractViaList() {
-  const [salesContracts, setSalesContracts] = createSignal([]);
+export default function DeliveryNoteViaList() {
+  const [suratJalan, setSuratJalan] = createSignal([]);
   const [viaFilter, setViaFilter] = createSignal(null);
-  const { filteredData, applyFilter } = useSimpleFilter(salesContracts, [
-    "no_sc",
+  const { filteredData, applyFilter } = useSimpleFilter(suratJalan, [
+    "no_sj",
     "created_at",
+    "no_pl",
     "customer_name",
     "satuan_unit_name",
+    "jenis_so_name",
   ]);
 
   const navigate = useNavigate();
@@ -46,16 +46,45 @@ export default function SalesContractViaList() {
     );
   });
 
+  const formatNumber = (num, decimals = 2) => {
+    if (num === null || num === undefined) return "0";
+    const numValue = Number(num);
+    if (isNaN(numValue)) return "0";
+
+    return new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(numValue);
+  };
+
+  const totalSummary = createMemo(() => {
+    const list = suratJalan();
+    if (!list || list.length === 0) {
+      return { meter: 0, yard: 0, kilogram: 0, kain: 0 };
+    }
+
+    return list.reduce(
+      (acc, sj) => {
+        acc.meter += parseFloat(sj.summary?.total_meter || 0);
+        acc.yard += parseFloat(sj.summary?.total_yard || 0);
+        acc.kilogram += parseFloat(sj.summary?.total_kilogram || 0);
+        acc.kain += parseInt(sj.summary?.jumlah_kain || 0, 10);
+        return acc;
+      },
+      { meter: 0, yard: 0, kilogram: 0, kain: 0 }
+    );
+  });
+
   const totalPages = createMemo(() => {
     return Math.max(1, Math.ceil(transactionType().length / pageSize));
   });
 
   const paginatedData = () => {
-    const start = (currentPage() - 1) * pageSize;
-    return transactionType().slice(start, start + pageSize);
+    const startIndex = (currentPage() - 1) * pageSize;
+    return transactionType().slice(startIndex, startIndex + pageSize);
   };
 
-  const getViaStatus = (sc) => {
+const getViaStatus = (sc) => {
     if (sc.is_via === 1) {
       return <span class="text-green-600 font-medium">VIA</span>;
     } else if (sc.is_via === 0) {
@@ -80,8 +109,8 @@ export default function SalesContractViaList() {
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
-      title: "Hapus sales contract?",
-      text: `Apakah kamu yakin ingin menghapus sales contract dengan ID ${id}?`,
+      title: "Hapus surat jalan VIA?",
+      text: `Apakah kamu yakin ingin menghapus surat jalan VIA dengan ID ${id}?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -92,27 +121,22 @@ export default function SalesContractViaList() {
 
     if (result.isConfirmed) {
       try {
-        const deleteCustomer = await softDeleteSalesContract(
-          id,
-          tokUser?.token
-        );
+        await softDeleteDeliveryNote(id, tokUser?.token);
 
         await Swal.fire({
           title: "Terhapus!",
-          text: `Data sales contract dengan ID ${id} berhasil dihapus.`,
+          text: `Data surat jalan VIA dengan ID ${id} berhasil dihapus.`,
           icon: "success",
           confirmButtonColor: "#6496df",
         });
 
-        // Optional: update UI setelah hapus
-        setSalesContracts(salesContracts().filter((s) => s.id !== id));
+        setSuratJalan(suratJalan().filter((s) => s.id !== id));
       } catch (error) {
         console.error(error);
         Swal.fire({
           title: "Gagal",
           text:
-            error.message ||
-            `Gagal menghapus data sales contract dengan ID ${id}`,
+            error.message || `Gagal menghapus data surat jalan VIA dengan ID ${id}`,
           icon: "error",
 
           showConfirmButton: false,
@@ -123,82 +147,60 @@ export default function SalesContractViaList() {
     }
   };
 
-  const handleGetAllSalesContracts = async (tok) => {
-    const getDataSalesContracts = await getAllSalesContracts(tok);
+  // const handleGetAllDeliveryNotes = async (tok) => {
+  //   const getDataDeliveryNotes = await getAllDeliveryNotes(tok);
+  //   //console.log("Respons dari getAllDeliveryNotes:", JSON.stringify(getDataDeliveryNotes, null, 2));
 
-    //console.log("Data Sales Contract Lokal: ", JSON.stringify(getDataSalesContracts, null, 2));
+  //   if (getDataDeliveryNotes.status === 200) {
+  //       const suratJalanList = getDataDeliveryNotes.surat_jalan_list || [];
 
-    if (getDataSalesContracts.status === 200) {
-      const sortedData = getDataSalesContracts.contracts.sort(
-        (a, b) => b.id - a.id
-      );
-      setSalesContracts(sortedData);
-      applyFilter({});
+  //     const sortedData = suratJalanList.sort(
+  //       (a, b) => a.id - b.id
+  //     );
+  //     setSuratJalan(sortedData);
+  //   }
+  // };
+
+  const handleGetAllDeliveryNotes = async (tok) => {
+    try {
+      const result = await getAllDeliveryNotes(tok);
+
+      //console.log("Data SJ: ", JSON.stringify(result, null, 2))
+
+      if (result.status === 200) {
+        const suratJalanList = result.surat_jalan_list || [];
+        const sortedData = suratJalanList.sort((a, b) => b.id - a.id);
+        setSuratJalan(sortedData);
+        applyFilter({});
+      } else if (result.status === 403) {
+        await Swal.fire({
+          title: "Tidak Ada Akses",
+          text: "Anda tidak memiliki izin untuk melihat Surat Jalan VIA",
+          icon: "warning",
+          confirmButtonColor: "#6496df",
+        });
+        navigate("/dashboard");
+      } else {
+        Swal.fire({
+          title: "Gagal",
+          text: result.message || "Gagal mengambil data Surat Jalan VIA",
+          icon: "error",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        });
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data Delivery Notes:", error);
+      Swal.fire({
+        title: "Gagal",
+        text: error.message || "Terjadi kesalahan saat mengambil data",
+        icon: "error",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
     }
-  };
-
-  const qtyCounterReal = (sc, satuanUnit) => {
-    let total = 0;
-    let terkirim = 0;
-
-    switch (satuanUnit) {
-      case 1: // Meter
-        total = parseFloat(sc.summary?.total_meter || 0);
-        terkirim = parseFloat(sc.summary?.total_meter_dalam_surat_jalan || 0);
-        break;
-      case 2: // Yard
-        total = parseFloat(sc.summary?.total_yard || 0);
-        terkirim = parseFloat(sc.summary?.total_yard_dalam_surat_jalan || 0);
-        break;
-      case 3: // Kilogram
-        total = parseFloat(sc.summary?.total_kilogram || 0);
-        terkirim = parseFloat(
-          sc.summary?.total_kilogram_dalam_surat_jalan || 0
-        );
-        break;
-      default:
-        return "-";
-    }
-
-    const sisa = total - terkirim;
-
-    // Kalau udah habis
-    if (sisa <= 0) {
-      return <span class="text-green-500">SELESAI</span>;
-    }
-
-    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
-  };
-
-  const qtyCounterbySystem = (sc, satuanUnit) => {
-    let total = 0;
-    let terkirim = 0;
-
-    switch (satuanUnit) {
-      case 1: // Meter
-        total = parseFloat(sc.summary?.total_meter || 0);
-        terkirim = parseFloat(sc.summary?.total_meter_dalam_proses || 0);
-        break;
-      case 2: // Yard
-        total = parseFloat(sc.summary?.total_yard || 0);
-        terkirim = parseFloat(sc.summary?.total_yard_dalam_proses || 0);
-        break;
-      case 3: // Kilogram
-        total = parseFloat(sc.summary?.total_kilogram || 0);
-        terkirim = parseFloat(sc.summary?.total_kilogram_dalam_proses || 0);
-        break;
-      default:
-        return "-";
-    }
-
-    const sisa = total - terkirim;
-
-    // Kalau udah habis
-    if (sisa <= 0) {
-      return <span class="text-green-500">SELESAI</span>;
-    }
-
-    return `${sisa.toLocaleString("id-ID")} / ${total.toLocaleString("id-ID")}`;
   };
 
   function formatTanggalIndo(tanggalString) {
@@ -225,41 +227,31 @@ export default function SalesContractViaList() {
     return `${tanggalNum} ${bulan} ${tahun}`;
   }
 
-  const getCorakName = (sc) => {
-    // pastikan sales contract ada items
-    if (!sc.items || sc.items.length === 0) return "-";
-
-    const corakId = parseInt(sc.items[0].corak_kain);
-
-    const kain = allFabrics().find((f) => parseInt(f.id) === corakId);
-
-    return kain?.corak || "-";
-  };
-
   createEffect(() => {
     if (tokUser?.token) {
-      handleGetAllSalesContracts(tokUser?.token);
+      handleGetAllDeliveryNotes(tokUser?.token);
     }
   });
 
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold">Daftar Sales Contract (VIA)</h1>
+        <h1 class="text-2xl font-bold">Daftar Surat Jalan VIA</h1>
         <button
           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/salescontractvia/form")}
+          onClick={() => navigate("/deliverynotevia/form")}
         >
-          + Tambah Sales Contract VIA
+          + Tambah Surat Jalan VIA
         </button>
       </div>
       <SearchSortFilter
         sortOptions={[
-          { label: "No SC", value: "no_sc" },
-          { label: "Tanngal", value: "created_at" },
+          { label: "No SJ", value: "no_sj" },
+          { label: "Tanggal", value: "created_at" },
+          { label: "No PL", value: "no_pl" },
           { label: "Nama Customer", value: "customer_name" },
           { label: "Satuan Unit", value: "satuan_unit_name" },
-          { label: "Status VIA", value: "is_via" },
+          { label: "Jenis SO", value: "jenis_so_name" },
         ]}
         filterOptions={[
           { label: "Pembelian (Pajak)", value: "/P/" },
@@ -277,24 +269,17 @@ export default function SalesContractViaList() {
         <table class="w-full bg-white shadow-md rounded">
           <thead>
             <tr class="bg-gray-200 text-left text-sm uppercase text-gray-700">
-              <th class="py-2 px-4">ID</th>
-              <th class="py-2 px-2">No Pesanan</th>
+              <th class="py-2 px-4">#</th>
+              <th class="py-2 px-4">No. Surat Jalan</th>
               <th class="py-2 px-2">Tanggal</th>
+              <th class="py-2 px-2">No. Packing List</th>
               <th class="py-2 px-2">Nama Customer</th>
-              <th class="py-2 px-2">Satuan</th>
+              <th class="py-2 px-2">Satuan Unit</th>
+              <th class="py-2 px-2">Jenis Sales Order</th>
               <th class="py-2 px-2">Status VIA</th>
-              <th class="py-2 px-2 text-center">
-                <div>Qty Faktual</div>
-                <span class="text-xs text-gray-500">
-                  (Total - Total terkirim / Total)
-                </span>
-              </th>
-              <th class="py-2 px-2 text-center">
-                <div>Qty by System</div>
-                <span class="text-xs text-gray-500">
-                  (Total - Total diproses / Total)
-                </span>
-              </th>
+              <th class="py-2 px-2">Jumlah Kain</th>
+              <th class="py-2 px-2">Total</th>
+
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -304,44 +289,42 @@ export default function SalesContractViaList() {
                 <td class="py-2 px-4">
                   {(currentPage() - 1) * pageSize + (index + 1)}
                 </td>
-                <td class="py-2 px-4">{sc.no_sc}</td>
+                <td class="py-2 px-4">{sc.no_sj}</td>
                 <td class="py-2 px-4">{formatTanggalIndo(sc.created_at)}</td>
+                <td class="py-2 px-4">{sc.no_pl}</td>
                 <td class="py-2 px-4">{sc.customer_name}</td>
-                <td class="py-2 px-4">{sc.satuan_unit_name}</td>
+                <td class="py-2 px-4">{sc.satuan_unit}</td>
+                <td class="py-2 px-4">{sc.jenis_so_name}</td>
                 <td class="py-2 px-4 text-center">
                   {getViaStatus(sc)}
                 </td>
-                <td class="py-2 px-4 text-red-500 text-center">
-                  {/* {parseFloat(sc.summary.total_meter_kontrak || 0) -
-                    parseFloat(sc.summary.total_meter_terkirim || 0)}{" "}
-                  <span class="text-black">
-                    / {parseFloat(sc.summary.total_meter_kontrak || 0)}
-                  </span> */}
-                  {qtyCounterReal(sc, sc.satuan_unit_id)}
+                <td class="py-2 px-4 text-center">{sc.summary.jumlah_kain}</td>
+                <td class="py-2 px-4 text-right">
+                  {sc.satuan_unit === "Meter"
+                    ? `${formatNumber(sc.summary.total_meter)} m`
+                    : sc.satuan_unit === "Yard"
+                    ? `${formatNumber(sc.summary.total_yard)} yd`
+                    : `${formatNumber(sc.summary.total_kilogram)} kg`}
                 </td>
-                <td class="py-2 px-4 text-red-500 text-center">
-                  {qtyCounterbySystem(sc, sc.satuan_unit_id)}
-                </td>
+
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-yellow-600 hover:underline"
                     onClick={() =>
-                      navigate(`/salescontractvia/form?id=${sc.id}&view=true`)
+                      navigate(`/deliverynotevia/form?id=${sc.id}&view=true`)
                     }
                   >
                     <Eye size={25} />
                   </button>
-                  {hasPermission("edit_sales_contracts") && (
+                  {hasPermission("edit_surat_jalan") && (
                     <button
                       class="text-blue-600 hover:underline"
-                      onClick={() =>
-                        navigate(`/salescontractvia/form?id=${sc.id}`)
-                      }
+                      onClick={() => navigate(`/deliverynotevia/form?id=${sc.id}`)}
                     >
                       <Edit size={25} />
                     </button>
                   )}
-                  {hasPermission("delete_sales_contracts") && (
+                  {hasPermission("delete_surat_jalan") && (
                     <button
                       class="text-red-600 hover:underline"
                       onClick={() => handleDelete(sc.id)}

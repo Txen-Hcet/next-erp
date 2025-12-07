@@ -2,7 +2,7 @@ import { PurchaseAksesorisEkspedisiProcessor } from '../../../helpers/process/Pu
 import PurchaseAksesorisEkspedisiService from '../../../services/PurchaseAksesorisEkspedisiService';
 import Swal from 'sweetalert2';
 
-export async function printPurchaseAksesorisEkspedisi({ startDate = "", endDate = "" }) {
+export async function printPurchaseAksesorisEkspedisi({ startDate = "", endDate = "", filter = null }) {
   try {
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -14,8 +14,40 @@ export async function printPurchaseAksesorisEkspedisi({ startDate = "", endDate 
       }
     });
 
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      if (filter.supplier) {
+        if (typeof filter.supplier === 'object' && filter.supplier.value !== undefined) {
+          filterParams.supplier = filter.supplier.value;
+        } else {
+          filterParams.supplier = filter.supplier;
+        }
+      }
+      
+      if (filter.tanggal_sj_start && filter.tanggal_sj_end) {
+        filterParams.tanggal_sj_start = filter.tanggal_sj_start;
+        filterParams.tanggal_sj_end = filter.tanggal_sj_end;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (!['supplier', 'tanggal_sj_start', 'tanggal_sj_end'].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+
     // Gunakan method yang mengambil data lengkap dengan items
-    const dataWithDetails = await PurchaseAksesorisEkspedisiService.getAllWithDetails(startDate, endDate);
+    const dataWithDetails = await PurchaseAksesorisEkspedisiService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
     
@@ -24,8 +56,34 @@ export async function printPurchaseAksesorisEkspedisi({ startDate = "", endDate 
       return;
     }
 
+     // Buat label filter untuk tampilan di print
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      if (filter.supplier) {
+        const supplierName = typeof filter.supplier === 'object' 
+          ? filter.supplier.label || filter.supplier.value 
+          : filter.supplier;
+        filterParts.push(`Supplier: ${supplierName}`);
+      }
+      
+      if (filter.tanggal_sj_start && filter.tanggal_sj_end) {
+        filterParts.push(`Tanggal SJ: ${filter.tanggal_sj_start} s/d ${filter.tanggal_sj_end}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
+
+    openPrintWindow(dataWithDetails, filterLabel);
+
     //console.log('Data untuk print:', dataWithDetails);
-    openPrintWindow(dataWithDetails, startDate, endDate);
   } catch (error) {
     console.error('Error printing data:', error);
     Swal.close();

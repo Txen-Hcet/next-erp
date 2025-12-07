@@ -55,6 +55,7 @@ export default function SalesContractViaForm() {
     ppn_percent: "11.00", // SELALU 11%
     keterangan: "",
     satuan_unit_id: "",
+    is_via: 0,
     items: [],
   });
 
@@ -291,6 +292,7 @@ export default function SalesContractViaForm() {
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "11.00", // SELALU 11%
         keterangan: data.keterangan ?? "",
         satuan_unit_id: parseInt(data.satuan_unit_id) ?? "",
+        is_via: data.is_via ?? 0,
         items: normalizedItems,
       });
     } else {
@@ -484,6 +486,7 @@ export default function SalesContractViaForm() {
         ppn_percent: "11.00", // SELALU 11%
         keterangan: form().keterangan,
         satuan_unit_id: parseInt(form().satuan_unit_id),
+        is_via: form().is_via,
         items: payloadItems,
       };
 
@@ -493,6 +496,7 @@ export default function SalesContractViaForm() {
         await updateDataSalesContract(user?.token, params.id, payload);
       } else {
         payload.sequence_number = form().sequence_number; // Nomor kontrak dari input manual
+        //console.log("Create SC: ", JSON.stringify(payload, null, 2));
         await createSalesContract(user?.token, payload);
       }
 
@@ -694,7 +698,7 @@ export default function SalesContractViaForm() {
               }}
               disabled={isView}
               classList={{ "bg-gray-200": isView }}
-              required
+              // required
             >
               <option value="" disabled>
                 Pilih Currency
@@ -719,7 +723,7 @@ export default function SalesContractViaForm() {
                   onInput={(e) =>
                     setForm({ ...form(), kurs: e.target.value })
                   }
-                  required
+                  // required
                   disabled={isView}
                   classList={{ "bg-gray-200": isView }}
                 />
@@ -736,7 +740,7 @@ export default function SalesContractViaForm() {
               }
               disabled={isView}
               classList={{ "bg-gray-200": isView }}
-              required
+              // required
             >
               <option value="">Pilih Satuan</option>
               <For each={satuanUnitOptions()}>
@@ -777,6 +781,29 @@ export default function SalesContractViaForm() {
                 <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm peer-checked:translate-x-14 translate-x-14"></div>
                 </div>
                 <span class="text-lg text-gray-700">11%</span>
+            </label>
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">VIA</label>
+            <label class="flex items-center gap-3">
+              <div class="relative">
+                <input
+                  type="checkbox"
+                  checked={form().is_via === 1}
+                  onChange={(e) =>
+                    setForm({
+                      ...form(),
+                      is_via: e.target.checked ? 1 : 0,
+                    })
+                  }
+                  class="sr-only peer"
+                  disabled={isView}
+                  classList={{ "bg-gray-200": isView }}
+                />
+                <div class="w-24 h-10 bg-gray-200 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                <div class="absolute left-0.5 top-0.5 w-9 h-9 bg-white border border-gray-300 rounded-full shadow-sm transition-transform peer-checked:translate-x-14"></div>
+              </div>
             </label>
           </div>
         </div>

@@ -27,13 +27,20 @@ export default function PackingListList() {
   const [currentPage, setCurrentPage] = createSignal(1);
   const pageSize = 20;
 
+  const transactionType = createMemo(() =>
+    filteredData().filter(
+      (c) =>
+        (c.is_via === 0 || c.is_via === false || c.is_via == null)
+    )
+  );
+
   const totalPages = createMemo(() => {
-    return Math.max(1, Math.ceil(filteredData().length / pageSize));
+    return Math.max(1, Math.ceil(transactionType().length / pageSize));
   });
 
   const paginatedData = () => {
     const startIndex = (currentPage() - 1) * pageSize;
-    return filteredData().slice(startIndex, startIndex + pageSize);
+    return transactionType().slice(startIndex, startIndex + pageSize);
   };
 
   const handleDelete = async (id) => {

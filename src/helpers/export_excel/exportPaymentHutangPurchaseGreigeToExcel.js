@@ -12,10 +12,79 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportPaymenntHutangPurchaseGreigeToExcel({ startDate = "", endDate = "" }) {
+export async function exportPaymenntHutangPurchaseGreigeToExcel({ startDate = "", endDate = "", filter = null }) {
   try {
     const title = "Laporan Pembayaran Hutang Purchase Greige";
-    const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParams.tanggal_pengambilan_giro_start = filter.tanggal_pengambilan_giro_start;
+        filterParams.tanggal_pengambilan_giro_end = filter.tanggal_pengambilan_giro_end;
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParams.no_giro = filter.no_giro;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'tanggal_jatuh_tempo_start', 
+          'tanggal_jatuh_tempo_end',
+          'tanggal_pengambilan_giro_start',
+          'tanggal_pengambilan_giro_end',
+          'no_giro'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+    
+    // Buat label filter untuk tampilan
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParts.push(`Pengambilan Giro: ${filter.tanggal_pengambilan_giro_start} s/d ${filter.tanggal_pengambilan_giro_end}`);
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParts.push(`No. Giro: ${filter.no_giro}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
 
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -27,7 +96,7 @@ export async function exportPaymenntHutangPurchaseGreigeToExcel({ startDate = ""
       }
     });
 
-    const dataWithDetails = await PaymentHutangPurchaseGreigeService.getAllWithDetails(startDate, endDate);
+    const dataWithDetails = await PaymentHutangPurchaseGreigeService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
 
@@ -231,7 +300,14 @@ export async function exportPaymenntHutangPurchaseGreigeToExcel({ startDate = ""
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    Swal.fire("Sukses", "File Excel berhasil diunduh!", "success");
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: 'File Excel berhasil diunduh!',
+      timer: 1000,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
 
   } catch (error) {
     console.error('Error exporting to Excel:', error);

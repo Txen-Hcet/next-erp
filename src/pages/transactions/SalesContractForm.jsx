@@ -40,6 +40,7 @@ export default function SalesContractForm() {
   const [params] = useSearchParams();
   const isEdit = !!params.id;
   const isView = params.view === "true";
+  const isQuickEdit = params.quick_edit === "true";
 
   const [form, setForm] = createSignal({
     type: "",
@@ -55,6 +56,7 @@ export default function SalesContractForm() {
     ppn_percent: "0.00",
     keterangan: "",
     satuan_unit_id: "",
+    is_via: 0,
     items: [],
   });
 
@@ -162,6 +164,18 @@ export default function SalesContractForm() {
       const res = await getSalesContracts(params.id, user?.token);
       const data = res.contract;
 
+      if (isQuickEdit && data.is_create_updated === 1) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Tidak Dapat Mengedit',
+          text: 'Sales contract ini sudah pernah di-update melalui quick edit.',
+          confirmButtonText: 'OK'
+        }).then(() => {
+          navigate('/salescontract');
+        });
+        return;
+      }
+
       //console.log("Data sales contracts: ", JSON.stringify(data, null, 2));
 
       const fullPrintData = {
@@ -237,6 +251,7 @@ export default function SalesContractForm() {
         ppn_percent: parseFloat(data.ppn_percent) > 0 ? "11.00" : "0.00",
         keterangan: data.keterangan ?? "",
         satuan_unit_id: parseInt(data.satuan_unit_id) ?? "",
+        is_via: data.is_via ?? 0,
         items: normalizedItems,
       });
     } else {
@@ -423,27 +438,44 @@ export default function SalesContractForm() {
         ppn_percent: form().ppn_percent,
         keterangan: form().keterangan,
         satuan_unit_id: parseInt(form().satuan_unit_id),
+        is_via: form().is_via,
         items: payloadItems,
       };
+
+      if (isQuickEdit) {
+        payload.is_create_updated = 1;
+      }
 
       if (isEdit) {
         //payload.no_sc = form().no_seq;
         //console.log("Update SC: ", JSON.stringify(payload, null, 2));
         await updateDataSalesContract(user?.token, params.id, payload);
+
+        Swal.fire({
+          icon: "success",
+          title: isQuickEdit 
+            ? "Sales Contract berhasil di-update! (Quick Edit)"
+            : "Sales Contract berhasil di-update!",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        }).then(() => {
+          navigate("/salescontract");
+        });
       } else {
         payload.sequence_number = form().no_seq;
         await createSalesContract(user?.token, payload);
-      }
 
-      Swal.fire({
-        icon: "success",
-        title: "Sales Contract berhasil disimpan!",
-        showConfirmButton: false,
-        timer: 1000,
-        timerProgressBar: true,
-      }).then(() => {
-        navigate("/salescontract");
-      });
+        Swal.fire({
+          icon: "success",
+          title: "Sales Contract berhasil disimpan!",
+          showConfirmButton: false,
+          timer: 1000,
+          timerProgressBar: true,
+        }).then(() => {
+          navigate("/salescontract");
+        });
+      }
     } catch (err) {
       console.error(err);
       Swal.fire({
@@ -482,9 +514,16 @@ export default function SalesContractForm() {
           <span class="animate-pulse text-[40px] text-white">Loading...</span>
         </div>
       )}
-      <h1 class="text-2xl font-bold mb-4">
-        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Contract
-      </h1>
+      <div class="flex items-center gap-4 mb-4">
+        <h1 class="text-2xl font-bold">
+          {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Contract
+        </h1>
+        {isQuickEdit && (
+          <span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">
+            Quick Edit Mode
+          </span>
+        )}
+      </div>
       <button
         type="button"
         class="flex gap-2 bg-blue-600 text-white px-3 py-2 mb-4 rounded hover:bg-green-700"
@@ -529,7 +568,8 @@ export default function SalesContractForm() {
               type="date"
               class="w-full border bg-gray-200 p-2 rounded"
               value={form().tanggal}
-              readOnly
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
           <div>
@@ -577,8 +617,8 @@ export default function SalesContractForm() {
               onInput={(e) =>
                 setForm({ ...form(), validity_contract: e.target.value })
               }
-              disabled={isView || isEdit}
-              classList={{ "bg-gray-200": isView || isEdit }}
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
             />
           </div>
         </div>

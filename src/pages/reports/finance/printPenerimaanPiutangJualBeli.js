@@ -2,7 +2,7 @@ import { PenerimaanPiutangJualBeliProcessor } from '../../../helpers/process/Pen
 import PenerimaanPiutangJualBeliService from '../../../services/PenerimaanPiutangJualBeliService';
 import Swal from 'sweetalert2';
 
-export async function printPenerimaanPiutangJualBeli({ startDate = "", endDate = "" }) {
+export async function printPenerimaanPiutangJualBeli({ startDate = "", endDate = "", filter = null }) {
   try {
     const loadingAlert = Swal.fire({
       title: 'Mempersiapkan Laporan',
@@ -13,14 +13,83 @@ export async function printPenerimaanPiutangJualBeli({ startDate = "", endDate =
       }
     });
 
+    const filterParams = {};
+
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+
+    if (filter) {
+      if (filter.customer) {
+        if (typeof filter.customer === 'object' && filter.customer.value !== undefined) {
+          filterParams.customer = filter.customer.value;
+        } else {
+          filterParams.customer = filter.customer;
+        }
+      }
+      
+      if (filter.tanggal_pembayaran_start && filter.tanggal_pembayaran_end) {
+        filterParams.tanggal_pembayaran_start = filter.tanggal_pembayaran_start;
+        filterParams.tanggal_pembayaran_end = filter.tanggal_pembayaran_end;
+      }
+
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'customer',
+          'tanggal_pembayaran_start',
+          'tanggal_pembayaran_end',
+          'tanggal_jatuh_tempo_start',
+          'tanggal_jatuh_tempo_end'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+
     // Ambil data dengan saldo customer
-    const customerSaldo = await PenerimaanPiutangJualBeliService.calculateCustomerSaldo(startDate, endDate);
+    const customerSaldo = await PenerimaanPiutangJualBeliService.calculateCustomerSaldo(filterParams);
     
     await loadingAlert.close();
     
     if (!customerSaldo || Object.keys(customerSaldo).length === 0) {
       alert("Tidak ada data untuk dicetak pada rentang tanggal ini.");
       return;
+    }
+
+    // Buat label filter untuk tampilan di print
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      if (filter.customer) {
+        const customerName = typeof filter.customer === 'object' 
+          ? filter.customer.label || filter.customer.value 
+          : filter.customer;
+        filterParts.push(`Customer: ${customerName}`);
+      }
+      
+      if (filter.tanggal_pembayaran_start && filter.tanggal_pembayaran_end) {
+        filterParts.push(`Tanggal Penerimaan: ${filter.tanggal_pembayaran_start} s/d ${filter.tanggal_pembayaran_end}`);
+      }
+
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Tanggal Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
     }
 
     // Filter hanya customer yang memiliki penerimaan > 0
@@ -39,7 +108,7 @@ export async function printPenerimaanPiutangJualBeli({ startDate = "", endDate =
       return;
     }
 
-    openPrintWindow(filteredCustomerSaldo, startDate, endDate);
+    openPrintWindow(filteredCustomerSaldo, filterLabel);
   } catch (error) {
     console.error('Error printing data:', error);
     Swal.close();

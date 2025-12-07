@@ -53,6 +53,8 @@ import SalesContractForm from "./pages/transactions/SalesContractForm";
 import SalesContractList from "./pages/transactions/SalesContractList";
 import SalesContractViaList from "./pages/transactions/SalesContractViaList";
 import SalesContractViaForm from "./pages/transactions/SalesContractViaForm";
+import SalesOrderViaList from "./pages/transactions/SalesOrderViaList";
+import SalesOrderViaForm from "./pages/transactions/SalesOrderViaForm";
 // MASTER DATA
 import CustomerList from "./pages/master_data/CustomersList";
 import CustomerForm from "./pages/master_data/CustomerForm";
@@ -81,8 +83,12 @@ import BankAccountForm from "./pages/master_data/BankAccountForm";
 // WAREHOUSE
 import DeliveryNoteList from "./pages/warehouse/DeliveryNoteList";
 import DeliveryNoteForm from "./pages/warehouse/DeliveryNoteForm";
+import DeliveryNoteViaList from "./pages/warehouse/DeliveryNoteViaList";
+import DeliveryNoteViaForm from "./pages/warehouse/DeliveryNoteViaForm";
 import PackingListList from "./pages/warehouse/PackingListList";
 import PackingListForm from "./pages/warehouse/PackingListForm";
+import PackingListViaList from "./pages/warehouse/PackingListViaList";
+import PackingListViaForm from "./pages/warehouse/PackingListViaForm";
 // PRINT
 // SELL
 import SalesContractPrint from "./utils/sell/SalesContractDummyPrint";
@@ -109,7 +115,7 @@ import JBContractPrint from "./utils/buy/jual_beli/JBContractDummyPrint";
 import JBSuratJalanPrint from "./utils/buy/jual_beli/JBSuratJalanDummyPrint";
 // INVOICE
 import SalesInvoiceList from "./pages/invoice/SalesInvoiceList";
-// import SalesInvoiceViaList from "./pages/invoice/SalesInvoiceViaList";
+import SalesInvoiceViaList from "./pages/invoice/SalesInvoiceViaList";
 import SalesInvoicePrint from "./utils/sell/SalesInvoiceDummyPrint";
 import JBInvoiceList from "./pages/invoice/JBInvoiceList";
 import JBInvoicePrint from "./utils/buy/jual_beli/JBInvoiceDummyPrint";
@@ -191,6 +197,9 @@ function App() {
       <Route path="/salescontractvia" component={SalesContractViaList} />
       <Route path="/salescontractvia/form" component={SalesContractViaForm} />
 
+      <Route path="/salesordervia" component={SalesOrderViaList} />
+      <Route path="/salesordervia/form" component={SalesOrderViaForm} />
+
       <Route path="/expor/salescontract" component={ExporSalesContractList} />
       <Route
         path="/expor/salescontract/form"
@@ -205,8 +214,15 @@ function App() {
       <Route path="/packinglist" component={PackingListList} />
       <Route path="/packinglist/form" component={PackingListForm} />
 
+      <Route path="/packinglistvia" component={PackingListViaList} />
+      <Route path="/packinglistvia/form" component={PackingListViaForm} />
+
       <Route path="/deliverynote" component={DeliveryNoteList} />
       <Route path="/deliverynote/form" component={DeliveryNoteForm} />
+
+      <Route path="/deliverynotevia" component={DeliveryNoteViaList} />
+      <Route path="/deliverynotevia/form" component={DeliveryNoteViaForm} />
+
       {/* WAREHOUSE */}
 
       {/* PURCHASING */}
@@ -384,7 +400,7 @@ function App() {
 
       {/* Invoice */}
       <Route path="/deliverynote-invoice" component={SalesInvoiceList} />
-      {/* <Route path="/invoice-via" component={SalesInvoiceViaList} /> */}
+      <Route path="/invoice-via" component={SalesInvoiceViaList} />
       <Route path="/print/deliverynote-invoice" component={SalesInvoicePrint} />
       <Route path="/jualbeli-invoice" component={JBInvoiceList} />
       <Route path="/print/jualbeli-invoice" component={JBInvoicePrint} />

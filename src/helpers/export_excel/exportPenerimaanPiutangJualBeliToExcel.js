@@ -283,8 +283,14 @@ export async function exportPenerimaanPiutangJualBeliToExcel({ startDate = "", e
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    Swal.fire("Sukses", "File Excel berhasil diunduh!", "success");
-
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: 'File Excel berhasil diunduh!',
+      timer: 1000,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     Swal.fire("Error", "Terjadi kesalahan saat mengekspor data ke Excel.", "error");

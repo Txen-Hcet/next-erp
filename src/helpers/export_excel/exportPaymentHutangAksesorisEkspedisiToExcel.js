@@ -13,10 +13,84 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate = "", endDate = "" }) {
+export async function exportPaymentHutangAksesorisEkspedisiToExcel({ 
+  startDate = "", 
+  endDate = "", 
+  filter = null 
+}) {
   try {
     const title = "Laporan Pembayaran Hutang Aksesoris Ekspedisi";
-    const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
+    
+    // Buat filter params yang akan dikirim ke service
+    const filterParams = {};
+    
+    // Tambahkan filter tanggal utama
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    // Tambahkan filter tambahan jika ada
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParams.tanggal_pengambilan_giro_start = filter.tanggal_pengambilan_giro_start;
+        filterParams.tanggal_pengambilan_giro_end = filter.tanggal_pengambilan_giro_end;
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParams.no_giro = filter.no_giro;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'tanggal_jatuh_tempo_start', 
+          'tanggal_jatuh_tempo_end',
+          'tanggal_pengambilan_giro_start',
+          'tanggal_pengambilan_giro_end',
+          'no_giro'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+    
+    // Buat label filter untuk tampilan
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+    
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      // Filter tanggal jatuh tempo
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+      
+      // Filter tanggal pengambilan giro
+      if (filter.tanggal_pengambilan_giro_start && filter.tanggal_pengambilan_giro_end) {
+        filterParts.push(`Pengambilan Giro: ${filter.tanggal_pengambilan_giro_start} s/d ${filter.tanggal_pengambilan_giro_end}`);
+      }
+      
+      // Filter no giro
+      if (filter.no_giro) {
+        filterParts.push(`No. Giro: ${filter.no_giro}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
 
     // Tampilkan loading
     const loadingAlert = Swal.fire({
@@ -28,7 +102,8 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
       }
     });
 
-    const dataWithDetails = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(startDate, endDate);
+    // Ambil data lengkap dengan items
+    const dataWithDetails = await PaymentHutangAksesorisEkspedisiService.getAllWithDetails(filterParams);
     
     await loadingAlert.close();
 
@@ -48,7 +123,6 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
       { header: 'Pembayaran', key: 'pembayaran', width: 15, style: { numFmt: '"Rp"#,##0.00', alignment: { horizontal: 'right' } } },
       { header: 'Jenis Potongan', key: 'jenis_potongan', width: 18, style: { alignment: { horizontal: 'center' } } },
       { header: 'Potongan', key: 'potongan', width: 15, style: { numFmt: '"Rp"#,##0.00', alignment: { horizontal: 'right' } } },
-      { header: 'Subtotal', key: 'subtotal', width: 15, style: { numFmt: '"Rp"#,##0.00', alignment: { horizontal: 'right' } } },
       { header: 'Metode Pembayaran', key: 'metode_pembayaran', width: 18, style: { alignment: { horizontal: 'center' } } }
     ];
 
@@ -70,7 +144,7 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
 
     // Header periode
     worksheet.mergeCells(`A2:${lastColLetter}2`);
-    worksheet.getCell('A2').value = `Periode: ${filterLabel}`;
+    worksheet.getCell('A2').value = `Filter: ${filterLabel}`;
     worksheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
 
     // Header tanggal cetak
@@ -133,15 +207,14 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
         pembayaran: pembayaranNum,
         jenis_potongan: payment.jenis_potongan_name || '-',
         potongan: potonganNum,
-        //subtotal: subtotal,
         metode_pembayaran: payment.payment_method_name || '-'
       };
 
       const row = worksheet.addRow(Object.values(rowData));
       
       // Apply styling untuk kolom angka
-      row.getCell(7).numFmt = '"Rp"#,##0.00'; // Pembayaran
-      row.getCell(9).numFmt = '"Rp"#,##0.00'; // Potongan
+      row.getCell(7).numFmt = '"Rp"#,##0.00'; // Pembayaran (kolom G)
+      row.getCell(9).numFmt = '"Rp"#,##0.00'; // Potongan (kolom I)
 
       // Apply border ke semua cell
       row.eachCell((cell) => {
@@ -151,8 +224,6 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
 
     // Tambahkan baris kosong
     worksheet.addRow([]);
-
-    // PERBAIKAN: Baris total dengan merge cells yang benar
 
     // Baris total pembayaran
     const totalPembayaranRowNum = worksheet.lastRow.number + 1;
@@ -171,8 +242,8 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
     totalPembayaranValueCell.font = { bold: true };
     totalPembayaranValueCell.numFmt = '"Rp"#,##0.00';
 
-    // Merge cells kosong untuk kolom H sampai K
-    worksheet.mergeCells(totalPembayaranRowNum, 8, totalPembayaranRowNum, 11);
+    // Merge cells kosong untuk kolom H sampai J
+    worksheet.mergeCells(totalPembayaranRowNum, 8, totalPembayaranRowNum, 10);
 
     // Baris total potongan
     const totalPotonganRowNum = worksheet.lastRow.number + 1;
@@ -191,8 +262,25 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
     totalPotonganValueCell.font = { bold: true };
     totalPotonganValueCell.numFmt = '"Rp"#,##0.00';
 
-    // Cell kosong untuk kolom K
-    totalPotonganRow.getCell(11).value = '';
+    // Cell kosong untuk kolom J
+    totalPotonganRow.getCell(10).value = '';
+
+    // // Baris grand total
+    // const grandTotalRowNum = worksheet.lastRow.number + 1;
+    // const grandTotalRow = worksheet.addRow([]);
+    
+    // // Merge cells untuk label GRAND TOTAL - kolom A sampai I
+    // worksheet.mergeCells(grandTotalRowNum, 1, grandTotalRowNum, 9);
+    // const grandTotalLabelCell = grandTotalRow.getCell(1);
+    // grandTotalLabelCell.value = 'GRAND TOTAL (Pembayaran + Potongan)';
+    // grandTotalLabelCell.font = { bold: true };
+    // grandTotalLabelCell.alignment = { horizontal: 'right' };
+
+    // // Cell untuk nilai grand total di kolom J
+    // const grandTotalValueCell = grandTotalRow.getCell(10);
+    // grandTotalValueCell.value = grandTotal;
+    // grandTotalValueCell.font = { bold: true };
+    // grandTotalValueCell.numFmt = '"Rp"#,##0.00';
 
     // Apply border dan background untuk semua baris total
     [totalPembayaranRow, totalPotonganRow].forEach((row, index) => {
@@ -210,7 +298,7 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
 
     // Auto filter untuk header
     worksheet.autoFilter = {
-      from: { row: 5, column: 1 },
+      from: { row: 5, column: 1 }, // Header tabel ada di row 6 (setelah header laporan)
       to: { row: 5, column: columnConfig.length }
     };
 
@@ -231,7 +319,14 @@ export async function exportPaymentHutangAksesorisEkspedisiToExcel({ startDate =
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    Swal.fire("Sukses", "File Excel berhasil diunduh!", "success");
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: 'File Excel berhasil diunduh!',
+      timer: 1000,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
 
   } catch (error) {
     console.error('Error exporting to Excel:', error);

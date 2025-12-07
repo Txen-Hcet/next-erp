@@ -13,10 +13,77 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
-export async function exportPenerimaanPiutangSalesToExcel({ startDate = "", endDate = "" }) {
+export async function exportPenerimaanPiutangSalesToExcel({ startDate = "", endDate = "", filter = null }) {
   try {
     const title = "Laporan Penerimaan Piutang Sales";
-    const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
+
+    const filterParams = {};
+
+    if (startDate || endDate) {
+      filterParams.startDate = startDate;
+      filterParams.endDate = endDate;
+    }
+    
+    if (filter) {
+      if (filter.customer) {
+        if (typeof filter.customer === 'object' && filter.customer.value !== undefined) {
+          filterParams.customer = filter.customer.value;
+        } else {
+          filterParams.customer = filter.customer;
+        }
+      }
+      
+      if (filter.tanggal_pembayaran_start && filter.tanggal_pembayaran_end) {
+        filterParams.tanggal_pembayaran_start = filter.tanggal_pembayaran_start;
+        filterParams.tanggal_pembayaran_end = filter.tanggal_pembayaran_end;
+      }
+
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParams.tanggal_jatuh_tempo_start = filter.tanggal_jatuh_tempo_start;
+        filterParams.tanggal_jatuh_tempo_end = filter.tanggal_jatuh_tempo_end;
+      }
+      
+      // Tambahkan filter lainnya sesuai kebutuhan
+      Object.keys(filter).forEach(key => {
+        if (![
+          'customer',
+          'tanggal_pembayaran_start',
+          'tanggal_pembayaran_end',
+          'tanggal_jatuh_tempo_start',
+          'tanggal_jatuh_tempo_end'
+        ].includes(key)) {
+          filterParams[key] = filter[key];
+        }
+      });
+    }
+
+    let filterLabel = "Semua Data";
+    const filterParts = [];
+
+    if (startDate || endDate) {
+      filterParts.push(`${startDate || ''} s/d ${endDate || ''}`);
+    }
+    
+    if (filter) {
+      if (filter.customer) {
+        const customerName = typeof filter.customer === 'object' 
+          ? filter.customer.label || filter.customer.value 
+          : filter.customer;
+        filterParts.push(`Customer: ${customerName}`);
+      }
+      
+      if (filter.tanggal_pembayaran_start && filter.tanggal_pembayaran_end) {
+        filterParts.push(`Tanggal Penerimaan: ${filter.tanggal_pembayaran_start} s/d ${filter.tanggal_pembayaran_end}`);
+      }
+
+      if (filter.tanggal_jatuh_tempo_start && filter.tanggal_jatuh_tempo_end) {
+        filterParts.push(`Tanggal Jatuh Tempo: ${filter.tanggal_jatuh_tempo_start} s/d ${filter.tanggal_jatuh_tempo_end}`);
+      }
+    }
+    
+    if (filterParts.length > 0) {
+      filterLabel = filterParts.join(' | ');
+    }
 
     const loadingAlert = Swal.fire({
       title: 'Mempersiapkan Excel',
@@ -28,7 +95,7 @@ export async function exportPenerimaanPiutangSalesToExcel({ startDate = "", endD
     });
 
     // Ambil data dengan saldo customer
-    const customerSaldo = await PenerimaanPiutangSalesService.calculateCustomerSaldo(startDate, endDate);
+    const customerSaldo = await PenerimaanPiutangSalesService.calculateCustomerSaldo(filterParams);
     
     await loadingAlert.close();
 
@@ -61,11 +128,11 @@ export async function exportPenerimaanPiutangSalesToExcel({ startDate = "", endD
       { header: 'No. Surat Jalan', key: 'no_sj', width: 15 },
       { header: 'Tanggal Penerimaan', key: 'tanggal_penerimaan', width: 15 },
       { header: 'Tanggal Jatuh Tempo', key: 'tanggal_jatuh_tempo', width: 15 },
-      { header: 'Nominal Invoice', key: 'nominal_invoice', width: 15, style: { numFmt: '"Rp"#,##0.00' } },
-      { header: 'Saldo Utang', key: 'saldo_utang', width: 15, style: { numFmt: '"Rp"#,##0.00' } },
-      { header: 'Penerimaan', key: 'penerimaan', width: 15, style: { numFmt: '"Rp"#,##0.00' } },
-      { header: 'Potongan', key: 'potongan', width: 15, style: { numFmt: '"Rp"#,##0.00' } },
-      { header: 'Saldo Akhir', key: 'saldo_akhir', width: 15, style: { numFmt: '"Rp"#,##0.00' } },
+      { header: 'Nominal Invoice', key: 'nominal_invoice', width: 20, style: { numFmt: '"Rp"#,##0.00' } },
+      { header: 'Saldo Utang', key: 'saldo_utang', width: 20, style: { numFmt: '"Rp"#,##0.00' } },
+      { header: 'Penerimaan', key: 'penerimaan', width: 20, style: { numFmt: '"Rp"#,##0.00' } },
+      { header: 'Potongan', key: 'potongan', width: 20, style: { numFmt: '"Rp"#,##0.00' } },
+      { header: 'Saldo Akhir', key: 'saldo_akhir', width: 20, style: { numFmt: '"Rp"#,##0.00' } },
       { header: 'Metode Pembayaran', key: 'metode_pembayaran', width: 15 },
       { header: 'Bank', key: 'bank', width: 15 }
     ];
@@ -283,7 +350,14 @@ export async function exportPenerimaanPiutangSalesToExcel({ startDate = "", endD
     a.remove();
     window.URL.revokeObjectURL(url);
 
-    Swal.fire("Sukses", "File Excel berhasil diunduh!", "success");
+    Swal.fire({
+      icon: 'success',
+      title: 'Sukses',
+      text: 'File Excel berhasil diunduh!',
+      timer: 1000,
+      showConfirmButton: false,
+      timerProgressBar: true
+    });
 
   } catch (error) {
     console.error('Error exporting to Excel:', error);
