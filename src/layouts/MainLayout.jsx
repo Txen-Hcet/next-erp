@@ -110,6 +110,11 @@ export default function MainLayout(props) {
   const returSalesRoutes = ["/retur-sales", "/retur-sales/form"];
   const returRoutes = { retur: [...returPurchaseRoutes, ...returSalesRoutes] };
 
+  const memoRoutes = [
+    "/memo-order-matching",
+    "/memo-order-matching/form"
+  ];
+
   createEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -178,6 +183,13 @@ export default function MainLayout(props) {
         return "invoice";
       }
 
+      if ([
+        "/memo-order-matching",
+        "/memo-order-matching/form",
+      ]){
+        return "memo";
+      }
+
       // if (
       //   [
       //     "/packinglist",
@@ -221,6 +233,12 @@ export default function MainLayout(props) {
           .some((p) => pathname.startsWith(p))
       ) {
         return "retur";
+      }
+
+      if (
+        Object.values(memoRoutes).flat().some((p) => pathname.startsWith(p))
+      ){
+        return "memo";
       }
 
       return "unknown";
@@ -311,6 +329,9 @@ export default function MainLayout(props) {
         if (returSalesRoutes.some((p) => location.pathname.startsWith(p)))
           setReturSalesOpen(true);
         break;
+      case "memo":
+        setMemoIsOpen(true);
+      break;
     }
 
     // idle detection
@@ -1640,9 +1661,52 @@ export default function MainLayout(props) {
                           </>
                         )}
                       </li>
+
+                      
                     </>
                   );
                 })()}
+
+                {/* MEMO ORDER MATCHING */}
+                {hasAllPermission([
+                  "view_order_matching",
+                  "create_order_matching",
+                ]) && (
+                  <li>
+                    <button
+                      class="w-full text-left p-4 font-semibold text-gray-400 uppercase hover:bg-gray-700 flex justify-between items-center"
+                      onClick={() => setMemoIsOpen(!isMemoIsOpen())}
+                    >
+                      Memo
+                      <span class="text-xs">{isMemoIsOpen() ? "▲" : "▼"}</span>
+                    </button>
+                  </li>
+                )}
+
+                {/* SUB MENU INVOICE */}
+                <li
+                  class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    isMemoIsOpen()
+                      ? "max-h-fit opacity-100"
+                      : "max-h-0 opacity-0"
+                  }`}
+                >
+                  <ul>
+                    <li>
+                      <A
+                        href="/memo-order-matching"
+                        class={`block pl-8 pr-4 py-2 hover:bg-gray-700 ${
+                          location.pathname === "/memo-order-matching" ||
+                          location.pathname === "/memo-order-matching/form"
+                            ? "bg-gray-700 text-white"
+                            : ""
+                        }`}
+                      >
+                        Memo Order Matching
+                      </A>
+                    </li>
+                  </ul>
+                </li>
               </ul>
             </nav>
 
