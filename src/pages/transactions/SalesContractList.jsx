@@ -8,6 +8,7 @@ import {
   softDeleteCustomer,
   softDeleteSalesContract,
   hasPermission,
+  hasAllPermission,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 import { Edit, Eye, Trash } from "lucide-solid";
@@ -293,7 +294,7 @@ const transactionType = createMemo(() =>
                   >
                     <Eye size={25} />
                   </button>
-                  {hasPermission("edit_sales_contracts") && (
+                  {hasAllPermission(["edit_sales_contracts", "delete_sales_contracts" ])&& (
                     <button
                       class="text-blue-600 hover:underline"
                       onClick={() =>
