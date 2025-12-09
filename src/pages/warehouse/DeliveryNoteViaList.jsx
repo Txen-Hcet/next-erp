@@ -301,10 +301,10 @@ const getViaStatus = (sc) => {
                 <td class="py-2 px-4 text-center">{sc.summary.jumlah_kain}</td>
                 <td class="py-2 px-4 text-right">
                   {sc.satuan_unit === "Meter"
-                    ? `${formatNumber(sc.summary.total_meter)} m`
+                    ? `${formatNumber(sc.summary.total_meter_all)} m`
                     : sc.satuan_unit === "Yard"
-                    ? `${formatNumber(sc.summary.total_yard)} yd`
-                    : `${formatNumber(sc.summary.total_kilogram)} kg`}
+                    ? `${formatNumber(sc.summary.total_yard_all)} yd`
+                    : `${formatNumber(sc.summary.total_kilogram_all)} kg`}
                 </td>
 
                 <td class="py-2 px-4 space-x-2">

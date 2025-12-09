@@ -88,35 +88,35 @@ export default function SalesInvoicePrint(props) {
     () => Number(data()?.ppn_percent ?? props.data?.order?.ppn_percent ?? 0) > 0
   );
 
-  const subTotal = createMemo(() => Number(summary()?.subtotal ?? 0));
+  const subTotal = createMemo(() => Number(summary()?.subtotal_all ?? 0));
 
   const dpp = createMemo(() => {
     const s = summary();
-    if (s?.dpp != null) return Number(s.dpp);
+    if (s?.dpp_all != null) return Number(s.dpp);
     return subTotal() / 1.11;
   });
 
   const nilaiLain = createMemo(() => {
     const s = summary();
-    if (s?.nilai_lain != null) return Number(s.nilai_lain);
+    if (s?.nilai_lain_all != null) return Number(s.nilai_lain);
     return dpp() * (11 / 12);
   });
 
   const ppn = createMemo(() => {
     const s = summary();
-    if (s?.ppn != null) return Number(s.ppn);
+    if (s?.ppn_all != null) return Number(s.ppn);
     return isPPN() ? nilaiLain() * 0.12 : 0;
   });
 
   const grand = createMemo(() => {
     const s = summary();
-    if (s?.total_akhir != null) return Number(s.total_akhir);
+    if (s?.total_akhir_all != null) return Number(s.total_akhir);
     return dpp() + ppn();
   });
 
-  const totalMeter = createMemo(() => Number(summary()?.total_meter ?? 0));
-  const totalYard  = createMemo(() => Number(summary()?.total_yard ?? 0));
-  const totalKilogram  = createMemo(() => Number(summary()?.total_kilogram ?? 0));
+  const totalMeter = createMemo(() => Number(summary()?.total_meter_all ?? 0));
+  const totalYard  = createMemo(() => Number(summary()?.total_yard_all ?? 0));
+  const totalKilogram  = createMemo(() => Number(summary()?.total_kilogram_all ?? 0));
   const totalRolls = createMemo(() => {
     // const sum = Number(summary()?.jumlah_kain);
     // if (!Number.isNaN(sum) && sum > 0) return sum;
@@ -162,16 +162,16 @@ export default function SalesInvoicePrint(props) {
       let qty = 0;
       switch(activeUnit) {
         case "Meter": 
-          qty = parseFloat(item?.meter_total || 0);
+          qty = parseFloat(item?.all_meter || 0);
           break;
         case "Yard": 
-          qty = parseFloat(item?.yard_total || 0);
+          qty = parseFloat(item?.all_yard || 0);
           break;
         case "Kilogram": 
-          qty = parseFloat(item?.kilogram_total || 0);
+          qty = parseFloat(item?.all_kilogram || 0);
           break;
         default: 
-          qty = parseFloat(item?.meter_total || 0);
+          qty = parseFloat(item?.all_meter || 0);
       }
       
       const harga = parseFloat(item?.harga || 0);
@@ -188,7 +188,7 @@ export default function SalesInvoicePrint(props) {
 
   // ===== Pagination =====
   const ROWS_FIRST_PAGE  = 18;
-  const ROWS_OTHER_PAGES = 18;
+  const ROWS_OTHER_PAGES = 17;
   const pagesWithOffsets = createMemo(() =>
     splitIntoPagesWithOffsets(invoiceItems() || [], ROWS_FIRST_PAGE, ROWS_OTHER_PAGES)
   );
@@ -305,10 +305,10 @@ function PrintPage(props) {
   // Fungsi untuk mendapatkan quantity berdasarkan satuan - TAMBAHKAN KILOGRAM
   const getItemQuantity = (item) => {
     switch(activeUnit()) {
-      case "Meter": return parseFloat(item?.meter_total || 0);
-      case "Yard": return parseFloat(item?.yard_total || 0);
-      case "Kilogram": return parseFloat(item?.kilogram_total || 0);
-      default: return parseFloat(item?.meter_total || 0);
+      case "Meter": return parseFloat(item?.all_meter || 0);
+      case "Yard": return parseFloat(item?.all_yard || 0);
+      case "Kilogram": return parseFloat(item?.all_kilogram || 0);
+      default: return parseFloat(item?.all_meter || 0);
     }
   };
 
@@ -577,7 +577,7 @@ function PrintPage(props) {
                     Grand Total
                   </td>
                   <td className="border border-black px-2 py-1 text-right">
-                    {formatCurrency(totals.exportSubTotal || totals.subTotal)}
+                    {formatCurrency(totals.exportSubTotal)}
                   </td>
                 </tr>
               </Show>
