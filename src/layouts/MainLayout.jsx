@@ -444,7 +444,7 @@ export default function MainLayout(props) {
                     Dashboard
                   </A>
                 </li>
-                {hasAllPermission[("view_users", "edit_users")] && (
+                {hasAllPermission(["view_users", "edit_users"]) && (
                   <li>
                     <A
                       href="/users"
