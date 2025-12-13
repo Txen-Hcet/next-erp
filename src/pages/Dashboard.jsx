@@ -1,5 +1,12 @@
 import MainLayout from "../layouts/MainLayout";
-import { onMount, createSignal, createMemo, createEffect, For, Show } from "solid-js";
+import {
+  onMount,
+  createSignal,
+  createMemo,
+  createEffect,
+  For,
+  Show,
+} from "solid-js";
 import ApexChart from "../components/ApexChart";
 import { Printer, FileSpreadsheet, Funnel } from "lucide-solid";
 import Litepicker from "litepicker";
@@ -47,7 +54,7 @@ import {
   getOrderCelupOrders,
   getKainJadiOrders,
   getJualBelis,
-  
+
   // ==== DATA MASTER ====
   getAllSuppliers,
   getAllColors,
@@ -62,7 +69,9 @@ import { printDeliveryNotes } from "./reports/deliveryNotesPrint";
 import { printSummaryReport } from "./reports/summaryPrint";
 
 const [activeTab, setActiveTab] = createSignal("pembelian");
-const [salesCustomerForm, setSalesCustomerForm] = createSignal({ customer_id: null }); // Filter laporan penjualan berdasarkan nama customer
+const [salesCustomerForm, setSalesCustomerForm] = createSignal({
+  customer_id: null,
+}); // Filter laporan penjualan berdasarkan nama customer
 
 export default function Dashboard() {
   const user = getUser();
@@ -73,18 +82,20 @@ export default function Dashboard() {
   const [filterButtonLoading, setFilterButtonLoading] = createSignal(false);
   const [applyFilterLoading, setApplyFilterLoading] = createSignal(false);
   const [showOutstandingModal, setShowOutstandingModal] = createSignal(false);
-  const [currentOutstandingBlock, setCurrentOutstandingBlock] = createSignal(null);
-  const [showOutstandingPreview, setShowOutstandingPreview] = createSignal(false);
+  const [currentOutstandingBlock, setCurrentOutstandingBlock] =
+    createSignal(null);
+  const [showOutstandingPreview, setShowOutstandingPreview] =
+    createSignal(false);
   const [previewData, setPreviewData] = createSignal({
     block: null,
     poRows: [],
-    outstanding_filter: null
+    outstanding_filter: null,
   });
   const [masterData, setMasterData] = createSignal({
     suppliers: [],
     colors: [],
     fabrics: [],
-    customers: []
+    customers: [],
   });
 
   // ==== FORMATTERS ====
@@ -214,7 +225,27 @@ export default function Dashboard() {
         {
           key: "summary",
           label: "Summary Invoice",
-          anyPerm: ["view_surat_jalan", "view_jual_beli_surat_jalan", "print_invoice"],
+          anyPerm: [
+            "view_surat_jalan",
+            "view_jual_beli_surat_jalan",
+            "print_invoice",
+          ],
+        },
+      ],
+    },
+    {
+      key: "inventory",
+      title: "Laporan Inventory",
+      blocks: [
+        // tampil jika user punya salah satu izin penjualan/jual beli
+        {
+          key: "inventory",
+          label: "Inventory Invoice",
+          anyPerm: [
+            "view_surat_jalan",
+            "view_jual_beli_surat_jalan",
+            "print_invoice",
+          ],
         },
       ],
     },
@@ -228,10 +259,14 @@ export default function Dashboard() {
   const [startDate, setStartDate] = createSignal("");
   const [endDate, setEndDate] = createSignal("");
 
-  const formatAngka = (n) => new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  const formatAngka = (n) =>
+    new Intl.NumberFormat("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
 
   const currentFilterLabel = () => {
-    if (!startDate() && !endDate()) return "Semua Data"; 
+    if (!startDate() && !endDate()) return "Semua Data";
     if (startDate() && endDate()) return `${startDate()} s/d ${endDate()}`;
     return startDate() || endDate();
   };
@@ -239,48 +274,53 @@ export default function Dashboard() {
   // ==== FUNGSI UNTUK FILTER OUTSTANDING ====
   const loadMasterData = async () => {
     try {
-      const [suppliersRes, colorsRes, fabricsRes, customersRes] = await Promise.all([
-        getAllSuppliers(user?.token),
-        getAllColors(user?.token),
-        getAllFabrics(user?.token),
-        getAllCustomers(user?.token)
-      ]);
+      const [suppliersRes, colorsRes, fabricsRes, customersRes] =
+        await Promise.all([
+          getAllSuppliers(user?.token),
+          getAllColors(user?.token),
+          getAllFabrics(user?.token),
+          getAllCustomers(user?.token),
+        ]);
 
       // Ekstrak dan normalisasi data suppliers
-      const suppliersArray = suppliersRes?.suppliers || suppliersRes?.data || suppliersRes || [];
-      const mappedSuppliers = suppliersArray.map(s => ({ 
+      const suppliersArray =
+        suppliersRes?.suppliers || suppliersRes?.data || suppliersRes || [];
+      const mappedSuppliers = suppliersArray.map((s) => ({
         ...s,
         id: s.id,
         nama: s.nama || s.name,
-        kode: s.kode || s.supplier_kode
+        kode: s.kode || s.supplier_kode,
       }));
 
       // Ekstrak dan normalisasi data colors
-      const colorsArray = colorsRes?.warna || colorsRes?.data || colorsRes || [];
-      const mappedColors = colorsArray.map(c => ({
+      const colorsArray =
+        colorsRes?.warna || colorsRes?.data || colorsRes || [];
+      const mappedColors = colorsArray.map((c) => ({
         ...c,
         id: c.id,
         kode_warna: c.kode_warna || c.kode,
         deskripsi_warna: c.deskripsi_warna || c.deskripsi,
-        nama: c.nama
+        nama: c.nama,
       }));
 
       // Ekstrak dan normalisasi data fabrics
-      const fabricsArray = fabricsRes?.kain || fabricsRes?.data || fabricsRes || [];
-      const mappedFabrics = fabricsArray.map(f => ({
-        ...f, 
+      const fabricsArray =
+        fabricsRes?.kain || fabricsRes?.data || fabricsRes || [];
+      const mappedFabrics = fabricsArray.map((f) => ({
+        ...f,
         id: f.id,
         corak_kain: f.corak_kain || f.corak,
         konstruksi_kain: f.konstruksi_kain || f.konstruksi,
-        nama: f.nama
+        nama: f.nama,
       }));
 
-      const customersArray = customersRes?.customers || customersRes?.data || customersRes || [];
-      const mappedCustomers = customersArray.map(c => ({
+      const customersArray =
+        customersRes?.customers || customersRes?.data || customersRes || [];
+      const mappedCustomers = customersArray.map((c) => ({
         ...c,
         id: c.id,
         nama: c.nama || c.name,
-        kode: c.kode || c.customer_kode
+        kode: c.kode || c.customer_kode,
       }));
 
       setMasterData({
@@ -289,7 +329,6 @@ export default function Dashboard() {
         fabrics: mappedFabrics,
         customers: mappedCustomers,
       });
-      
     } catch (error) {
       console.error("Gagal memuat data master:", error);
     }
@@ -298,7 +337,7 @@ export default function Dashboard() {
   const openOutstandingFilter = async (block) => {
     setFilterButtonLoading(true);
     setCurrentOutstandingBlock(block);
-    
+
     try {
       const isPenjualan = block.mode === "penjualan";
 
@@ -309,14 +348,14 @@ export default function Dashboard() {
         color_id: null,
         fabric_id: null,
         start_date: startDate(),
-        end_date: endDate(),    
+        end_date: endDate(),
       };
-        
-      setOutstandingFilters(prev => ({
+
+      setOutstandingFilters((prev) => ({
         ...prev,
-        [block.key]: existingFilter
+        [block.key]: existingFilter,
       }));
-      
+
       // Tampilkan modal filter outstanding
       setShowOutstandingModal(true);
     } catch (error) {
@@ -330,15 +369,15 @@ export default function Dashboard() {
   const applyFilterFromPreview = async () => {
     setApplyFilterLoading(true);
     const preview = previewData();
-    
+
     try {
       if (preview.block && preview.outstanding_filter) {
-        setOutstandingFilters(prev => ({
+        setOutstandingFilters((prev) => ({
           ...prev,
-          [preview.block.key]: preview.outstanding_filter
+          [preview.block.key]: preview.outstanding_filter,
         }));
         setShowOutstandingPreview(false);
-        
+
         // Tampilkan loading di dashboard selama reload data
         setLoading(true);
         await reloadData(); // Reload data dengan filter yang baru
@@ -351,7 +390,7 @@ export default function Dashboard() {
     }
   };
 
-  // Fungsi untuk cancel filter dari preview  
+  // Fungsi untuk cancel filter dari preview
   const cancelFilterFromPreview = () => {
     setShowOutstandingPreview(false);
   };
@@ -366,12 +405,12 @@ export default function Dashboard() {
     } finally {
       setOutstandingLoading(false);
     }
-  }
+  };
 
   const clearOutstandingFilter = async (blockKey) => {
     setOutstandingLoading(true);
     try {
-      setOutstandingFilters(prev => {
+      setOutstandingFilters((prev) => {
         const newFilters = { ...prev };
         delete newFilters[blockKey];
         return newFilters;
@@ -387,23 +426,28 @@ export default function Dashboard() {
 
   const getOutstandingFilterLabel = (block) => {
     const filter = outstandingFilters()[block?.key];
-    
+
     const parts = [];
 
     // Tampilkan filter customer dari salesCustomerForm untuk penjualan
     if (block.mode === "penjualan") {
-      const customerFromForm = salesCustomerForm().customer_id 
-        ? masterData().customers.find(c => c.id == salesCustomerForm().customer_id)
+      const customerFromForm = salesCustomerForm().customer_id
+        ? masterData().customers.find(
+            (c) => c.id == salesCustomerForm().customer_id
+          )
         : null;
-        
-      const customerFromFilter = filter?.customer_id 
-        ? masterData().customers.find(c => c.id == filter.customer_id)
+
+      const customerFromFilter = filter?.customer_id
+        ? masterData().customers.find((c) => c.id == filter.customer_id)
         : null;
 
       if (customerFromForm) {
         parts.push(`Customer: ${customerFromForm.nama}`);
       }
-      if (customerFromFilter && customerFromFilter.id !== customerFromForm?.id) {
+      if (
+        customerFromFilter &&
+        customerFromFilter.id !== customerFromForm?.id
+      ) {
         parts.push(`Customer (Filter): ${customerFromFilter.nama}`);
       }
     }
@@ -412,25 +456,31 @@ export default function Dashboard() {
       if (filter.start_date && filter.end_date) {
         parts.push(`Tanggal: ${filter.start_date} s/d ${filter.end_date}`);
       }
-      
+
       // Untuk penjualan, jika ada customer_id di outstanding filter, tampilkan juga
       if (block.mode === "penjualan" && filter.customer_id) {
-        const customer = masterData().customers.find(c => c.id == filter.customer_id);
+        const customer = masterData().customers.find(
+          (c) => c.id == filter.customer_id
+        );
         if (customer) parts.push(`Customer (Filter): ${customer.nama}`);
       }
-      
+
       // Untuk pembelian, tampilkan supplier
       if (block.mode === "pembelian" && filter.supplier_id) {
-        const supplier = masterData().suppliers.find(s => s.id == filter.supplier_id);
+        const supplier = masterData().suppliers.find(
+          (s) => s.id == filter.supplier_id
+        );
         if (supplier) parts.push(`Supplier: ${supplier.nama || supplier.name}`);
       }
-      
+
       if (filter.color_id) {
-        const color = masterData().colors.find(c => c.id == filter.color_id);
+        const color = masterData().colors.find((c) => c.id == filter.color_id);
         if (color) parts.push(`Warna: ${color.kode_warna || color.kode}`);
       }
       if (filter.fabric_id) {
-        const fabric = masterData().fabrics.find(f => f.id == filter.fabric_id);
+        const fabric = masterData().fabrics.find(
+          (f) => f.id == filter.fabric_id
+        );
         if (fabric) parts.push(`Kain: ${fabric.corak_kain || fabric.corak}`);
       }
     }
@@ -445,15 +495,18 @@ export default function Dashboard() {
     // Jika tidak ada filter outstanding, tetap terapkan filter customer dari salesCustomerForm untuk penjualan
     if (!filter) {
       if (mode === "penjualan" && salesCustomerForm().customer_id) {
-        return poRows.filter(po => matchesCustomer(po, salesCustomerForm().customer_id));
+        return poRows.filter((po) =>
+          matchesCustomer(po, salesCustomerForm().customer_id)
+        );
       }
       return poRows;
     }
 
-    return poRows.filter(po => {
+    return poRows.filter((po) => {
       // Filter customer untuk penjualan
       if (mode === "penjualan") {
-        const targetCustomerId = filter.customer_id || salesCustomerForm().customer_id;
+        const targetCustomerId =
+          filter.customer_id || salesCustomerForm().customer_id;
         if (targetCustomerId && !matchesCustomer(po, targetCustomerId)) {
           return false;
         }
@@ -466,18 +519,30 @@ export default function Dashboard() {
 
       // Filter warna dan kain
       if (filter.color_id || filter.fabric_id) {
-        const hasMatchingItem = po.items?.some(item => {
+        const hasMatchingItem = po.items?.some((item) => {
           // Dapatkan kode warna dari filter color_id
-          const filterColor = masterData().colors.find(c => c.id == filter.color_id);
+          const filterColor = masterData().colors.find(
+            (c) => c.id == filter.color_id
+          );
           const filterColorCode = filterColor?.kode_warna || filterColor?.kode;
-          
-          // Dapatkan corak kain dari filter fabric_id  
-          const filterFabric = masterData().fabrics.find(f => f.id == filter.fabric_id);
-          const filterFabricPattern = filterFabric?.corak_kain || filterFabric?.corak;
+
+          // Dapatkan corak kain dari filter fabric_id
+          const filterFabric = masterData().fabrics.find(
+            (f) => f.id == filter.fabric_id
+          );
+          const filterFabricPattern =
+            filterFabric?.corak_kain || filterFabric?.corak;
 
           // CARI FIELD WARNA DENGAN BERBAGAI KEMUNGKINAN
           let itemColor = null;
-          const colorFields = ['kode_warna', 'warna_kode', 'color_code', 'warna', 'color', 'warna_nama'];
+          const colorFields = [
+            "kode_warna",
+            "warna_kode",
+            "color_code",
+            "warna",
+            "color",
+            "warna_nama",
+          ];
           for (const field of colorFields) {
             if (item[field]) {
               itemColor = item[field];
@@ -487,7 +552,13 @@ export default function Dashboard() {
 
           // CARI FIELD CORAK DENGAN BERBAGAI KEMUNGKINAN
           let itemCorak = null;
-          const corakFields = ['corak_kain', 'corak', 'fabric_pattern', 'fabric', 'kain_nama'];
+          const corakFields = [
+            "corak_kain",
+            "corak",
+            "fabric_pattern",
+            "fabric",
+            "kain_nama",
+          ];
           for (const field of corakFields) {
             if (item[field]) {
               itemCorak = item[field];
@@ -496,12 +567,20 @@ export default function Dashboard() {
           }
 
           // Filter warna
-          const colorMatch = !filter.color_id || 
-            (itemColor && filterColorCode && itemColor.toString().trim() === filterColorCode.toString().trim());
-          
+          const colorMatch =
+            !filter.color_id ||
+            (itemColor &&
+              filterColorCode &&
+              itemColor.toString().trim() ===
+                filterColorCode.toString().trim());
+
           // Filter kain
-          const fabricMatch = !filter.fabric_id ||
-            (itemCorak && filterFabricPattern && itemCorak.toString().trim() === filterFabricPattern.toString().trim());
+          const fabricMatch =
+            !filter.fabric_id ||
+            (itemCorak &&
+              filterFabricPattern &&
+              itemCorak.toString().trim() ===
+                filterFabricPattern.toString().trim());
 
           return colorMatch && fabricMatch;
         });
@@ -514,19 +593,31 @@ export default function Dashboard() {
       // Filter tanggal outstanding
       if (filter.start_date || filter.end_date) {
         const poDate = new Date(po.created_at || po.tanggal);
-        const poDateOnly = new Date(poDate.getFullYear(), poDate.getMonth(), poDate.getDate()).getTime();
-        
+        const poDateOnly = new Date(
+          poDate.getFullYear(),
+          poDate.getMonth(),
+          poDate.getDate()
+        ).getTime();
+
         if (filter.start_date) {
           const startDate = new Date(filter.start_date);
-          const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+          const startDateOnly = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            startDate.getDate()
+          ).getTime();
           if (poDateOnly < startDateOnly) {
             return false;
           }
         }
-        
+
         if (filter.end_date) {
           const endDate = new Date(filter.end_date);
-          const endDateOnly = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
+          const endDateOnly = new Date(
+            endDate.getFullYear(),
+            endDate.getMonth(),
+            endDate.getDate()
+          ).getTime();
           if (poDateOnly > endDateOnly) {
             return false;
           }
@@ -616,11 +707,22 @@ export default function Dashboard() {
 
   const buildCustomerListFromRows = (rows = []) => {
     const map = new Map();
-    
+
     for (const r of rows || []) {
       let id = r?.customer_id || r?.buyer_id || r?.customer?.id || r?.buyer?.id;
-      let kode = r?.customer_kode || r?.buyer_kode || r?.customer?.kode || r?.buyer?.kode || "";
-      let nama = r?.customer_name || r?.buyer_name || r?.customer?.name || r?.customer?.nama || r?.buyer?.nama || "";
+      let kode =
+        r?.customer_kode ||
+        r?.buyer_kode ||
+        r?.customer?.kode ||
+        r?.buyer?.kode ||
+        "";
+      let nama =
+        r?.customer_name ||
+        r?.buyer_name ||
+        r?.customer?.name ||
+        r?.customer?.nama ||
+        r?.buyer?.nama ||
+        "";
 
       // Jika tidak ada id, tapi ada nama, gunakan nama sebagai identifier
       const mapKey = id ? String(id) : nama ? `name:${nama}` : null;
@@ -634,7 +736,7 @@ export default function Dashboard() {
         });
       }
     }
-    
+
     return Array.from(map.values());
   };
 
@@ -643,10 +745,16 @@ export default function Dashboard() {
     if (!selectedCustomerId) return true;
 
     const sel = String(selectedCustomerId);
-    
+
     // **PERBAIKAN: Untuk penjualan, gunakan customer_name sebagai fallback**
-    const cid = row?.customer_id || row?.buyer_id || row?.customer?.id || row?.buyer?.id;
-    const cname = row?.customer_name || row?.buyer_name || row?.customer?.name || row?.customer?.nama || row?.buyer?.nama;
+    const cid =
+      row?.customer_id || row?.buyer_id || row?.customer?.id || row?.buyer?.id;
+    const cname =
+      row?.customer_name ||
+      row?.buyer_name ||
+      row?.customer?.name ||
+      row?.customer?.nama ||
+      row?.buyer?.nama;
 
     // 1) match by id (jika ada)
     if (cid !== null && cid !== undefined && String(cid) === sel) {
@@ -665,8 +773,14 @@ export default function Dashboard() {
 
     // **PERBAIKAN BARU: 4) Cari customer di masterData berdasarkan selectedCustomerId dan bandingkan nama**
     if (cname && masterData().customers.length > 0) {
-      const selectedCustomer = masterData().customers.find(c => c.id == selectedCustomerId);
-      if (selectedCustomer && selectedCustomer.nama && cname.toLowerCase() === selectedCustomer.nama.toLowerCase()) {
+      const selectedCustomer = masterData().customers.find(
+        (c) => c.id == selectedCustomerId
+      );
+      if (
+        selectedCustomer &&
+        selectedCustomer.nama &&
+        cname.toLowerCase() === selectedCustomer.nama.toLowerCase()
+      ) {
         return true;
       }
     }
@@ -707,7 +821,51 @@ export default function Dashboard() {
           const salesTotal = salesRows.length;
           const jbTotal = jbRows.length;
 
-          const salesInv = salesRows.filter((r) => +r.delivered_status === 1).length;
+          const salesInv = salesRows.filter(
+            (r) => +r.delivered_status === 1
+          ).length;
+          const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
+
+          blocks.push({
+            key,
+            label: b.label,
+            mode: sec.key,
+            chart: {
+              series: [salesTotal, jbTotal],
+              categories: ["Penjualan", "Jual Beli"],
+            },
+            summaryCounts: {
+              sales: {
+                total: salesTotal,
+                invoiced: salesInv,
+                pending: salesTotal - salesInv,
+              },
+              jb: { total: jbTotal, invoiced: jbInv, pending: jbTotal - jbInv },
+            },
+            rowsSales: salesRows,
+            rowsJB: jbRows,
+          });
+          continue;
+        }
+
+        if (sec.key === "inventory" && key === "inventory") {
+          let salesRows = [],
+            jbRows = [];
+          try {
+            const resSales = await getAllDeliveryNotes(user?.token);
+            salesRows = filterByDate(rowsFromResponse(resSales));
+          } catch {}
+          try {
+            const resJB = await getAllJBDeliveryNotes(user?.token);
+            jbRows = filterByDate(rowsFromResponse(resJB));
+          } catch {}
+
+          const salesTotal = salesRows.length;
+          const jbTotal = jbRows.length;
+
+          const salesInv = salesRows.filter(
+            (r) => +r.delivered_status === 1
+          ).length;
           const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
 
           blocks.push({
@@ -751,13 +909,16 @@ export default function Dashboard() {
         try {
           const poList = await PO_LIST_FETCHER[key]?.(user?.token);
           const list = filterByDate(rowsFromResponse(poList));
-          
+
           // FETCH DETAIL SETIAP PO UNTUK DAPATKAN DATA LENGKAP
           poRows = await Promise.all(
             list.map(async (po) => {
               try {
-                const detail = await PO_DETAIL_FETCHER[key]?.(po.id, user?.token);
-                
+                const detail = await PO_DETAIL_FETCHER[key]?.(
+                  po.id,
+                  user?.token
+                );
+
                 // DEBUG DETAIL RESPONSE
                 // console.log(`=== DETAIL RESPONSE FOR PO ${po.id} (${key}) ===`);
                 // console.log("Detail response structure:", JSON.stringify({
@@ -796,7 +957,10 @@ export default function Dashboard() {
                   ...po,
                   items: items,
                   // Pastikan supplier_id tersedia
-                  supplier_id: po.supplier_id || detail?.order?.supplier_id || detail?.mainRow?.supplier_id
+                  supplier_id:
+                    po.supplier_id ||
+                    detail?.order?.supplier_id ||
+                    detail?.mainRow?.supplier_id,
                 };
               } catch (error) {
                 console.error(`Gagal fetch detail PO ${po.id}:`, error);
@@ -808,12 +972,13 @@ export default function Dashboard() {
           console.error(`Gagal fetch PO list untuk ${key}:`, error);
           poRows = [];
         }
-        
+
         // Simpan data asli customer
         const originalPoRows = Array.isArray(poRows) ? poRows.slice() : [];
 
         // Filter dengan nama customer ketika mode penjualan
-        const selectedCustomerId = sec.key === "penjualan" ? salesCustomerForm().customer_id : null;
+        const selectedCustomerId =
+          sec.key === "penjualan" ? salesCustomerForm().customer_id : null;
 
         const filteredSJRows = (sjRows || []).filter((r) =>
           matchesCustomer(r, selectedCustomerId)
@@ -853,7 +1018,8 @@ export default function Dashboard() {
           customers,
         });
       }
-      if (blocks.length) assembled.push({ key: sec.key, title: sec.title, blocks });
+      if (blocks.length)
+        assembled.push({ key: sec.key, title: sec.title, blocks });
     }
 
     setSectionsData(assembled);
@@ -946,20 +1112,26 @@ export default function Dashboard() {
     const isPenjualan = block.mode === "penjualan";
 
     const currentFilter = createMemo(() => {
-      return outstandingFilters()[block.key] || {
-        // Untuk penjualan: customer_id, untuk pembelian: supplier_id
-        ...(isPenjualan ? { customer_id: null } : { supplier_id: null }),
-        color_id: null,
-        fabric_id: null,
-        start_date: startDate(),
-        end_date: endDate()
-      };
+      return (
+        outstandingFilters()[block.key] || {
+          // Untuk penjualan: customer_id, untuk pembelian: supplier_id
+          ...(isPenjualan ? { customer_id: null } : { supplier_id: null }),
+          color_id: null,
+          fabric_id: null,
+          start_date: startDate(),
+          end_date: endDate(),
+        }
+      );
     });
 
     const handleDateRangeChange = async () => {
       const { value: rangeVal } = await Swal.fire({
         title: "Pilih Rentang Tanggal",
-        html: `<input type="text" id="date-range" class="swal2-input" placeholder="Klik untuk pilih rentang" value="${currentFilter().start_date && currentFilter().end_date ? `${currentFilter().start_date} - ${currentFilter().end_date}` : ''}">`,
+        html: `<input type="text" id="date-range" class="swal2-input" placeholder="Klik untuk pilih rentang" value="${
+          currentFilter().start_date && currentFilter().end_date
+            ? `${currentFilter().start_date} - ${currentFilter().end_date}`
+            : ""
+        }">`,
         didOpen: () => {
           new Litepicker({
             element: document.getElementById("date-range"),
@@ -987,13 +1159,13 @@ export default function Dashboard() {
       });
 
       if (rangeVal) {
-        setOutstandingFilters(prev => ({
+        setOutstandingFilters((prev) => ({
           ...prev,
           [block.key]: {
             ...prev[block.key],
             start_date: rangeVal.start,
-            end_date: rangeVal.end
-          }
+            end_date: rangeVal.end,
+          },
         }));
         // Juga update filter global
         // setStartDate(rangeVal.start);
@@ -1003,118 +1175,128 @@ export default function Dashboard() {
 
     // Handler untuk perubahan
     const handleSupplierChange = (supplierId) => {
-      setOutstandingFilters(prev => ({
+      setOutstandingFilters((prev) => ({
         ...prev,
         [block.key]: {
           ...prev[block.key],
-          supplier_id: supplierId
-        }
+          supplier_id: supplierId,
+        },
       }));
     };
 
     const handleCustomerChange = (customerId) => {
-      setOutstandingFilters(prev => ({
+      setOutstandingFilters((prev) => ({
         ...prev,
         [block.key]: {
           ...prev[block.key],
-          customer_id: customerId
-        }
+          customer_id: customerId,
+        },
       }));
     };
 
     const handleColorChange = (colorId) => {
-      setOutstandingFilters(prev => ({
+      setOutstandingFilters((prev) => ({
         ...prev,
         [block.key]: {
           ...prev[block.key],
-          color_id: colorId
-        }
+          color_id: colorId,
+        },
       }));
     };
 
     const handleFabricChange = (fabricId) => {
-      setOutstandingFilters(prev => ({
+      setOutstandingFilters((prev) => ({
         ...prev,
         [block.key]: {
           ...prev[block.key],
-          fabric_id: fabricId
-        }
+          fabric_id: fabricId,
+        },
       }));
     };
 
-  const handlePreviewFilter = async () => {
-    setOutstandingLoading(true);
-    try {
-      // Ambil data PO untuk block ini
-      let poRows = [];
-      const poList = await PO_LIST_FETCHER[block.key]?.(user?.token);
-      const list = filterByDate(rowsFromResponse(poList));
-      
-      // Fetch detail setiap PO
-      poRows = await Promise.all(
-        list.map(async (po) => {
-          try {
-            const detail = await PO_DETAIL_FETCHER[block.key]?.(po.id, user?.token);
-            let items = [];
-            
-            if (detail?.order?.items) {
-              items = detail.order.items;
-            } else if (detail?.mainRow?.items) {
-              items = detail.mainRow.items;
-            } else if (detail?.items) {
-              items = detail.items;
-            } else if (po.items) {
-              items = po.items;
-            }
+    const handlePreviewFilter = async () => {
+      setOutstandingLoading(true);
+      try {
+        // Ambil data PO untuk block ini
+        let poRows = [];
+        const poList = await PO_LIST_FETCHER[block.key]?.(user?.token);
+        const list = filterByDate(rowsFromResponse(poList));
 
-            return {
-              ...po,
-              items: items,
-              supplier_id: po.supplier_id || detail?.order?.supplier_id || detail?.mainRow?.supplier_id
-            };
-          } catch (error) {
-            console.error(`Gagal fetch detail PO ${po.id}:`, error);
-            return po;
-          }
-        })
-      );
-      
-      const currentFilter = outstandingFilters()[block.key];
-      
-      // Buat filter gabungan yang konsisten
-      const combinedFilter = {
-        ...currentFilter,
-        // Untuk penjualan, selalu sertakan customer_id dari salesCustomerForm jika ada
-        ...(block.mode === "penjualan" && salesCustomerForm().customer_id 
-          ? { customer_id: salesCustomerForm().customer_id }
-          : {})
-      };
-      
-      const filteredPoRows = filterPOByOutstanding(poRows, block.key, block.mode);
-      
-      // Set data untuk preview - TAMBAHKAN CUSTOMER_ID
-      setPreviewData({
-        block: block,
-        poRows: filteredPoRows,
-        outstanding_filter: combinedFilter, // GUNAKAN COMBINED FILTER
-        customer_id: block.mode === "penjualan" ? salesCustomerForm().customer_id : null
-      });
-      
-      // Tutup modal filter dan buka modal preview
-      setShowOutstandingModal(false);
-      setShowOutstandingPreview(true);
-      
-    } catch (error) {
-      console.error("Error preparing preview data:", error);
-      Swal.fire("Error", "Gagal memuat data preview", "error");
-    } finally {
-      setOutstandingLoading(false);
-    }
-  };
+        // Fetch detail setiap PO
+        poRows = await Promise.all(
+          list.map(async (po) => {
+            try {
+              const detail = await PO_DETAIL_FETCHER[block.key]?.(
+                po.id,
+                user?.token
+              );
+              let items = [];
+
+              if (detail?.order?.items) {
+                items = detail.order.items;
+              } else if (detail?.mainRow?.items) {
+                items = detail.mainRow.items;
+              } else if (detail?.items) {
+                items = detail.items;
+              } else if (po.items) {
+                items = po.items;
+              }
+
+              return {
+                ...po,
+                items: items,
+                supplier_id:
+                  po.supplier_id ||
+                  detail?.order?.supplier_id ||
+                  detail?.mainRow?.supplier_id,
+              };
+            } catch (error) {
+              console.error(`Gagal fetch detail PO ${po.id}:`, error);
+              return po;
+            }
+          })
+        );
+
+        const currentFilter = outstandingFilters()[block.key];
+
+        // Buat filter gabungan yang konsisten
+        const combinedFilter = {
+          ...currentFilter,
+          // Untuk penjualan, selalu sertakan customer_id dari salesCustomerForm jika ada
+          ...(block.mode === "penjualan" && salesCustomerForm().customer_id
+            ? { customer_id: salesCustomerForm().customer_id }
+            : {}),
+        };
+
+        const filteredPoRows = filterPOByOutstanding(
+          poRows,
+          block.key,
+          block.mode
+        );
+
+        // Set data untuk preview - TAMBAHKAN CUSTOMER_ID
+        setPreviewData({
+          block: block,
+          poRows: filteredPoRows,
+          outstanding_filter: combinedFilter, // GUNAKAN COMBINED FILTER
+          customer_id:
+            block.mode === "penjualan" ? salesCustomerForm().customer_id : null,
+        });
+
+        // Tutup modal filter dan buka modal preview
+        setShowOutstandingModal(false);
+        setShowOutstandingPreview(true);
+      } catch (error) {
+        console.error("Error preparing preview data:", error);
+        Swal.fire("Error", "Gagal memuat data preview", "error");
+      } finally {
+        setOutstandingLoading(false);
+      }
+    };
 
     // Hide filter warna kalau greige
     const showColorFilter = createMemo(() => {
-      return block.key !== 'greige';
+      return block.key !== "greige";
     });
 
     return (
@@ -1125,27 +1307,31 @@ export default function Dashboard() {
           </h3>
 
           <div class="mb-6">
-            <label class="block text-sm font-medium mb-2">Rentang Tanggal</label>
+            <label class="block text-sm font-medium mb-2">
+              Rentang Tanggal
+            </label>
             <div class="flex gap-2">
               <button
                 class="flex-1 px-3 py-2 border border-b rounded text-left bg-white hover:bg-gray-50"
                 onClick={handleDateRangeChange}
               >
-                {currentFilter().start_date && currentFilter().end_date 
-                  ? `${currentFilter().start_date} s/d ${currentFilter().end_date}`
+                {currentFilter().start_date && currentFilter().end_date
+                  ? `${currentFilter().start_date} s/d ${
+                      currentFilter().end_date
+                    }`
                   : "Pilih Rentang Tanggal"}
               </button>
               {(currentFilter().start_date || currentFilter().end_date) && (
                 <button
                   class="px-3 py-2 border border-red-300 text-red-600 rounded hover:bg-red-50"
                   onClick={() => {
-                    setOutstandingFilters(prev => ({
+                    setOutstandingFilters((prev) => ({
                       ...prev,
                       [block.key]: {
                         ...prev[block.key],
                         start_date: null,
-                        end_date: null
-                      }
+                        end_date: null,
+                      },
                     }));
                     // setStartDate("");
                     // setEndDate("");
@@ -1156,7 +1342,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          
+
           <div class="space-y-4">
             {isPenjualan ? (
               <div>
@@ -1202,9 +1388,7 @@ export default function Dashboard() {
           </div>
 
           {/* Preview Filter Aktif */}
-          <div class="mt-6 p-4 bg-gray-50 rounded">
-
-          </div>
+          <div class="mt-6 p-4 bg-gray-50 rounded"></div>
 
           <div class="flex justify-end gap-3 mt-6">
             <button
@@ -1222,7 +1406,7 @@ export default function Dashboard() {
               <Show when={outstandingLoading()}>
                 <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               </Show>
-              {outstandingLoading() ? 'Memproses...' : 'Preview Filter'}
+              {outstandingLoading() ? "Memproses..." : "Preview Filter"}
             </button>
           </div>
         </div>
@@ -1265,9 +1449,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Show when={loading()}>
-        <div class="p-6 bg-white rounded shadow">Loading…</div>
-      </Show>
       <div class="flex gap-2 mb-6 border-b">
         <button
           class={`px-4 py-2 ${
@@ -1299,7 +1480,22 @@ export default function Dashboard() {
         >
           Laporan Summary
         </button>
+        <button
+          class={`px-4 py-2 ${
+            activeTab() === "inventory"
+              ? "border-b-2 border-blue-600 font-bold"
+              : "text-gray-500"
+          }`}
+          onClick={() => setActiveTab("inventory")}
+        >
+          Inventory
+        </button>
       </div>
+
+      <Show when={loading()}>
+        <div class="p-6 bg-white rounded shadow">Loading…</div>
+      </Show>
+
       <For each={sectionsData().filter((s) => s.key === activeTab())}>
         {(section) => (
           <div class="mb-12">
@@ -1359,17 +1555,19 @@ export default function Dashboard() {
                             <button
                               class="text-gray-500 hover:text-green-600"
                               title="Export Summary Penjualan ke Excel"
-                              onClick={() => exportSummaryToExcel({
-                                kind: 'sales',
-                                data: block.rowsSales,
-                                filterLabel: currentFilterLabel(),
-                                token: user?.token
-                              })}
+                              onClick={() =>
+                                exportSummaryToExcel({
+                                  kind: "sales",
+                                  data: block.rowsSales,
+                                  filterLabel: currentFilterLabel(),
+                                  token: user?.token,
+                                })
+                              }
                             >
                               <FileSpreadsheet size={20} />
                             </button>
                             <button
-                              class="text-gray-500 hover:text-blue-600" 
+                              class="text-gray-500 hover:text-blue-600"
                               title="Print Summary Penjualan"
                               onClick={() =>
                                 printSummaryReport({
@@ -1403,17 +1601,19 @@ export default function Dashboard() {
                             <button
                               class="text-gray-500 hover:text-green-600"
                               title="Export Summary Jual Beli ke Excel"
-                              onClick={() => exportSummaryToExcel({
-                                kind: 'jb',
-                                data: block.rowsJB,
-                                filterLabel: currentFilterLabel(),
-                                token: user?.token
-                              })}
+                              onClick={() =>
+                                exportSummaryToExcel({
+                                  kind: "jb",
+                                  data: block.rowsJB,
+                                  filterLabel: currentFilterLabel(),
+                                  token: user?.token,
+                                })
+                              }
                             >
                               <FileSpreadsheet size={20} />
                             </button>
                             <button
-                              class="text-gray-500 hover:text-blue-600" 
+                              class="text-gray-500 hover:text-blue-600"
                               title="Print Summary Jual Beli"
                               onClick={() =>
                                 printSummaryReport({
@@ -1433,6 +1633,145 @@ export default function Dashboard() {
                   );
                 }
 
+                // ==== RENDER KHUSUS INVENTORY ====
+                if (section.key === "inventory" && block.key === "inventory") {
+                  const masuk = block.summaryCounts?.in ?? {
+                    total: 0,
+                    approved: 0,
+                    pending: 0,
+                  };
+
+                  const keluar = block.summaryCounts?.out ?? {
+                    total: 0,
+                    approved: 0,
+                    pending: 0,
+                  };
+
+                  return (
+                    <div class="bg-white rounded shadow mb-6 overflow-y-auto">
+                      {/* HEADER + CHART */}
+                      <div class="p-4 border-b">
+                        <h3 class="text-base font-semibold mb-3">
+                          {block.label}
+                        </h3>
+
+                        {/* WRAPPER CHART WAJIB ADA */}
+                        <div class="h-fit">
+                          <ApexChart
+                            type="bar"
+                            height="100%" // WAJIB: sesuaikan wrapper
+                            series={[
+                              { name: "Masuk", data: block.chart.in },
+                              { name: "Keluar", data: block.chart.out },
+                              { name: "Sisa", data: block.chart.remaining },
+                            ]}
+                            options={{
+                              chart: { stacked: false },
+                              plotOptions: {
+                                bar: { horizontal: false, columnWidth: "45%" },
+                              },
+                              dataLabels: { enabled: false },
+                              xaxis: { categories: block.chart.items },
+                              legend: { position: "bottom" },
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* CONTENT BAWAH (2 CARD) */}
+                      <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* CARD MASUK */}
+                        <div class="bg-white p-4 rounded border shadow-sm relative">
+                          <p class="text-sm text-gray-600">Total Stok Masuk</p>
+                          <p class="text-2xl font-bold text-blue-600">
+                            {masuk.total}
+                          </p>
+
+                          <div class="mt-1 text-sm text-gray-700">
+                            <div>
+                              Diproses: <b>{masuk.approved}</b>
+                            </div>
+                            <div>
+                              Pending: <b>{masuk.pending}</b>
+                            </div>
+                          </div>
+
+                          <div class="absolute top-3 right-3 flex gap-2">
+                            <FileSpreadsheet
+                              size={18}
+                              class="text-gray-500 hover:text-green-600 cursor-pointer"
+                              onClick={() =>
+                                exportSummaryToExcel({
+                                  kind: "stock_in",
+                                  data: block.rowsIn,
+                                  filterLabel: currentFilterLabel(),
+                                  token: user?.token,
+                                })
+                              }
+                            />
+                            <Printer
+                              size={18}
+                              class="text-gray-500 hover:text-blue-600 cursor-pointer"
+                              onClick={() =>
+                                printSummaryReport({
+                                  kind: "stock_in",
+                                  token: user?.token,
+                                  startDate: startDate(),
+                                  endDate: endDate(),
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        {/* CARD KELUAR */}
+                        <div class="bg-white p-4 rounded border shadow-sm relative">
+                          <p class="text-sm text-gray-600">Total Stok Keluar</p>
+                          <p class="text-2xl font-bold text-blue-600">
+                            {keluar.total}
+                          </p>
+
+                          <div class="mt-1 text-sm text-gray-700">
+                            <div>
+                              Diproses: <b>{keluar.approved}</b>
+                            </div>
+                            <div>
+                              Pending: <b>{keluar.pending}</b>
+                            </div>
+                          </div>
+
+                          <div class="absolute top-3 right-3 flex gap-2">
+                            <FileSpreadsheet
+                              size={18}
+                              class="text-gray-500 hover:text-green-600 cursor-pointer"
+                              onClick={() =>
+                                exportSummaryToExcel({
+                                  kind: "stock_out",
+                                  data: block.rowsOut,
+                                  filterLabel: currentFilterLabel(),
+                                  token: user?.token,
+                                })
+                              }
+                            />
+                            <Printer
+                              size={18}
+                              class="text-gray-500 hover:text-blue-600 cursor-pointer"
+                              onClick={() =>
+                                printSummaryReport({
+                                  kind: "stock_out",
+                                  token: user?.token,
+                                  startDate: startDate(),
+                                  endDate: endDate(),
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // ==== RENDER BLOK LAIN (PEMBELIAN / PENJUALAN) ====
                 const [done, notDone] = block.chart.series || [0, 0];
                 const isGreige = block.key === "greige";
@@ -1444,12 +1783,15 @@ export default function Dashboard() {
                       <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold">{block.label}</h3>
                         {/* Tombol Filter Outstanding untuk Pembelian DAN Penjualan */}
-                        {(section.key === "pembelian" || section.key === "penjualan") && (
+                        {(section.key === "pembelian" ||
+                          section.key === "penjualan") && (
                           <div class="flex gap-2">
                             {outstandingFilterLabel && (
                               <button
                                 class="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                                onClick={() => clearOutstandingFilter(block.key)}
+                                onClick={() =>
+                                  clearOutstandingFilter(block.key)
+                                }
                                 disabled={outstandingLoading()}
                                 title="Hapus filter outstanding"
                               >
@@ -1462,14 +1804,18 @@ export default function Dashboard() {
                             <button
                               class="flex items-center gap-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => openOutstandingFilter(block)}
-                              disabled={filterButtonLoading() || outstandingLoading()}
+                              disabled={
+                                filterButtonLoading() || outstandingLoading()
+                              }
                               title="Filter outstanding"
                             >
                               <Show when={filterButtonLoading()}>
                                 <div class="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                               </Show>
                               <Funnel size={16} />
-                              {filterButtonLoading() ? 'Memuat...' : 'Filter Outstanding'}
+                              {filterButtonLoading()
+                                ? "Memuat..."
+                                : "Filter Outstanding"}
                             </button>
                           </div>
                         )}
@@ -1522,34 +1868,60 @@ export default function Dashboard() {
                         </p>
 
                         <div class="absolute top-4 right-4 flex gap-3">
-                            <button class="text-gray-500 hover:text-green-600" title="Export Laporan ke Excel"
-                                onClick={() => exportDeliveryNotesToExcel({
-                                  block: block,
-                                  token: user?.token,
-                                  startDate: startDate(),
-                                  endDate: endDate(),
-                                  filterLabel: currentFilterLabel(),
-                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null,
-                                  outstanding_filter: (section.key === "pembelian" || section.key === "penjualan") ? outstandingFilters()[block.key] : null
-                                })}>
-                                <FileSpreadsheet size={20} />
-                            </button>
-                            <button class="text-gray-500 hover:text-blue-600" title="Cetak laporan"
-                                onClick={() => printDeliveryNotes(block, {
-                                  token: user?.token,
-                                  startDate: startDate(),
-                                  endDate: endDate(),
-                                  customer_id: section.key === "penjualan" ? salesCustomerForm().customer_id : null,
-                                  outstanding_filter: (section.key === "pembelian" || section.key === "penjualan") ? outstandingFilters()[block.key] : null
-                                })}>
-                                <Printer size={20} />
-                            </button>
+                          <button
+                            class="text-gray-500 hover:text-green-600"
+                            title="Export Laporan ke Excel"
+                            onClick={() =>
+                              exportDeliveryNotesToExcel({
+                                block: block,
+                                token: user?.token,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                                filterLabel: currentFilterLabel(),
+                                customer_id:
+                                  section.key === "penjualan"
+                                    ? salesCustomerForm().customer_id
+                                    : null,
+                                outstanding_filter:
+                                  section.key === "pembelian" ||
+                                  section.key === "penjualan"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
+                              })
+                            }
+                          >
+                            <FileSpreadsheet size={20} />
+                          </button>
+                          <button
+                            class="text-gray-500 hover:text-blue-600"
+                            title="Cetak laporan"
+                            onClick={() =>
+                              printDeliveryNotes(block, {
+                                token: user?.token,
+                                startDate: startDate(),
+                                endDate: endDate(),
+                                customer_id:
+                                  section.key === "penjualan"
+                                    ? salesCustomerForm().customer_id
+                                    : null,
+                                outstanding_filter:
+                                  section.key === "pembelian" ||
+                                  section.key === "penjualan"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
+                              })
+                            }
+                          >
+                            <Printer size={20} />
+                          </button>
                         </div>
                       </div>
 
                       {/* Kartu 2: Total Pesanan Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">Total Pesanan Selesai</p>
+                        <p class="text-sm text-gray-500">
+                          Total Pesanan Selesai
+                        </p>
                         <p class="text-3xl font-bold text-blue-600">{done}</p>
                         <div class="absolute top-4 right-4 flex gap-3">
                           {/* Export Done */}
@@ -1557,9 +1929,14 @@ export default function Dashboard() {
                             class="text-gray-500 hover:text-green-600"
                             title="Export Laporan ke Excel"
                             onClick={() => {
-                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null                            
+                              const selectedCustomerId =
+                                section.key === "penjualan"
+                                  ? salesCustomerForm().customer_id
+                                  : null;
 
-                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                              const filteredPoRows = (
+                                block.poRows || []
+                              ).filter((r) =>
                                 matchesCustomer(r, selectedCustomerId)
                               );
 
@@ -1572,7 +1949,10 @@ export default function Dashboard() {
                                 isGreige: isGreige,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
-                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
+                                outstanding_filter:
+                                  section.key === "pembelian"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
                               });
                             }}
                           >
@@ -1584,9 +1964,14 @@ export default function Dashboard() {
                             class="text-gray-500 hover:text-blue-600"
                             title="Cetak daftar PO/ SO yang selesai"
                             onClick={() => {
-                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null
+                              const selectedCustomerId =
+                                section.key === "penjualan"
+                                  ? salesCustomerForm().customer_id
+                                  : null;
 
-                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                              const filteredPoRows = (
+                                block.poRows || []
+                              ).filter((r) =>
                                 matchesCustomer(r, selectedCustomerId)
                               );
 
@@ -1599,7 +1984,10 @@ export default function Dashboard() {
                                 token: user?.token,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
-                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
+                                outstanding_filter:
+                                  section.key === "pembelian"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
                               });
                             }}
                           >
@@ -1610,17 +1998,26 @@ export default function Dashboard() {
 
                       {/* Kartu 3: Total Pesanan Belum Selesai */}
                       <div class="bg-white p-6 rounded shadow relative border">
-                        <p class="text-sm text-gray-500">Total Pesanan Belum Selesai</p>
-                        <p class="text-3xl font-bold text-blue-600">{notDone}</p>
+                        <p class="text-sm text-gray-500">
+                          Total Pesanan Belum Selesai
+                        </p>
+                        <p class="text-3xl font-bold text-blue-600">
+                          {notDone}
+                        </p>
                         <div class="absolute top-4 right-4 flex gap-3">
                           {/* Export Not Done */}
                           <button
                             class="text-gray-500 hover:text-green-600"
                             title="Export Laporan ke Excel"
                             onClick={() => {
-                              const selectedCustomerId =  section.key === "penjualan" ? salesCustomerForm().customer_id : null;
+                              const selectedCustomerId =
+                                section.key === "penjualan"
+                                  ? salesCustomerForm().customer_id
+                                  : null;
 
-                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                              const filteredPoRows = (
+                                block.poRows || []
+                              ).filter((r) =>
                                 matchesCustomer(r, selectedCustomerId)
                               );
 
@@ -1633,7 +2030,10 @@ export default function Dashboard() {
                                 isGreige: isGreige,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
-                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
+                                outstanding_filter:
+                                  section.key === "pembelian"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
                               });
                             }}
                           >
@@ -1645,9 +2045,14 @@ export default function Dashboard() {
                             class="text-gray-500 hover:text-blue-600"
                             title="Cetak daftar PO/ SO yang belum selesai"
                             onClick={() => {
-                              const selectedCustomerId = section.key === "penjualan" ? salesCustomerForm().customer_id : null;
+                              const selectedCustomerId =
+                                section.key === "penjualan"
+                                  ? salesCustomerForm().customer_id
+                                  : null;
 
-                              const filteredPoRows = (block.poRows || []).filter((r) =>
+                              const filteredPoRows = (
+                                block.poRows || []
+                              ).filter((r) =>
                                 matchesCustomer(r, selectedCustomerId)
                               );
 
@@ -1660,7 +2065,10 @@ export default function Dashboard() {
                                 token: user?.token,
                                 PO_DETAIL_FETCHER: PO_DETAIL_FETCHER,
                                 customer_id: selectedCustomerId,
-                                outstanding_filter: section.key === "pembelian" ? outstandingFilters()[block.key] : null
+                                outstanding_filter:
+                                  section.key === "pembelian"
+                                    ? outstandingFilters()[block.key]
+                                    : null,
                               });
                             }}
                           >
@@ -1690,7 +2098,9 @@ export default function Dashboard() {
           outstanding_filter={previewData().outstanding_filter}
           token={user?.token}
           PO_DETAIL_FETCHER={PO_DETAIL_FETCHER}
-          customer_id={activeTab() === "penjualan" ? salesCustomerForm().customer_id : null}
+          customer_id={
+            activeTab() === "penjualan" ? salesCustomerForm().customer_id : null
+          }
           filterLabel={currentFilterLabel()}
           masterData={masterData()}
           onApply={applyFilterFromPreview}

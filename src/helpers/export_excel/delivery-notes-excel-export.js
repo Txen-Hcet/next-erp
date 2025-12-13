@@ -70,6 +70,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
         grade: r.grade ?? '',
         meter: Number(r.meter ?? 0),
         yard: Number(r.yard ?? 0),
+        kilogram: Number(r.kilogram ?? 0),
         harga1: Number(r.harga1 ?? 0),
         harga2: Number(r.harga2 ?? 0),
         total: Number(r.total ?? 0)
@@ -98,7 +99,8 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   columnConfig.push(
     { header: 'Kain', key: 'kain', width: 15, style: { alignment: { horizontal: 'center' } } },
     { header: 'Total Meter', key: 'meter', width: 12, style: { numFmt: '#,##0.00' } },
-    { header: 'Total Yard', key: 'yard', width: 12, style: { numFmt: '#,##0.00' } }
+    { header: 'Total Yard', key: 'yard', width: 12, style: { numFmt: '#,##0.00' } },
+    { header: 'Total Kilogram', key: 'kilogram', width: 15, style: { numFmt: '#,##0.00' } }
   );
   if (isKainJadi) {
     columnConfig.push(
@@ -172,6 +174,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
         kain: item.kain || '',
         meter: Number(item.meter ?? 0),
         yard: Number(item.yard ?? 0),
+        kilogram: Number(item.kilogram ?? 0),
         harga1: Number(item.harga1 ?? 0),
         harga2: isKainJadi ? Number(item.harga2 ?? 0) : undefined,
         total: Number(item.total ?? 0)
@@ -192,6 +195,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
 
       const meterColIdx = columnConfig.findIndex(c => c.key === 'meter') + 1;
       const yardColIdx = columnConfig.findIndex(c => c.key === 'yard') + 1;
+      const kilogramColIdx = columnConfig.findIndex(c => c.key === 'kilogram') + 1;
       const harga1Idx = columnConfig.findIndex(c => c.key === 'harga1') + 1;
       const totalIdx = columnConfig.length;
 
@@ -205,6 +209,11 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
         c.numFmt = '#,##0.00';
         c.value = Number(item.yard ?? 0);
       }
+      if (kilogramColIdx > 0) {
+        const c = added.getCell(kilogramColIdx);
+        c.numFmt = '#,##0.00';
+        c.value = Number(item.kilogram ?? 0);
+      }      
       if (harga1Idx > 0) {
         const c = added.getCell(harga1Idx);
         c.numFmt = '"Rp "#,##0.00';

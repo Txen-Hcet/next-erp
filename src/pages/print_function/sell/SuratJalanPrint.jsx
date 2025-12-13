@@ -10,6 +10,8 @@ import { get } from "idb-keyval";
 export default function PackingOrderPrint(props) {
   const [loadedData, setLoadedData] = createSignal(null);
 
+  const data = createMemo(() => props.data?.order ?? props.data ?? { items: [], summary: {} });
+
   createEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const key = params.get("key");
@@ -124,9 +126,9 @@ export default function PackingOrderPrint(props) {
             lot: lotDisplay || "-",
             no_bal: balDisplay || "-",
             rolls_count: validRolls.length,
-            meter_total: parseFloat(it.meter_total || 0),
-            yard_total: parseFloat(it.yard_total || 0),
-            kilogram_total: parseFloat(it.kilogram_total || 0),
+            meter_total: parseFloat(it.all_meter || 0),
+            yard_total: parseFloat(it.all_yard || 0),
+            kilogram_total: parseFloat(it.all_kilogram || 0),
           };
         })
       );
@@ -184,30 +186,17 @@ export default function PackingOrderPrint(props) {
     return [];
   });
 
+  const summary = createMemo(() => data()?.summary ?? props.data?.summary ?? {});
+
   const totalPCS = createMemo(() =>
     displayRows().reduce(
       (s, it) => s + (parseFloat(String(it.rolls_count ?? "0")) || 0),
       0
     )
   );
-  const totalMeter = createMemo(() =>
-    displayRows().reduce(
-      (s, it) => s + (parseFloat(String(it.meter_total ?? "0")) || 0),
-      0
-    )
-  );
-  const totalYard = createMemo(() =>
-    displayRows().reduce(
-      (s, it) => s + (parseFloat(String(it.yard_total ?? "0")) || 0),
-      0
-    )
-  );
-  const totalKilogram = createMemo(() =>
-    displayRows().reduce(
-      (s, it) => s + (parseFloat(String(it.kilogram_total ?? "0")) || 0),
-      0
-    )
-  );
+  const totalMeter = createMemo(() => Number(summary()?.total_meter_all ?? 0));
+  const totalYard  = createMemo(() => Number(summary()?.total_yard_all ?? 0));
+  const totalKilogram  = createMemo(() => Number(summary()?.total_kilogram_all ?? 0));
 
   /* ========= Pagination ========= */
   const ROWS_FIRST_PAGE = 15;

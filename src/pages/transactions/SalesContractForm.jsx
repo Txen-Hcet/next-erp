@@ -428,7 +428,7 @@ export default function SalesContractForm() {
 
       const payload = {
         type: customerTypeObj?.jenis.toLowerCase(),
-        no_sc: form().no_seq,
+        no_sc: form().sequence_number,
         po_cust: form().po_cust,
         validity_contract: form().validity_contract,
         customer_id: parseInt(form().customer_id),
@@ -463,7 +463,7 @@ export default function SalesContractForm() {
           navigate("/salescontract");
         });
       } else {
-        payload.sequence_number = form().no_seq;
+        payload.sequence_number = form().sequence_number;
         await createSalesContract(user?.token, payload);
 
         Swal.fire({

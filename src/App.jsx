@@ -32,6 +32,13 @@ import OCXPurchaseOrderForm from "./pages/purchasing/order_celup_x/OCXPurchaseOr
 import OrderCelupXDeliveryNoteList from "./pages/purchasing/order_celup_x/OCXDeliveryNoteList";
 import OrderCelupXDeliveryNoteForm from "./pages/purchasing/order_celup_x/OCXDeliveryNoteForm";
 import OrderCelupXDeliveryNoteFormV2 from "./pages/purchasing/order_celup_x/OCXDeliveryNoteFormV2";
+
+// // PRINT OCX
+// import OCXDataDummyPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
+// import SJOCXDataDummyPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint";
+import OCXPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
+import SJOCXPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint"
+
 // // KAIN JADI/FINISH
 import KainJadiPurchaseContractList from "./pages/purchasing/kain_jadi/KJPurchaseContractList";
 import KainJadiPurchaseContractForm from "./pages/purchasing/kain_jadi/KJPurchaseContractForm";
@@ -300,13 +307,16 @@ function App() {
       />
 
       <Route
-        path="/ordercelup-deliverynotex"
+        path="/sjocx"
         component={OrderCelupXDeliveryNoteList}
       />
       <Route
-        path="/ordercelup-deliverynotex/form"
+        path="/sjocx/form"
         component={OrderCelupXDeliveryNoteFormV2}
       />
+
+      <Route path="/print/ordercelup-purchaseocx" component={OCXPrint}/>
+      <Route path="/print/sjocx" component={SJOCXPrint}/>
       {/* ORDER CELUP X */}
 
       {/* KAIN JADI */}

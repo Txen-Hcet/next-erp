@@ -4191,8 +4191,7 @@ export async function softDeleteOCDeliveryNote(id, token) {
 export async function createSJOCX(token, payload) {
   try {
     const response = await fetch(
-        //`https://nexttechenterprise.site/api/create-purchase-celup-surat-jalan`,
-        `${import.meta.env.VITE_API_URL}/create-purchase-celup-surat-jalan`,
+        `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-surat-jalan`,
       {
         method: "POST",
         headers: {
@@ -4220,7 +4219,7 @@ export async function createSJOCX(token, payload) {
 export async function getAllSJOCX(token) {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/purchase-celup-surat-jalan`,
+      `${import.meta.env.VITE_API_URL}/purchase-celup-ex-surat-jalan`,
       {
         method: "GET",
         headers: {
@@ -4248,8 +4247,7 @@ export async function getAllSJOCX(token) {
 export async function getSJOCX(id, token) {
   try {
     const response = await fetch(
-        //`https://nexttechenterprise.site/api/purchase-celup-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "GET",
         headers: {
@@ -4278,8 +4276,7 @@ export async function getSJOCX(id, token) {
 export async function updateSJOCX(token, id, payload) {
   try {
     const response = await fetch(
-        //`https://nexttechenterprise.site/api/update-purchase-celup-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/update-purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/update-purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "PUT",
         headers: {
@@ -4308,8 +4305,7 @@ export async function updateSJOCX(token, id, payload) {
 export async function softDeleteSJOCX(id, token) {
   try {
     const response = await fetch(
-        //`https://nexttechenterprise.site/api/delete-purchase-celup-surat-jalan/${id}`,
-        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-surat-jalan/${id}`,
+        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "DELETE",
         headers: {

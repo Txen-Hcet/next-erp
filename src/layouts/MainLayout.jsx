@@ -30,6 +30,7 @@ export default function MainLayout(props) {
     createSignal(false);
   const [isWarehouseGreigeOpen, setWarehouseGreigeIsOpen] = createSignal(false);
   const [isWarehouseCelupOpen, setWarehouseCelupIsOpen] = createSignal(false);
+  const [isWarehouseOCXOpen, setWarehouseOCXIsOpen] = createSignal(false);
   const [isWarehouseFinishOpen, setWarehouseFinishIsOpen] = createSignal(false);
   const [isWarehouseJualBeliOpen, setWarehouseJualBeliIsOpen] =
     createSignal(false);
@@ -86,6 +87,7 @@ export default function MainLayout(props) {
     ],
     greige: ["/beligreige-deliverynote", "/beligreige-deliverynote/form"],
     celup: ["/ordercelup-deliverynote", "/ordercelup-deliverynote/form"],
+    ocx: ["/sjocx", "/sjocx/form"],
     finish: ["/kainjadi-deliverynote", "/kainjadi-deliverynote/form"],
     jualbeli: ["/jualbeli-deliverynote", "/jualbeli-deliverynote/form"],
   };
@@ -193,6 +195,15 @@ export default function MainLayout(props) {
 
       // if (
       //   [
+      //     "/ordercelup-deliverynotex",
+      //     "/ordercelup-deliverynotex/form"
+      //   ].some((p) => pathname.startsWith(p))
+      // ) {
+      //   return "warehouse";
+      // }
+
+      // if (
+      //   [
       //     "/packinglist",
       //     "/packinglist/form",
       //     "/deliverynote",
@@ -273,6 +284,12 @@ export default function MainLayout(props) {
           warehouseRoutes.celup.some((p) => location.pathname.startsWith(p))
         ) {
           setWarehouseCelupIsOpen(true);
+        }
+
+        if (
+          warehouseRoutes.ocx.some((p) => location.pathname.startsWith(p))
+        ) {
+          setWarehouseOCXIsOpen(true);
         }
 
         if (
@@ -427,7 +444,7 @@ export default function MainLayout(props) {
                     Dashboard
                   </A>
                 </li>
-                {hasPermission("view_users") && (
+                {hasAllPermission(["view_users", "edit_users"]) && (
                   <li>
                     <A
                       href="/users"
@@ -807,16 +824,15 @@ export default function MainLayout(props) {
                   </ul>
                   <ul>
                     {/* Submenu Level 2: Order Celup */}
-                    {hasAllPermission([
-                      "view_purchase_celup_contract",
-                      "view_purchase_celup_order",
-                    ]) && (
+                    {hasPermission(
+                      "view_oc_ex",
+                    ) && (
                       <li>
                         <button
                           class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
                           onClick={() => setCelupXIsOpen(!isCelupXOpen())}
                         >
-                          Pembelian Order Celup X
+                          Pembelian Order Celup Ex
                           <span class="text-xs">
                             {isCelupXOpen() ? "▲" : "▼"}
                           </span>
@@ -859,7 +875,7 @@ export default function MainLayout(props) {
                                 : ""
                             }`}
                           >
-                            Order Celup X
+                            Order Celup Ex
                           </A>
                         </li>
                       </ul>
@@ -1316,6 +1332,54 @@ export default function MainLayout(props) {
                             }`}
                           >
                             Surat Penerimaan Order Celup
+                          </A>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                  <ul>
+                    {/* Submenu Level 2: SJ OCX */}
+                    {hasAllPermission([
+                      "view_sj_ex",
+                      "create_sj_ex",
+                    ]) && (
+                      <li>
+                        <button
+                          class="w-full text-left pl-8 pr-4 py-2 font-semibold text-gray-400 hover:bg-gray-700 flex justify-between items-center"
+                          onClick={() =>
+                            setWarehouseOCXIsOpen(!isWarehouseOCXOpen())
+                          }
+                        >
+                          Pembelian Order Celup Ex
+                          <span class="text-xs">
+                            {isWarehouseOCXOpen() ? "▲" : "▼"}
+                          </span>
+                        </button>
+                      </li>
+                    )}
+
+                    {/* Submenu Items inside Order Celup */}
+                    <li
+                      class={`transition-all duration-300 ease-in-out overflow-hidden ${
+                        isWarehouseOCXOpen()
+                          ? "max-h-fit opacity-100"
+                          : "max-h-0 opacity-0"
+                      }`}
+                    >
+                      <ul>
+                        <li>
+                          <A
+                            href="/sjocx"
+                            class={`block pl-12 pr-4 py-2 hover:bg-gray-700 ${
+                              location.pathname ===
+                                "/sjocx" ||
+                              location.pathname ===
+                                "/sjocx/form"
+                                ? "bg-gray-700 text-white"
+                                : ""
+                            }`}
+                          >
+                            Surat Penerimaan OCX
                           </A>
                         </li>
                       </ul>
