@@ -6,10 +6,11 @@ import {
   softDeleteOrderMatching,
   hasPermission,
   getUser,
+  updateOrderMatching,
 } from "../../utils/auth";
 import Swal from "sweetalert2";
 
-import { Edit, Eye, Trash } from "lucide-solid";
+import { CheckCircle2Icon, Edit, Eye, Printer, Trash } from "lucide-solid";
 import SearchSortFilter from "../../components/SearchSortFilter";
 import useSimpleFilter from "../../utils/useSimpleFilter";
 
@@ -127,16 +128,96 @@ export default function MemoOrderMatchingList() {
     }
   });
 
+  function handlePrint(list) {
+    if (!list || list.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Data kosong",
+        text: "Tidak ada data untuk dicetak",
+      });
+      return;
+    }
+
+    const payload = {
+      printed_at: new Date().toISOString(),
+      total: list.length,
+      data: list,
+    };
+
+    const encoded = encodeURIComponent(JSON.stringify(payload));
+    window.open(`/print/order-matching#${encoded}`, "_blank");
+  }
+
+  const handleMarkDone = async (mom) => {
+    const result = await Swal.fire({
+      title: "Selesaikan Order Matching?",
+      text: "Status akan diubah menjadi DONE",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#16a34a",
+      cancelButtonColor: "#aaa",
+      confirmButtonText: "Ya, DONE",
+      cancelButtonText: "Batal",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const payload = {
+        id: mom.id,
+        no_om: mom.no_om,
+        supplier_id: parseInt(mom.supplier_id),
+        kain_id: parseInt(mom.kain_id),
+        warna_id: parseInt(mom.warna_id),
+        marketing_id: parseInt(mom.marketing_id),
+        tanggal: mom.tanggal || mom.created_at,
+        keterangan: mom.keterangan || "",
+        status: 1,
+      };
+
+      await updateOrderMatching(tokUser?.token, payload);
+
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil",
+        text: "Order Matching berhasil diselesaikan",
+        showConfirmButton: false,
+        timer: 1000,
+        timerProgressBar: true,
+      });
+
+      // 🔥 FETCH ULANG DATA (INI KUNCINYA)
+      await handleGetAllOrders(tokUser?.token);
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Gagal update status",
+        text: err?.message || "Terjadi kesalahan.",
+      });
+    }
+  };
+
   return (
     <MainLayout>
       <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold">Daftar Memo Order Matching</h1>
-        <button
-          class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          onClick={() => navigate("/memo-order-matching/form")}
-        >
-          + Tambah MOM
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            class="flex gap-2 items-center bg-blue-600 text-white px-3 py-2 rounded hover:bg-green-700"
+            onClick={() => handlePrint(paginatedData())}
+          >
+            <Printer size={16} />
+            Print
+          </button>
+          <button
+            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            onClick={() => navigate("/memo-order-matching/form")}
+          >
+            + Tambah MOM
+          </button>
+        </div>
       </div>
 
       <SearchSortFilter
@@ -165,6 +246,7 @@ export default function MemoOrderMatchingList() {
               <th class="py-2 px-4">Kain</th>
               <th class="py-2 px-4">Warna</th>
               <th class="py-2 px-4">Marketing</th>
+              <th class="py-2 px-4 text-center">Status</th>
               <th class="py-2 px-4">Aksi</th>
             </tr>
           </thead>
@@ -194,10 +276,28 @@ export default function MemoOrderMatchingList() {
 
                 <td class="py-2 px-4">{mom.name}</td>
 
+                {/* STATUS */}
+                <td class="py-2 px-4 text-center">
+                  <span
+                    class={
+                      mom.status === 0
+                        ? "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-700"
+                        : "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide bg-green-100 text-green-700"
+                    }
+                  >
+                    {mom.status === 0 ? "ACTIVE" : "DONE"}
+                  </span>
+                </td>
+
+                {/* AKSI */}
                 <td class="py-2 px-4 space-x-2">
                   <button
                     class="text-yellow-600 hover:underline"
-                    onClick={() => navigate(`/memo-order-matching/form?id=${mom.id}&view=true`)}
+                    onClick={() =>
+                      navigate(
+                        `/memo-order-matching/form?id=${mom.id}&view=true`
+                      )
+                    }
                   >
                     <Eye size={25} />
                   </button>
@@ -205,7 +305,9 @@ export default function MemoOrderMatchingList() {
                   {hasPermission("update_order_matching") && (
                     <button
                       class="text-blue-600 hover:underline"
-                      onClick={() => navigate(`/memo-order-matching/form?id=${mom.id}`)}
+                      onClick={() =>
+                        navigate(`/memo-order-matching/form?id=${mom.id}`)
+                      }
                     >
                       <Edit size={25} />
                     </button>
@@ -217,6 +319,16 @@ export default function MemoOrderMatchingList() {
                       onClick={() => handleDelete(mom.id)}
                     >
                       <Trash size={25} />
+                    </button>
+                  )}
+
+                  {mom.status === 0 && (
+                    <button
+                      class="text-green-600 hover:text-green-800"
+                      title="Tandai DONE"
+                      onClick={() => handleMarkDone(mom)}
+                    >
+                      <CheckCircle2Icon size={25} />
                     </button>
                   )}
                 </td>

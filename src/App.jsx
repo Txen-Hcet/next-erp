@@ -37,7 +37,7 @@ import OrderCelupXDeliveryNoteFormV2 from "./pages/purchasing/order_celup_x/OCXD
 // import OCXDataDummyPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
 // import SJOCXDataDummyPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint";
 import OCXPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
-import SJOCXPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint"
+import SJOCXPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint";
 
 // // KAIN JADI/FINISH
 import KainJadiPurchaseContractList from "./pages/purchasing/kain_jadi/KJPurchaseContractList";
@@ -103,6 +103,8 @@ import ExporSalesContractPrint from "./utils/sell/ExporSalesContractDummyPrint";
 import SalesOrderPrint from "./utils/sell/SalesOrderDummyPrint";
 import PackingListPrint from "./utils/sell/PackingListDummyPrint";
 import SuratJalanPrint from "./utils/sell/SuratJalanDummyPrint";
+// MEMO
+import MemoOrderMatchingPrint from "./utils/memo/MemoOrderMatchingDummyPrint";
 // PRINT
 // BUY
 // BELI GREIGE
@@ -306,17 +308,11 @@ function App() {
         component={OCXPurchaseOrderForm}
       />
 
-      <Route
-        path="/sjocx"
-        component={OrderCelupXDeliveryNoteList}
-      />
-      <Route
-        path="/sjocx/form"
-        component={OrderCelupXDeliveryNoteFormV2}
-      />
+      <Route path="/sjocx" component={OrderCelupXDeliveryNoteList} />
+      <Route path="/sjocx/form" component={OrderCelupXDeliveryNoteFormV2} />
 
-      <Route path="/print/ordercelup-purchaseocx" component={OCXPrint}/>
-      <Route path="/print/sjocx" component={SJOCXPrint}/>
+      <Route path="/print/ordercelup-purchaseocx" component={OCXPrint} />
+      <Route path="/print/sjocx" component={SJOCXPrint} />
       {/* ORDER CELUP X */}
 
       {/* KAIN JADI */}
@@ -410,6 +406,9 @@ function App() {
       <Route path="/print/jualbeli/suratjalan" component={JBSuratJalanPrint} />
       {/* JUAL BELI */}
       {/* BUY */}
+      {/* MEMO */}
+      <Route path="/print/order-matching" component={MemoOrderMatchingPrint} />
+      {/* MEMO */}
       {/* PRINT */}
 
       {/* Invoice */}
@@ -443,8 +442,11 @@ function App() {
       {/* PRINT RETUR */}
 
       {/* MEMO */}
-      <Route path="memo-order-matching" component={MemoOrderMatchingList}/>
-      <Route path="memo-order-matching/form" component={MemoOrderMatchingForm}/>
+      <Route path="memo-order-matching" component={MemoOrderMatchingList} />
+      <Route
+        path="memo-order-matching/form"
+        component={MemoOrderMatchingForm}
+      />
 
       {/* MASTER DATA */}
       <Route path="/suppliers" component={SuppliersList} />

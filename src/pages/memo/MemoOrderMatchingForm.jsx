@@ -38,6 +38,7 @@ export default function MemoOrderMatchingForm() {
   const [warnas, setWarnas] = createSignal([]);
   const [marketings, setMarketings] = createSignal([]);
   const [lastList, setLastList] = createSignal([]);
+  const [momStatus, setMomStatus] = createSignal(null);
 
   const [form, setForm] = createSignal({
     no_om: "",
@@ -46,7 +47,7 @@ export default function MemoOrderMatchingForm() {
     warna_id: "",
     marketing_id: "",
     tanggal: "",
-    keterangan: "",
+    keterangan_order_matching: "",
   });
 
   // Helper: format next 3-digit no_om
@@ -99,6 +100,7 @@ export default function MemoOrderMatchingForm() {
       if (isEdit) {
         // fetch single
         const res = await getOrderMatching(params.id, user?.token);
+        console.log(res)
         // const data = res?.order_matching || res?.data || res?.order || null;
         let data =
           res?.order_matching ||
@@ -115,7 +117,7 @@ export default function MemoOrderMatchingForm() {
           return;
         }
 
-        console.log("Fetched MOM data:", data);
+        setMomStatus(data.status ?? 0);
 
         setForm({
           no_om: data.no_om || "",
@@ -128,7 +130,7 @@ export default function MemoOrderMatchingForm() {
             : data.created_at
             ? new Date(data.created_at).toISOString().split("T")[0]
             : todayISO(),
-          keterangan: data.keterangan ?? "",
+          keterangan_order_matching: data.keterangan_order_matching ?? "",
         });
 
         // pastikan kain ada di options
@@ -242,7 +244,7 @@ export default function MemoOrderMatchingForm() {
         warna_id: parseInt(form().warna_id),
         marketing_id: parseInt(form().marketing_id),
         tanggal: form().tanggal,
-        keterangan: form().keterangan || "",
+        keterangan_order_matching: form().keterangan_order_matching || "",
       };
 
       if (isEdit) {
@@ -273,15 +275,15 @@ export default function MemoOrderMatchingForm() {
     }
   };
 
-  function handlePrint() {
-    // Use existing data (if edit/view) or current form as fallback
-    const dataToPrint = {
-      ...form(),
-      id: params.id || null,
-    };
-    const encoded = encodeURIComponent(JSON.stringify(dataToPrint));
-    window.open(`/print/ordermatching#${encoded}`, "_blank");
-  }
+  // function handlePrint() {
+  //   // Use existing data (if edit/view) or current form as fallback
+  //   const dataToPrint = {
+  //     ...form(),
+  //     id: params.id || null,
+  //   };
+  //   const encoded = encodeURIComponent(JSON.stringify(dataToPrint));
+  //   window.open(`/print/order-matching#${encoded}`, "_blank");
+  // }
 
   const editReady = createMemo(() => {
     if (!isEdit) return true;
@@ -310,8 +312,19 @@ export default function MemoOrderMatchingForm() {
         </div>
       )}
 
-      <h1 class="text-2xl font-bold mb-4">
+      <h1 class="text-2xl font-bold mb-4 flex items-center gap-3">
         {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Memo Order Matching
+        <Show when={isEdit || isView}>
+          <span
+            class={
+              momStatus() === 0
+                ? "inline-flex items-center px-5 py-1 rounded-full text-xl font-semibold uppercase tracking-wide bg-blue-100 text-blue-700 border-2"
+                : "inline-flex items-center px-5 py-1 rounded-full text-xl font-semibold uppercase tracking-wide bg-green-100 text-green-700 border-2"
+            }
+          >
+            {momStatus() === 0 ? "ACTIVE" : "DONE"}
+          </span>
+        </Show>
       </h1>
 
       <div class="flex gap-2 mb-4">
@@ -323,7 +336,7 @@ export default function MemoOrderMatchingForm() {
           Kembali
         </button>
 
-        <button
+        {/* <button
           type="button"
           class="flex gap-2 items-center bg-blue-600 text-white px-3 py-2 rounded hover:bg-green-700"
           onClick={handlePrint}
@@ -331,7 +344,7 @@ export default function MemoOrderMatchingForm() {
         >
           <Printer size={16} />
           Print
-        </button>
+        </button> */}
       </div>
 
       <form
@@ -473,8 +486,10 @@ export default function MemoOrderMatchingForm() {
           <label class="block mb-1 font-medium">Keterangan (opsional)</label>
           <textarea
             class="w-full border p-2 rounded"
-            value={form().keterangan}
-            onInput={(e) => setForm({ ...form(), keterangan: e.target.value })}
+            value={form().keterangan_order_matching}
+            onInput={(e) =>
+              setForm({ ...form(), keterangan_order_matching: e.target.value })
+            }
             readOnly={isView}
           />
         </div>
