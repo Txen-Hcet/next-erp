@@ -14,6 +14,9 @@ import {
   getUser,
 } from "../../utils/auth";
 import { Printer } from "lucide-solid";
+import SupplierDropdownSearch from "../../components/SupplierDropdownSearch";
+import FabricDropdownSearch from "../../components/FabricDropdownSearch";
+import ColorDropdownSearch from "../../components/ColorDropdownSearch";
 
 export default function MemoOrderMatchingForm() {
   const navigate = useNavigate();
@@ -77,7 +80,7 @@ export default function MemoOrderMatchingForm() {
       const orders = listOrderMatching?.data || [];
       setLastList(orders);
 
-      setSuppliers(supRes?.data || supRes?.suppliers || []);
+      setSuppliers(supRes?.suppliers || []);
       setFabrics(kainRes?.kain || kainRes?.data || []);
       setWarnas(warnaRes?.data || warnaRes?.warna || []);
       setMarketings(marketingRes?.data || marketingRes?.users || []);
@@ -309,7 +312,7 @@ export default function MemoOrderMatchingForm() {
 
           <div>
             <label class="block mb-1 font-medium">Supplier</label>
-            <select
+            {/* <select
               class="w-full border p-2 rounded"
               value={form().supplier_id || ""}
               onChange={(e) =>
@@ -326,12 +329,19 @@ export default function MemoOrderMatchingForm() {
                   </option>
                 )}
               </For>
-            </select>
+            </select> */}
+            <SupplierDropdownSearch
+              suppliers={suppliers}
+              form={form}
+              setForm={setForm}
+              disabled={isView}
+              classList={{ "bg-gray-200": isView }}
+            />
           </div>
 
           <div>
             <label class="block mb-1 font-medium">Kain</label>
-            <select
+            {/* <select
               class="w-full border p-2 rounded"
               value={form().kain_id || ""}
               onChange={(e) => setForm({ ...form(), kain_id: e.target.value })}
@@ -344,12 +354,18 @@ export default function MemoOrderMatchingForm() {
                   <option value={f.id}>{f.corak + " - " + f.konstruksi}</option>
                 )}
               </For>
-            </select>
+            </select> */}
+            <FabricDropdownSearch
+              fabrics={fabrics}
+              item={{ fabric_id: form().kain_id }}
+              onChange={(val) => setForm({ ...form(), kain_id: val })}
+              disabled={isView}
+            />
           </div>
 
           <div>
             <label class="block mb-1 font-medium">Warna</label>
-            <select
+            {/* <select
               class="w-full border p-2 rounded"
               value={form().warna_id || ""}
               onChange={(e) => setForm({ ...form(), warna_id: e.target.value })}
@@ -362,7 +378,13 @@ export default function MemoOrderMatchingForm() {
                   <option value={w.id}>{w.kode + " - " + w.deskripsi}</option>
                 )}
               </For>
-            </select>
+            </select> */}
+            <ColorDropdownSearch
+              colors={warnas}
+              item={{ warna_id: form().warna_id }}
+              onChange={(val) => handleItemChange(i(), "warna_id", val)}
+              disabled={isView}
+            />
           </div>
 
           <div>
