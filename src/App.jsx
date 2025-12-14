@@ -32,6 +32,11 @@ import OCXPurchaseOrderForm from "./pages/purchasing/order_celup_x/OCXPurchaseOr
 import OrderCelupXDeliveryNoteList from "./pages/purchasing/order_celup_x/OCXDeliveryNoteList";
 import OrderCelupXDeliveryNoteForm from "./pages/purchasing/order_celup_x/OCXDeliveryNoteForm";
 import OrderCelupXDeliveryNoteFormV2 from "./pages/purchasing/order_celup_x/OCXDeliveryNoteFormV2";
+// // INVENTORY
+import InventoryKainList from "./pages/purchasing/inventory/InventoryKainList";
+import InventoryAksesorisList from "./pages/purchasing/inventory/InventoryAksesorisList";
+import InventoryAksesorisForm from "./pages/purchasing/inventory/InventoryAksesorisForm";
+import InventoryKainForm from "./pages/purchasing/inventory/InventoryKainForm";
 
 // // PRINT OCX
 // import OCXDataDummyPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
@@ -237,6 +242,13 @@ function App() {
       <Route path="/deliverynotevia" component={DeliveryNoteViaList} />
       <Route path="/deliverynotevia/form" component={DeliveryNoteViaForm} />
 
+      <Route path="/inventory/kain" component={InventoryKainList} />
+      <Route path="/inventory/kain/form" component={InventoryKainForm} />
+      <Route path="/inventory/aksesoris" component={InventoryAksesorisList} />
+      <Route
+        path="/inventory/aksesoris/form"
+        component={InventoryAksesorisForm}
+      />
       {/* WAREHOUSE */}
 
       {/* PURCHASING */}

@@ -228,7 +228,10 @@ const PurchaseAksesorisEkspedisi = {
 // ============ PEMBAYARAN HUTANG PURCHASE GREIGE ============
 const PembayaranHutangPurchaseGreige = {
   create: async (payload) => {
-    const res = await api.post("/create-pembayaran-hutang-purchase-greige", payload);
+    const res = await api.post(
+      "/create-pembayaran-hutang-purchase-greige",
+      payload
+    );
     return res.data;
   },
   getAll: async () => {
@@ -247,7 +250,9 @@ const PembayaranHutangPurchaseGreige = {
     return res.data;
   },
   delete: async (id) => {
-    const res = await api.delete(`/delete-pembayaran-hutang-purchase-greige/${id}`);
+    const res = await api.delete(
+      `/delete-pembayaran-hutang-purchase-greige/${id}`
+    );
     return res.data;
   },
 };
@@ -266,9 +271,7 @@ const PembayaranHutangPurchaseCelup = {
     return res.data;
   },
   getById: async (id) => {
-    const res = await api.get(
-      `/pembayaran-hutang-purchase-celup/${id}`
-    );
+    const res = await api.get(`/pembayaran-hutang-purchase-celup/${id}`);
     return res.data;
   },
   update: async (id, payload) => {
@@ -300,9 +303,7 @@ const PembayaranHutangPurchaseKainJadi = {
     return res.data;
   },
   getById: async (id) => {
-    const res = await api.get(
-      `/pembayaran-hutang-purchase-finish/${id}`
-    );
+    const res = await api.get(`/pembayaran-hutang-purchase-finish/${id}`);
     return res.data;
   },
   update: async (id, payload) => {
@@ -331,9 +332,7 @@ const PembayaranHutangPurchaseJualBeli = {
     return res.data;
   },
   getById: async (id) => {
-    const res = await api.get(
-      `/pembayaran-hutang-jual-beli/${id}`
-    );
+    const res = await api.get(`/pembayaran-hutang-jual-beli/${id}`);
     return res.data;
   },
   update: async (id, payload) => {
@@ -344,9 +343,7 @@ const PembayaranHutangPurchaseJualBeli = {
     return res.data;
   },
   delete: async (id) => {
-    const res = await api.delete(
-      `/delete-pembayaran-hutang-jual-beli/${id}`
-    );
+    const res = await api.delete(`/delete-pembayaran-hutang-jual-beli/${id}`);
     return res.data;
   },
 };
@@ -354,11 +351,16 @@ const PembayaranHutangPurchaseJualBeli = {
 // ============ PEMBAYARAN HUTANG PURCHASE AKSESORIS EKSPEDISI ============
 const PembayaranHutangPurchaseAksesorisEkspedisi = {
   create: async (payload) => {
-    const res = await api.post("/create-pembayaran-hutang-purchase-aksesoris-ekspedisi", payload);
+    const res = await api.post(
+      "/create-pembayaran-hutang-purchase-aksesoris-ekspedisi",
+      payload
+    );
     return res.data;
   },
   getAll: async () => {
-    const res = await api.get("/pembayaran-hutang-purchase-aksesoris-ekspedisi");
+    const res = await api.get(
+      "/pembayaran-hutang-purchase-aksesoris-ekspedisi"
+    );
     return res.data;
   },
   getById: async (id) => {
@@ -393,9 +395,7 @@ const PenerimaanPiutangJualBeli = {
     return res.data;
   },
   getById: async (id) => {
-    const res = await api.get(
-      `/penerimaan-piutang-jual-beli/${id}`
-    );
+    const res = await api.get(`/penerimaan-piutang-jual-beli/${id}`);
     return res.data;
   },
   update: async (id, payload) => {
@@ -406,9 +406,7 @@ const PenerimaanPiutangJualBeli = {
     return res.data;
   },
   delete: async (id) => {
-    const res = await api.delete(
-      `/delete-penerimaan-piutang-jual-beli/${id}`
-    );
+    const res = await api.delete(`/delete-penerimaan-piutang-jual-beli/${id}`);
     return res.data;
   },
 };
@@ -423,9 +421,7 @@ const PenerimaanPiutangSales = {
     return res.data;
   },
   getById: async (id) => {
-    const res = await api.get(
-      `/penerimaan-piutang-sales/${id}`
-    );
+    const res = await api.get(`/penerimaan-piutang-sales/${id}`);
     return res.data;
   },
   update: async (id, payload) => {
@@ -436,9 +432,64 @@ const PenerimaanPiutangSales = {
     return res.data;
   },
   delete: async (id) => {
-    const res = await api.delete(
-      `/delete-penerimaan-piutang-sales/${id}`
+    const res = await api.delete(`/delete-penerimaan-piutang-sales/${id}`);
+    return res.data;
+  },
+};
+
+const SaldoHutang = {
+  create: async (payload) => {
+    const res = await api.post("/create-saldo-hutang-adjustment", payload);
+    return res.data;
+  },
+
+  getAll: async () => {
+    const res = await api.get("/saldo-hutang-adjustment");
+    return res.data;
+  },
+
+  getById: async (id) => {
+    const res = await api.get(`/saldo-hutang-adjustment/${id}`);
+    return res.data;
+  },
+
+  update: async (id, payload) => {
+    const res = await api.put(`/update-saldo-hutang-adjustment/${id}`, payload);
+    return res.data;
+  },
+
+  delete: async (id) => {
+    const res = await api.delete(`/delete-saldo-hutang-adjustment/${id}`);
+    return res.data;
+  },
+};
+
+const SaldoPiutang = {
+  create: async (payload) => {
+    const res = await api.post("/create-saldo-piutang-adjustment", payload);
+    return res.data;
+  },
+
+  getAll: async () => {
+    const res = await api.get("/saldo-piutang-adjustment");
+    return res.data;
+  },
+
+  getById: async (id) => {
+    const res = await api.get(`/saldo-piutang-adjustment/${id}`);
+    return res.data;
+  },
+
+  update: async (id, payload) => {
+    const res = await api.put(
+      `/update-saldo-piutang-adjustment/${id}`,
+      payload
     );
+    return res.data;
+  },
+
+  delete: async (id) => {
+    const res = await api.delete(`/delete-saldo-piutang-adjustment/${id}`);
     return res.data;
   },
 };
@@ -463,5 +514,7 @@ export {
   PembayaranHutangPurchaseAksesorisEkspedisi,
   PenerimaanPiutangJualBeli,
   PenerimaanPiutangSales,
+  SaldoHutang,
+  SaldoPiutang,
   User,
 };

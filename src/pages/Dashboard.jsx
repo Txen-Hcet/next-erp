@@ -67,6 +67,7 @@ import {
 import { printPOStatus } from "./reports/poStatusPrint";
 import { printDeliveryNotes } from "./reports/deliveryNotesPrint";
 import { printSummaryReport } from "./reports/summaryPrint";
+import { useNavigate } from "@solidjs/router";
 
 const [activeTab, setActiveTab] = createSignal("pembelian");
 const [salesCustomerForm, setSalesCustomerForm] = createSignal({
@@ -97,6 +98,8 @@ export default function Dashboard() {
     fabrics: [],
     customers: [],
   });
+
+  const navigate = useNavigate();
 
   // ==== FORMATTERS ====
   const formatTanggalIndo = (tanggalString) => {
@@ -1659,17 +1662,33 @@ export default function Dashboard() {
 
                   return (
                     <div class="bg-white rounded shadow mb-6 overflow-y-auto">
-                      {/* HEADER + CHART */}
-                      <div class="p-4 border-b">
-                        <h3 class="text-base font-semibold mb-3">
-                          {block.label}
-                        </h3>
+                      {/* HEADER */}
+                      <div class="p-4 border-b flex items-center justify-between">
+                        <h3 class="text-base font-semibold">{block.label}</h3>
 
-                        {/* WRAPPER CHART WAJIB ADA */}
+                        <div class="flex gap-2">
+                          <button
+                            class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                            onClick={() => navigate("/inventory/kain")}
+                          >
+                            Kelola Inventory Kain
+                          </button>
+
+                          <button
+                            class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                            onClick={() => navigate("/inventory/aksesoris")}
+                          >
+                            Kelola Inventory Aksesoris
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* CHART */}
+                      <div class="p-4">
                         <div class="h-fit">
                           <ApexChart
                             type="bar"
-                            height="100%" // WAJIB: sesuaikan wrapper
+                            height="100%"
                             series={[
                               { name: "Masuk", data: block.chart.in },
                               { name: "Keluar", data: block.chart.out },

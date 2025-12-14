@@ -1,10 +1,9 @@
-import { createSignal, createMemo } from "solid-js";
+import { createSignal, createMemo, For } from "solid-js";
 
 export default function SaldoHutangTable(props) {
   const [page, setPage] = createSignal(1);
   const pageSize = 10;
 
-  // contoh dummy data
   const data = createMemo(() => props.data || []);
 
   const paginatedData = createMemo(() => {
@@ -12,9 +11,8 @@ export default function SaldoHutangTable(props) {
     return data().slice(start, start + pageSize);
   });
 
-  const totalPages = createMemo(() => Math.ceil(data().length / pageSize));
+  const totalPages = createMemo(() => Math.ceil(data().length / pageSize) || 1);
 
-  // Akumulasi
   const summary = createMemo(() => {
     const fields = [
       "saldo_awal",
@@ -28,29 +26,28 @@ export default function SaldoHutangTable(props) {
       "saldo_sth_gm",
     ];
 
-    const total = {};
-    fields.forEach((f) => {
-      total[f] = data().reduce((sum, row) => sum + (row[f] || 0), 0);
-    });
-    return total;
+    return fields.reduce((acc, f) => {
+      acc[f] = data().reduce((sum, row) => sum + Number(row[f] || 0), 0);
+      return acc;
+    }, {});
   });
 
   return (
     <div class="overflow-x-auto">
       <table class="w-full border-collapse text-sm">
         <thead>
-          <tr class="bg-gray-100 text-left">
+          <tr class="bg-gray-100">
             <th class="p-2 border">Supplier</th>
             <th class="p-2 border">Saldo Awal</th>
             <th class="p-2 border">Jual</th>
             <th class="p-2 border">Retur</th>
             <th class="p-2 border">Pot/Pemb</th>
             <th class="p-2 border">Bayar</th>
-            <th class="p-2 border">Cash Disc/Komisi</th>
+            <th class="p-2 border">Cash Disc</th>
             <th class="p-2 border">Saldo Akhir</th>
             <th class="p-2 border">Giro Mundur</th>
             <th class="p-2 border">Saldo sth GM</th>
-            <th class="border p-2 w-32 text-center">Aksi</th>
+            <th class="p-2 border w-32 text-center">Aksi</th>
           </tr>
         </thead>
 
@@ -68,17 +65,17 @@ export default function SaldoHutangTable(props) {
                 <td class="p-2 border text-right">{row.saldo_akhir}</td>
                 <td class="p-2 border text-right">{row.giro_mundur}</td>
                 <td class="p-2 border text-right">{row.saldo_sth_gm}</td>
-                <td class="border p-2 text-center">
+                <td class="p-2 border text-center">
                   <div class="flex justify-center gap-2">
                     <button
-                      class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
-                      onClick={() => props.onEdit(item)}
+                      class="bg-yellow-500 text-white px-2 py-1 rounded"
+                      // onClick={() => props.onEdit?.(row)}
                     >
                       Edit
                     </button>
                     <button
-                      class="bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
-                      onClick={() => props.onDelete(item)}
+                      class="bg-red-600 text-white px-2 py-1 rounded"
+                      // onClick={() => props.onDelete?.(row)}
                     >
                       Del
                     </button>
@@ -88,7 +85,7 @@ export default function SaldoHutangTable(props) {
             )}
           </For>
 
-          {/* ⭐ Baris Akumulasi */}
+          {/* TOTAL */}
           <tr class="bg-gray-200 font-semibold">
             <td class="p-2 border">TOTAL</td>
             <td class="p-2 border text-right">{summary().saldo_awal}</td>
@@ -107,9 +104,9 @@ export default function SaldoHutangTable(props) {
       {/* PAGINATION */}
       <div class="flex justify-between items-center mt-4">
         <button
-          class="px-3 py-1 border rounded disabled:opacity-50"
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          class="px-3 py-1 border rounded"
           disabled={page() === 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
         >
           Prev
         </button>
@@ -119,9 +116,9 @@ export default function SaldoHutangTable(props) {
         </span>
 
         <button
-          class="px-3 py-1 border rounded disabled:opacity-50"
-          onClick={() => setPage((p) => Math.min(totalPages(), p + 1))}
+          class="px-3 py-1 border rounded"
           disabled={page() === totalPages()}
+          onClick={() => setPage((p) => Math.min(totalPages(), p + 1))}
         >
           Next
         </button>

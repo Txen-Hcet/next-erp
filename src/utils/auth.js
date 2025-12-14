@@ -3865,7 +3865,7 @@ export async function softDeleteOrderCelupOrder(id, token) {
 export async function createOCX(token, payload) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-order`,
+      `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-order`,
       {
         method: "POST",
         headers: {
@@ -3894,14 +3894,17 @@ export async function createOCX(token, payload) {
 
 export async function getAllOCX(token) {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/purchase-celup-ex-order`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "ngrok-skip-browser-warning": "any-value",
-      },
-    });
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/purchase-celup-ex-order`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
 
     const data = await response.json();
 
@@ -3917,11 +3920,10 @@ export async function getAllOCX(token) {
   }
 }
 
-
 export async function getOCX(id, token) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/purchase-celup-ex-order/${id}`,
+      `${import.meta.env.VITE_API_URL}/purchase-celup-ex-order/${id}`,
       {
         method: "GET",
         headers: {
@@ -3950,7 +3952,7 @@ export async function getOCX(id, token) {
 export async function updateOCX(token, id, payload) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/update-purchase-celup-ex-order/${id}`,
+      `${import.meta.env.VITE_API_URL}/update-purchase-celup-ex-order/${id}`,
       {
         method: "PUT",
         headers: {
@@ -3979,7 +3981,7 @@ export async function updateOCX(token, id, payload) {
 export async function softDeleteOCX(id, token) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-ex-order/${id}`,
+      `${import.meta.env.VITE_API_URL}/delete-purchase-celup-ex-order/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -4191,7 +4193,7 @@ export async function softDeleteOCDeliveryNote(id, token) {
 export async function createSJOCX(token, payload) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-surat-jalan`,
+      `${import.meta.env.VITE_API_URL}/create-purchase-celup-ex-surat-jalan`,
       {
         method: "POST",
         headers: {
@@ -4206,7 +4208,9 @@ export async function createSJOCX(token, payload) {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Gagal membuat Surat Penerimaan Order Celup EX");
+      throw new Error(
+        data.message || "Gagal membuat Surat Penerimaan Order Celup EX"
+      );
     }
 
     return data;
@@ -4234,12 +4238,13 @@ export async function getAllSJOCX(token) {
 
     return {
       status: response.status,
-      ...data,            
+      ...data,
     };
   } catch (error) {
     return {
       status: 500,
-      message: error.message || "Gagal mengambil data Surat Penerimaan Order Celup EX",
+      message:
+        error.message || "Gagal mengambil data Surat Penerimaan Order Celup EX",
     };
   }
 }
@@ -4247,7 +4252,7 @@ export async function getAllSJOCX(token) {
 export async function getSJOCX(id, token) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/purchase-celup-ex-surat-jalan/${id}`,
+      `${import.meta.env.VITE_API_URL}/purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "GET",
         headers: {
@@ -4276,7 +4281,9 @@ export async function getSJOCX(id, token) {
 export async function updateSJOCX(token, id, payload) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/update-purchase-celup-ex-surat-jalan/${id}`,
+      `${
+        import.meta.env.VITE_API_URL
+      }/update-purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "PUT",
         headers: {
@@ -4305,7 +4312,9 @@ export async function updateSJOCX(token, id, payload) {
 export async function softDeleteSJOCX(id, token) {
   try {
     const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/delete-purchase-celup-ex-surat-jalan/${id}`,
+      `${
+        import.meta.env.VITE_API_URL
+      }/delete-purchase-celup-ex-surat-jalan/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -6231,6 +6240,8 @@ export async function softDeleteJualBeliRetur(token, id) {
   }
 }
 
+//#region RETUR
+
 // CREATE – POST /create-sales-retur
 export async function createSalesRetur(token, payload) {
   try {
@@ -6356,6 +6367,10 @@ export async function softDeleteSalesRetur(token, id) {
     throw error;
   }
 }
+
+//#endregion
+
+//#region MEMO ORDER MATCHING
 
 // CREATE – POST /create-order-matching
 export async function createOrderMatching(token, payload) {
@@ -6496,6 +6511,292 @@ export async function softDeleteOrderMatching(token, payload) {
 }
 
 // #endregion
+
+//#region INVENTORY KAIN
+
+// CREATE – POST /create-kain-adjustment
+export async function createKainAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/create-kain-adjustment`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal membuat Kain Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// GET ALL – GET /kain-adjustment
+export async function getAllKainAdjustment(token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/kain-adjustment`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+    return { status: response.status, ...data };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data Kain Adjustment",
+    };
+  }
+}
+
+// GET BY ID – GET /kain-adjustment/:id
+export async function getKainAdjustment(id, token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/kain-adjustment/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message || `Gagal mengambil Kain Adjustment dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// UPDATE – PUT /update-kain-adjustment/:id
+export async function updateKainAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/update-kain-adjustment/${payload.id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal mengubah Kain Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// DELETE – DELETE /delete-kain-adjustment
+export async function softDeleteKainAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/delete-kain-adjustment`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload), // { id }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal menghapus Kain Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+//#endregion
+
+//#region INVENTORY AKSESORIS
+
+// CREATE – POST /create-aksesoris-adjustment
+export async function createAksesorisAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/create-aksesoris-adjustment`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal membuat Aksesoris Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// GET ALL – GET /aksesoris-adjustment
+export async function getAllAksesorisAdjustment(token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/aksesoris-adjustment`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+    return { status: response.status, ...data };
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message || "Gagal mengambil data Aksesoris Adjustment",
+    };
+  }
+}
+
+// GET BY ID – GET /aksesoris-adjustment/:id
+export async function getAksesorisAdjustment(id, token) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/aksesoris-adjustment/${id}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message || `Gagal mengambil Aksesoris Adjustment dengan id: ${id}`
+      );
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// UPDATE – PUT /update-aksesoris-adjustment/:id
+export async function updateAksesorisAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/update-aksesoris-adjustment/${
+        payload.id
+      }`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal mengubah Aksesoris Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// DELETE – DELETE /delete-aksesoris-adjustment
+export async function softDeleteAksesorisAdjustment(token, payload) {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL}/delete-aksesoris-adjustment`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "ngrok-skip-browser-warning": "any-value",
+        },
+        body: JSON.stringify(payload), // { id }
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || "Gagal menghapus Aksesoris Adjustment");
+    }
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+//#endregion
 
 export function logout() {
   localStorage.removeItem("user");
