@@ -384,10 +384,23 @@ export default function ExporSalesContractForm() {
         data.shipmentDate ||
         null;
 
+      let noSeqFromExisting = data.no_seq;
+      const existingNomor = data.no_sc || "";
+      
+      // Jika nomor sudah dalam format SC/E/P/1225-5001, ekstrak angka urutnya
+      if (existingNomor.includes('-5')) {
+        const parts = existingNomor.split('-5');
+        if (parts.length > 1) {
+          // Ambil 3 digit setelah -5
+          const seqPart = parts[1];
+          noSeqFromExisting = parseInt(seqPart, 10);
+        }
+      }
+
       setForm({
         type: data.transaction_type?.toLowerCase() === "domestik" ? 1 : 2,
-        no_seq: data.no_sc, // back-compat: jika backend simpan nomor di no_sc
-        sequence_number: data.no_sc, // SC/E/P/...
+        no_seq: noSeqFromExisting, // gunakan angka yang diekstrak
+        sequence_number: existingNomor, // string asli
         tanggal: data.created_at
           ? new Date(data.created_at).toISOString().split("T")[0]
           : "",
@@ -432,18 +445,21 @@ export default function ExporSalesContractForm() {
 
   const generateNomorKontrak = async () => {
     const lastSeq = await getLastSequence(user?.token, "sc", "ekspor", 11);
-    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(5, "0");
+    const nextNum = String((lastSeq?.last_sequence || 0) + 1).padStart(4, "0"); // 4 digit untuk x
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const year = String(now.getFullYear()).slice(2);
     const ppnType = "P"; // ekspor selalu pajak
     const type = "E";
     const mmyy = `${month}${year}`;
-    const nomor = `SC/${type}/${ppnType}/${mmyy}-${nextNum}`;
+    
+    // Format: SC/E/P/1225-500x (5 tetap, x adalah angka urut 3 digit)
+    const nomor = `SC/${type}/${ppnType}/${mmyy}-5${nextNum}`;
+    
     setForm((prev) => ({
       ...prev,
-      sequence_number: nomor, // string
-      no_seq: lastSeq?.last_sequence + 1, // angka
+      sequence_number: nomor, // string SC/E/P/1225-5001
+      no_seq: lastSeq?.last_sequence + 1, // angka urut untuk database
     }));
     setManualGenerateDone(true);
   };
@@ -616,8 +632,8 @@ export default function ExporSalesContractForm() {
       const payload = {
         type: customerTypeObj?.jenis.toLowerCase(),
         // Penting: no_sc = string SC/E/P/..., sequence_number = nomor urut
-        no_sc: form().sequence_number,
-        sequence_number: form().no_seq,
+        no_sc: form().sequence_number, // format lengkap: SC/E/P/1225-5001
+        sequence_number: form().no_seq, // angka urut saja: 1, 2, 3, dst
         po_cust: form().po_cust,
         validity_contract: form().validity_contract,
         customer_id: parseInt(form().customer_id),
