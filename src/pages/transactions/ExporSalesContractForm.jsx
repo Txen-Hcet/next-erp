@@ -701,7 +701,7 @@ export default function ExporSalesContractForm() {
         </div>
       )}
       <h1 class="text-2xl font-bold mb-4">
-        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Contract
+        {isView ? "Detail" : isEdit ? "Edit" : "Tambah"} Sales Contract Ekspor
       </h1>
       <button
         type="button"
@@ -714,7 +714,7 @@ export default function ExporSalesContractForm() {
       </button>
 
       <form class="space-y-4" onSubmit={handleSubmit} onkeydown={handleKeyDown}>
-        <div class="grid grid-cols-5 gap-4">
+        <div class="grid grid-cols-4 gap-4">
           <div>
             <label class="block mb-1 font-medium">Contract Number</label>
             <div class="flex gap-2">
@@ -760,7 +760,9 @@ export default function ExporSalesContractForm() {
               classList={{ "bg-gray-200": isView }}
             />
           </div>
+        </div>
 
+        <div class="grid grid-cols-5 gap-4">
           <div>
             <label class="block mb-1 font-medium">Agent</label>
             <AgentDropdownSearch
@@ -771,9 +773,7 @@ export default function ExporSalesContractForm() {
               classList={{ "bg-gray-200": isView }}
             />
           </div>
-        </div>
 
-        <div class="grid grid-cols-4 gap-4">
           <div>
             <label class="block mb-1 font-medium">Validity Date</label>
             <input
