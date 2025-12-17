@@ -141,9 +141,10 @@ export default function PiutangJualBeliForm() {
     penerimaanList.forEach((p) => {
       const sjId = p.sj_id;
       const amount = parseFloat(p.pembayaran) || 0;
+      const discount = parseFloat(p.potongan) || 0;
       if (sjId) {
         if (!penerimaanPerSJ[sjId]) penerimaanPerSJ[sjId] = 0;
-        penerimaanPerSJ[sjId] += amount;
+        penerimaanPerSJ[sjId] += (amount + discount);
       }
     });
 
@@ -573,7 +574,7 @@ export default function PiutangJualBeliForm() {
           </div>
 
           <div>
-            <label class="block mb-1 font-medium">Diskon</label>
+            <label class="block mb-1 font-medium">Potongan</label>
             <input
               type="text"
               class="w-full border p-2 rounded"
