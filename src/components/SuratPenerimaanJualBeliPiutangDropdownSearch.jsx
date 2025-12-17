@@ -104,9 +104,6 @@ export default function SuratPenerimaanJualBeliPiutangDropdownSearch(props) {
                 <div class="whitespace-nowrap overflow-hidden text-ellipsis font-medium">
                   {sj.no_sj} - {sj.supplier_name || sj.supplier} - {sj.customer_name || sj.customer} ({formatSimpleDate(sj.tanggal_surat_jalan || sj.created_at)})
                 </div>
-                <div class="text-sm text-gray-600 mt-1">
-                  Format: No SP JB - Supplier - Customer
-                </div>
               </div>
             ))
           ) : (

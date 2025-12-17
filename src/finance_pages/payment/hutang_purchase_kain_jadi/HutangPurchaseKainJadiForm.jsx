@@ -1,4 +1,4 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onMount, createEffect } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import {
   PembayaranHutangPurchaseKainJadi,
@@ -7,14 +7,18 @@ import {
   Banks,
   getLastSequence,
 } from "../../../utils/financeAuth";
-import { getAllKJDeliveryNotes, getUser } from "../../../utils/auth";
+import { 
+  getAllKJDeliveryNotes,
+  getKJDeliveryNotes,
+  getUser } from "../../../utils/auth";
 import Swal from "sweetalert2";
 import FinanceMainLayout from "../../../layouts/FinanceMainLayout";
 
 import JenisPotonganDropdownSearch from "../../../components/JenisPotonganDropdownSearch";
 import BanksDropdownSearch from "../../../components/BanksDropdownSearch";
 import PaymentMethodsDropdownSearch from "../../../components/PaymentMethodsDropdownSearch";
-import SuratPenerimaanDropdownSearch from "../../../components/SuratPenerimaanDropdownSearch";
+//import SuratPenerimaanDropdownSearch from "../../../components/SuratPenerimaanDropdownSearch";
+import SuratPenerimaanPembayaranHutangDropdownSearch from "../../../components/SuratPenerimaanPembayaranHutangDropdownSearch";
 
 export default function HutangPurchaseKainJadiForm() {
   const [params] = useSearchParams();
@@ -33,6 +37,14 @@ export default function HutangPurchaseKainJadiForm() {
   const [nominalInvoice, setNominalInvoice] = createSignal("");
   const [sisaUtang, setSisaUtang] = createSignal("");
   const [sisaUtangPerSJ, setSisaUtangPerSJ] = createSignal("");
+
+  // State Baru: Menyimpan nilai murni dari database (sebelum dikurangi input user saat ini)
+  const [baseSisaUtangPerSJ, setBaseSisaUtangPerSJ] = createSignal(0);
+  const [baseSisaUtangSupplier, setBaseSisaUtangSupplier] = createSignal(0);
+
+  const [supplierCalculationsCache, setSupplierCalculationsCache] = createSignal({});
+  const [allPembayaranData, setAllPembayaranData] = createSignal([]);
+  const [detailedSPData, setDetailedSPData] = createSignal({});
 
   const [form, setForm] = createSignal({
     // no_pembayaran: "",
@@ -63,10 +75,8 @@ export default function HutangPurchaseKainJadiForm() {
 
   // Format angka untuk mata uang rupiah
   const formatIDR = (val, showCurrency = true, showZero = true) => {
-    const num =
-      typeof val === "string" ? parseNumber(val) : val === 0 ? 0 : val || 0;
-    if ((val === null || val === undefined || val === "") && !showZero)
-      return "";
+    const num = typeof val === "string" ? parseNumber(val) : val || 0;
+    if ((val === null || val === undefined || val === "") && !showZero) return "";
     if (showCurrency) {
       return new Intl.NumberFormat("id-ID", {
         style: "currency",
@@ -105,29 +115,173 @@ export default function HutangPurchaseKainJadiForm() {
     return isNaN(n) ? null : n;
   };
 
-  // ========= OPTIMIZED UTILITY FUNCTIONS =========
-  const updateSisaUtangDisplay = (sjId) => {
+  // ========= FUNGSI HITUNG PUSAT (BARU) =========
+  // Fungsi ini dipanggil saat data load DAN saat user mengetik
+  const calculateDisplay = (baseSJ, baseSupp) => {
+    // Ambil inputan user saat ini
+    const currentPembayaran = parseNumber(form().pembayaran) || 0;
+    const currentPotongan = parseNumber(form().potongan) || 0;
+
+    // Rumus: Sisa = (Hutang Awal Database) - (Pembayaran Saat Ini) - (Potongan Saat Ini)
+    const finalSJ = (baseSJ || 0) - currentPembayaran - currentPotongan;
+    const finalSupp = (baseSupp || 0) - currentPembayaran - currentPotongan;
+
+    // Update UI
+    setSisaUtangPerSJ(formatIDR(finalSJ));
+    setSisaUtang(formatIDR(finalSupp));
+  };
+
+  // ========= DATA FETCHING LOGIC =========
+  const fetchSubtotalForSJ = async (sjId) => {
+    try {
+      if (detailedSPData()[sjId]) {
+        return detailedSPData()[sjId];
+      }
+      
+      const response = await getKJDeliveryNotes(sjId, user?.token);
+      const data = response.suratJalan;
+      
+      setDetailedSPData(prev => ({
+        ...prev,
+        [sjId]: {
+          subtotal: data.summary?.subtotal || 0,
+          supplier_id: data.supplier_id,
+          supplier_name: data.supplier_name
+        }
+      }));
+      
+      return {
+        subtotal: data.summary?.subtotal || 0,
+        supplier_id: data.supplier_id,
+        supplier_name: data.supplier_name
+      };
+    } catch (error) {
+      console.error(`Error fetching subtotal for SJ ${sjId}:`, error);
+      return { subtotal: 0, supplier_id: null, supplier_name: null };
+    }
+  };
+
+  const calculateRemainingDebtPerSJ = async (sjId, excludePaymentId = null) => {
+    try {
+      const sjDetail = await fetchSubtotalForSJ(sjId);
+      const subtotal = sjDetail.subtotal;
+
+      const currentPembayaranData = allPembayaranData();
+      
+      const pembayaranForThisSJ = currentPembayaranData.filter(
+        payment => payment.sj_id == sjId && 
+                   (excludePaymentId ? payment.id != excludePaymentId : true)
+      );
+
+      let totalPembayaranSJ = 0;
+      let totalPotonganSJ = 0;
+
+      pembayaranForThisSJ.forEach(payment => {
+        totalPembayaranSJ += parseFloat(payment.pembayaran || 0);
+        totalPotonganSJ += parseFloat(payment.potongan || 0);
+      });
+
+      const sisaUtangPerSJValue = subtotal - (totalPembayaranSJ + totalPotonganSJ);
+
+      return {
+        nominalInvoice: subtotal,
+        sisaUtangPerSJ: sisaUtangPerSJValue,
+        totalPembayaranSJ,
+        totalPotonganSJ
+      };
+    } catch (error) {
+      console.error(`Error calculating remaining debt for SJ ${sjId}:`, error);
+      return { nominalInvoice: 0, sisaUtangPerSJ: 0, totalPembayaranSJ: 0, totalPotonganSJ: 0 };
+    }
+  };
+
+  const calculateSupplierDebt = async (supplierId, supplierName, excludePaymentId = null) => {
+    if (supplierCalculationsCache()[supplierName]) {
+      return supplierCalculationsCache()[supplierName];
+    }
+
+    const allSPForSupplier = spOptions().filter(sp => 
+      sp.supplier_id === supplierId || sp.supplier_name === supplierName
+    );
+
+    let totalHutangAwal = 0;
+    const subtotalPromises = allSPForSupplier.map(async (sp) => {
+      const detail = await fetchSubtotalForSJ(sp.id);
+      return detail.subtotal;
+    });
+
+    const subtotals = await Promise.all(subtotalPromises);
+    totalHutangAwal = subtotals.reduce((sum, subtotal) => sum + subtotal, 0);
+
+    const pembayaranForSupplier = allPembayaranData().filter(
+      payment => payment.supplier_id === supplierId &&
+                 (excludePaymentId ? payment.id != excludePaymentId : true)
+    );
+
+    let totalPembayaran = 0;
+    let totalPotongan = 0;
+
+    pembayaranForSupplier.forEach(payment => {
+      totalPembayaran += parseFloat(payment.pembayaran || 0);
+      totalPotongan += parseFloat(payment.potongan || 0);
+    });
+
+    const sisaUtangSupplier = totalHutangAwal - (totalPembayaran + totalPotongan);
+
+    const result = {
+      totalHutangAwal,
+      totalPembayaran,
+      totalPotongan,
+      sisaUtang: sisaUtangSupplier,
+      jumlahSJ: allSPForSupplier.length
+    };
+
+    setSupplierCalculationsCache(prev => ({
+      ...prev,
+      [supplierName]: result
+    }));
+
+    return result;
+  };
+
+  // ========= UPDATE LOGIC =========
+  const updateSisaUtangDisplay = async (sjId) => {
     const selectedSP = spOptions().find((sp) => sp.id === sjId);
     if (!selectedSP) return;
 
-    // Use cached data - no API calls
-    setNominalInvoice(formatIDR(selectedSP.nominal_invoice));
-    setSisaUtangPerSJ(formatIDR(selectedSP.sisa_utang_per_sj));
+    // 1. Ambil Data Base untuk SJ
+    const excludePaymentId = isEdit ? params.id : null;
+    const sjCalculations = await calculateRemainingDebtPerSJ(sjId, excludePaymentId);
+    
+    setNominalInvoice(formatIDR(sjCalculations.nominalInvoice));
+    
+    // Simpan ke state Base (nilai asli DB)
+    const baseSJ = sjCalculations.sisaUtangPerSJ;
+    setBaseSisaUtangPerSJ(baseSJ);
 
-    // Use pre-calculated supplier data
+    // 2. Ambil Data Base untuk Supplier
     const supplierName = selectedSP.supplier_name || selectedSP.supplier;
-    if (supplierName && supplierCalculationsCache()[supplierName]) {
-      const supplierData = supplierCalculationsCache()[supplierName];
-      setSisaUtang(formatIDR(supplierData.sisaUtang));
+    const supplierId = selectedSP.supplier_id;
+    
+    let baseSupp = 0;
+    if (supplierName && supplierId) {
+      const supplierCalculations = await calculateSupplierDebt(supplierId, supplierName, excludePaymentId);
+      baseSupp = supplierCalculations.sisaUtang;
+      setBaseSisaUtangSupplier(baseSupp);
     } else {
-      setSisaUtang(formatIDR(0));
+      setBaseSisaUtangSupplier(0);
     }
+
+    // 3. PENTING: Panggil fungsi hitung agar UI langsung terisi (tidak kosong)
+    calculateDisplay(baseSJ, baseSupp);
   };
 
   const resetSisaUtangDisplay = () => {
     setNominalInvoice("");
     setSisaUtang("");
     setSisaUtangPerSJ("");
+    setBaseSisaUtangPerSJ(0);
+    setBaseSisaUtangSupplier(0);
   };
 
   const handleSuratPenerimaanChange = async (val) => {
@@ -147,11 +301,26 @@ export default function HutangPurchaseKainJadiForm() {
     }
 
     if (newSjId) {
-      updateSisaUtangDisplay(newSjId); // No await - synchronous now
+      await updateSisaUtangDisplay(newSjId);
     } else {
       resetSisaUtangDisplay();
     }
   };
+
+  // ========= REACTIVITY =========
+  // Effect ini memantau ketikan user di kolom Pembayaran & Potongan
+  createEffect(() => {
+    // Tracking dependencies
+    form().pembayaran;
+    form().potongan;
+
+    // Ambil nilai base yang tersimpan
+    const currentBaseSJ = baseSisaUtangPerSJ();
+    const currentBaseSupp = baseSisaUtangSupplier();
+
+    // Hitung ulang tampilan
+    calculateDisplay(currentBaseSJ, currentBaseSupp);
+  });  
 
   // const handleSuratPenerimaanChange = (val) => {
   //   const newSjId = normalizeId(val);
@@ -170,65 +339,81 @@ export default function HutangPurchaseKainJadiForm() {
   //   }
   // };
 
-  // Load data saat edit
+  // ========= ON MOUNT =========
   onMount(async () => {
     setLoading(true);
 
     try {
-      const resJenisPotongan = await JenisPotongan.getAll();
+      const [resJenisPotongan, resPaymentMethods, resBanks, allSP, allPembayaran] = await Promise.all([
+        JenisPotongan.getAll(),
+        PaymentMethods.getAll(),
+        Banks.getAll(),
+        getAllKJDeliveryNotes(user?.token),
+        PembayaranHutangPurchaseKainJadi.getAll()
+      ]);
+
       setJenisPotonganOptions(resJenisPotongan?.data ?? resJenisPotongan ?? []);
-
-      const resPaymentMethods = await PaymentMethods.getAll();
-      setPaymentMethodsOptions(
-        resPaymentMethods?.data ?? resPaymentMethods ?? []
-      );
-
-      const resBanks = await Banks.getAll();
+      setPaymentMethodsOptions(resPaymentMethods?.data ?? resPaymentMethods ?? []);
       setBanksOptions(resBanks?.data ?? resBanks ?? []);
 
-      const allSP = await getAllKJDeliveryNotes(user?.token);
-      const rawList =
-        allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
+      const rawList = allSP?.suratJalans ?? allSP?.surat_jalan_list ?? allSP?.data ?? [];
+      const allPembayaranArray = allPembayaran?.data ?? [];
+      
+      setAllPembayaranData(allPembayaranArray);
 
-      setSpOptions(Array.isArray(rawList) ? rawList : []);
-    } catch (err) {
-      console.error("Gagal memuat opsi dropdown:", err);
-    }
+      const spWithRemainingDebt = await Promise.all(
+        rawList.map(async (sp) => {
+          const excludePaymentId = null;
+          const sjCalculations = await calculateRemainingDebtPerSJ(sp.id, excludePaymentId);
+          
+          return {
+            ...sp,
+            sisa_utang_per_sj: sjCalculations.sisaUtangPerSJ
+          };
+        })
+      );
 
-    if (isEdit) {
-      try {
-        const res = await PembayaranHutangPurchaseKainJadi.getById(params.id);
+      setSpOptions(Array.isArray(spWithRemainingDebt) ? spWithRemainingDebt : []);
 
-        const data =
-          Array.isArray(res.data) && res.data.length > 0
+      if (isEdit) {
+        try {
+          const res = await PembayaranHutangPurchaseKainJadi.getById(params.id);
+          const data = Array.isArray(res.data) && res.data.length > 0
             ? res.data[0]
             : res.data;
 
-        if (!data) {
-          throw new Error("Data pembayaran tidak ditemukan.");
+          if (!data) {
+            throw new Error("Data pembayaran tidak ditemukan.");
+          }
+
+          setForm({
+            ...data,
+            sequence_number: data.no_pembayaran || "",
+            potongan: formatIDR(parseFloat(data.potongan || 0)),
+            pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
+            pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
+            no_giro: data.no_giro || "",
+            tanggal_pengambilan_giro: data.tanggal_pengambilan_giro || "",
+            tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
+            status: data.status || "",
+            keterangan: data.keterangan || "",
+          });
+
+          // Saat edit, trigger update display agar sisa hutang muncul
+          if (data.sj_id) {
+            await updateSisaUtangDisplay(data.sj_id);
+          }
+        } catch (err) {
+          console.error("Gagal memuat data edit:", err);
+          Swal.fire("Error", err.message || "Gagal memuat data", "error");
         }
-
-        setForm({
-          ...data,
-
-          sequence_number: data.no_pembayaran || "",
-
-          potongan: formatIDR(parseFloat(data.potongan || 0)),
-          pembulatan: formatIDR(parseFloat(data.pembulatan || 0), 2),
-          pembayaran: formatIDR(parseFloat(data.pembayaran || 0)),
-
-          no_giro: data.no_giro || "",
-          tanggal_pengambilan_giro: data.tanggal_pengambilan_giro || "",
-          tanggal_jatuh_tempo: data.tanggal_jatuh_tempo || "",
-          status: data.status || "",
-          keterangan: data.keterangan || "",
-        });
-      } catch (err) {
-        console.error("Gagal memuat data edit:", err);
-        Swal.fire("Error", err.message || "Gagal memuat data", "error");
       }
+    } catch (err) {
+      console.error("Gagal memuat opsi dropdown:", err);
+      Swal.fire("Error", "Gagal memuat data awal", "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   });
 
   const generateNomor = async () => {
@@ -405,7 +590,7 @@ export default function HutangPurchaseKainJadiForm() {
 
           <div>
             <label class="block mb-1 font-medium">Surat Penerimaan</label>
-            <SuratPenerimaanDropdownSearch
+            <SuratPenerimaanPembayaranHutangDropdownSearch
               items={spOptions()}
               value={form().sj_id}
               onChange={handleSuratPenerimaanChange}
@@ -425,17 +610,7 @@ export default function HutangPurchaseKainJadiForm() {
           </div>
 
           <div>
-            <label class="block mb-1 font-medium">Sisa Hutang</label>
-            <input
-              type="text"
-              class="w-full border bg-gray-200 p-2 rounded"
-              value={sisaUtangPerSJ()}
-              readOnly
-            />
-          </div>
-
-          <div>
-            <label class="block mb-1 font-medium">Total Utang</label>
+            <label class="block mb-1 font-medium">Total Hutang Supplier</label>
             <input
               type="text"
               class="w-full border bg-gray-200 p-2 rounded"
@@ -443,9 +618,18 @@ export default function HutangPurchaseKainJadiForm() {
               readOnly
             />
             <div class="text-xs text-gray-500 mt-1">
-              * Total sisa utang untuk semua invoice atau surat penerimaan jual
-              beli
+              * Total sisa utang untuk semua surat penerimaan kain jadi
             </div>
+          </div>
+
+          <div>
+            <label class="block mb-1 font-medium">Sisa Hutang</label>
+            <input
+              type="text"
+              class="w-full border bg-gray-200 p-2 rounded"
+              value={sisaUtangPerSJ()}
+              readOnly
+            />
           </div>
 
           <div>
