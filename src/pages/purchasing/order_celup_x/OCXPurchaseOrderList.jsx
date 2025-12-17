@@ -199,14 +199,20 @@ export default function OCXPurchaseOrderList() {
     const items = ocxDetail.items;
     let totalMeter = 0;
     let totalYard = 0;
+    let totalKilogram = 0;
+    
     let totalDeliveredMeter = 0;
     let totalDeliveredYard = 0;
+    let totalDeliveredKilogram = 0;
 
     items.forEach((item) => {
       totalMeter += parseFloat(item.meter_total || 0);
       totalYard += parseFloat(item.yard_total || 0);
+      totalKilogram += parseFloat(item.kilogram_total || 0);
+
       totalDeliveredMeter += parseFloat(item.delivered_meter_total || 0);
       totalDeliveredYard += parseFloat(item.delivered_yard_total || 0);
+      totalDeliveredKilogram += parseFloat(item.delivered_kilogram_total || 0);
     });
 
     let sisa = 0;
@@ -220,6 +226,10 @@ export default function OCXPurchaseOrderList() {
       case 2: // Yard
         sisa = totalYard - totalDeliveredYard;
         total = totalYard;
+        break;
+      case 3: // Kilogram
+        sisa = totalKilogram - totalDeliveredKilogram;
+        total = totalKilogram;
         break;
       default:
         return "-";

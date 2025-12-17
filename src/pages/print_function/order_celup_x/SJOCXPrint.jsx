@@ -46,7 +46,7 @@ export default function SJOCXPrint(props) {
   // ===== Totals =====
   const isPPN = createMemo(() => parseFloat(data().ppn_percent) > 0);
   
-  // Hitung total meter dan yard secara manual dari items
+  // Hitung total meter, yard, dan kilogram secara manual dari items
   const totalMeter = createMemo(() => {
     if (!data().items || !Array.isArray(data().items)) return 0;
     return data().items.reduce((sum, item) => sum + parseFloat(item.meter_total || 0), 0);
@@ -55,6 +55,11 @@ export default function SJOCXPrint(props) {
   const totalYard = createMemo(() => {
     if (!data().items || !Array.isArray(data().items)) return 0;
     return data().items.reduce((sum, item) => sum + parseFloat(item.yard_total || 0), 0);
+  });
+
+  const totalKilogram = createMemo(() => {
+    if (!data().items || !Array.isArray(data().items)) return 0;
+    return data().items.reduce((sum, item) => sum + parseFloat(item.kilogram_total || 0), 0);
   });
   
   // Hitung total gulung dan lot
@@ -66,6 +71,32 @@ export default function SJOCXPrint(props) {
   const totalLot = createMemo(() => {
     if (!data().items || !Array.isArray(data().items)) return 0;
     return data().items.reduce((sum, item) => sum + parseFloat(item.lot || 0), 0);
+  });
+
+  // Fungsi untuk mendapatkan satuan unit
+  const satuan = createMemo(() => {
+    // Coba ambil dari beberapa kemungkinan field
+    return data().satuan || 
+           data().satuan_unit_name || 
+           (() => {
+             const satuanUnitId = data().satuan_unit_id || data().purchase_order_detail?.satuan_unit_id;
+             switch (parseInt(satuanUnitId)) {
+               case 1: return "Meter";
+               case 2: return "Yard";
+               case 3: return "Kilogram";
+               default: return "Meter";
+             }
+           })() || 
+           "Meter";
+  });
+
+  // Hitung total quantity berdasarkan satuan yang dipilih
+  const totalQuantity = createMemo(() => {
+    const satuanUnit = satuan();
+    if (satuanUnit === "Meter") return totalMeter();
+    if (satuanUnit === "Yard") return totalYard();
+    if (satuanUnit === "Kilogram") return totalKilogram();
+    return totalMeter();
   });
 
   const subTotal = createMemo(() => Number(data().summary?.subtotal) || 0);
@@ -82,8 +113,10 @@ export default function SJOCXPrint(props) {
     grand: jumlahTotal(),
     totalMeter: totalMeter(),
     totalYard: totalYard(),
+    totalKilogram: totalKilogram(),
     totalGulung: totalGulung(),
     totalLot: totalLot(),
+    totalQuantity: totalQuantity(),
   }));
 
   // ===== Pagination =====
@@ -155,6 +188,7 @@ export default function SJOCXPrint(props) {
               isPPN={isPPN()}
               isLast={isLast}
               totals={totals()}
+              satuan={satuan()}
               formatters={{ formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal }}
               logoNavel={logoNavel}
             />
@@ -166,7 +200,7 @@ export default function SJOCXPrint(props) {
 }
 
 function PrintPage(props) {
-  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, formatters, logoNavel } = props;
+  const { data, items, startIndex, pageNo, pageCount, isPPN, isLast, totals, satuan, formatters, logoNavel } = props;
   const { formatTanggal, formatRupiah, formatAngka, formatAngkaNonDecimal } = formatters;
 
   // Inisialisasi stretch lebih dulu, baru effect-nya
@@ -178,6 +212,14 @@ function PrintPage(props) {
     isLast;
     requestAnimationFrame(recalc);
   });
+
+  // Fungsi untuk mendapatkan quantity berdasarkan satuan
+  const getQuantity = (item) => {
+    if (satuan === "Meter") return item.meter_total || 0;
+    if (satuan === "Yard") return item.yard_total || 0;
+    if (satuan === "Kilogram") return item.kilogram_total || 0;
+    return item.meter_total || 0;
+  };
 
   return (
     <div ref={bind("pageRef")} className="page">
@@ -295,23 +337,18 @@ function PrintPage(props) {
             <tr>
               <th className="border border-black p-1 w-[6%]" rowSpan={2}>No</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Jenis Kain</th>
-              {/* <th hidden className="border border-black p-1 w-[20%]" rowSpan={2}>Jenis Kain</th> */}
               <th className="border border-black p-1 w-[12%]" rowSpan={2}>Warna Ex</th>
               <th className="border border-black p-1 w-[12%]" rowSpan={2}>Warna Baru</th>
-              {/* <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Greige</th> */}
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lebar Finish</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Gulung</th>
               <th className="border border-black p-1 w-[10%]" rowSpan={2}>Lot</th>
               <th className="border border-black p-1 w-[18%] text-center" colSpan={2}>
                 Quantity
               </th>
-              <th hidden className="border border-black p-1 w-[18%]" rowSpan={2}>Harga</th>
-              <th hidden className="border border-black p-1 w-[20%]" rowSpan={2}>Jumlah</th>
             </tr>
             <tr>
               <th colspan={2} className="border border-black p-1 w-[24%]">
-                {/* {`(Roll / ${data.satuan_unit_name || 'Meter'})`} */}
-                {data.satuan || 'Meter'}
+                {satuan}
               </th>
             </tr>
           </thead>
@@ -323,29 +360,14 @@ function PrintPage(props) {
                   {/* nomor lanjut: startIndex + nomor di halaman + 1 */}
                   <td className="p-1 text-center break-words">{startIndex + i() + 1}</td>
                   <td className="p-1 text-center break-words">{item.corak_kain || "-"}</td>
-                  {/* <td hidden className="p-1 break-words">{item.konstruksi_kain}</td> */}
                   <td className="p-1 text-center break-words">{item.deskripsi_warna_ex || "-"}</td>
                   <td className="p-1 text-center break-words">{item.deskripsi_warna_new || "-"}</td>
-                  {/* <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_greige)}"</td> */}
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lebar_finish)}"</td>
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.gulung)}</td>
                   <td className="p-1 text-center break-words">{formatAngkaNonDecimal(item.lot)}</td>
                   <td colspan={2} className="p-1 text-center break-words">
-                    {data.satuan === 'Meter'
-                      ? formatAngka(item.meter_total)
-                      : formatAngka(item.yard_total)
-                    }
-                  </td>
-                  <td hidden className="p-1 text-center break-words">{formatRupiah(item.harga)}</td>
-                  <td hidden className="p-1 text-right break-words">
-                    {(() => {
-                      const qty =
-                        data.satuan === "Meter"
-                          ? parseFloat(item.meter_total || 0)
-                          : parseFloat(item.yard_total || 0);
-                      const harga = parseFloat(item.harga || 0);
-                      return harga && qty ? formatRupiah(harga * qty) : "-";
-                    })()}
+                    {formatAngka(getQuantity(item))}
+                    
                   </td>
                 </tr>
               )}
@@ -360,7 +382,10 @@ function PrintPage(props) {
                   <td className="p-1"></td>
                   <td className="p-1 text-center"></td>
                   <td className="p-1 text-center"></td>
-                  <td className="p-1 text-right"></td>
+                  <td className="p-1 text-center"></td>
+                  <td className="p-1 text-center"></td>
+                  <td className="p-1 text-center"></td>
+                  <td className="p-1 text-center"></td>
                 </tr>
               )}
             </For>
@@ -372,10 +397,7 @@ function PrintPage(props) {
               <tr>
                 <td colSpan={7} className="border border-black font-bold text-right px-2 py-1">Total:</td>
                 <td colspan={2} className="border border-black px-2 py-1 text-center font-bold">
-                  {data.satuan === 'Meter'
-                    ? formatAngka(totals.totalMeter)
-                    : formatAngka(totals.totalYard)
-                  }
+                  {formatAngka(totals.totalQuantity)}
                 </td>
                 <td hidden className="border border-black px-2 py-1 text-right font-bold">
                   Sub Total

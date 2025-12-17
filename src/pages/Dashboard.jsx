@@ -796,37 +796,51 @@ export default function Dashboard() {
     setLoading(true);
     const assembled = [];
 
+    // Loop setiap Section (Pembelian, Penjualan, Summary, Inventory)
     for (const sec of SECTIONS) {
       const blocks = [];
+
+      // Loop setiap Block di dalam Section
       for (const b of sec.blocks) {
-        // permission check
+        // --- 1. Cek Permission User ---
         if (b.anyPerm) {
           if (!hasAnyPerm(b.anyPerm)) continue;
         } else {
           if (!hasPermission(b.perm)) continue;
         }
 
-        const key = b.key; // greige | oc | kain_jadi | jual_beli | sales | summary
+        const key = b.key; // greige | oc | kain_jadi | jual_beli | sales | summary | inventory
 
-        // === SUMMARY SECTION ===
+        // ==========================================================
+        // CASE A: SUMMARY SECTION
+        // ==========================================================
         if (sec.key === "summary" && key === "summary") {
           let salesRows = [],
             jbRows = [];
           try {
+            // Fetch Data Penjualan
             const resSales = await getAllDeliveryNotes(user?.token);
-            salesRows = filterByDate(rowsFromResponse(resSales));
-          } catch {}
+            const rawSales = filterByDate(rowsFromResponse(resSales));
+            
+            // LOGIC BARU: Filter is_via di Summary Penjualan
+            // Jika is_via = 1/true, jangan masukkan ke hitungan summary
+            salesRows = rawSales.filter((r) => {
+              const isVia = r.is_via === 1 || r.is_via === "1" || r.is_via === true;
+              return !isVia; 
+            });
+
+          } catch (e) { console.error("Error fetching sales summary", e); }
+          
           try {
+            // Fetch Data Jual Beli
             const resJB = await getAllJBDeliveryNotes(user?.token);
             jbRows = filterByDate(rowsFromResponse(resJB));
-          } catch {}
+          } catch (e) { console.error("Error fetching jb summary", e); }
 
           const salesTotal = salesRows.length;
           const jbTotal = jbRows.length;
 
-          const salesInv = salesRows.filter(
-            (r) => +r.delivered_status === 1
-          ).length;
+          const salesInv = salesRows.filter((r) => +r.delivered_status === 1).length;
           const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
 
           blocks.push({
@@ -848,15 +862,22 @@ export default function Dashboard() {
             rowsSales: salesRows,
             rowsJB: jbRows,
           });
-          continue;
+          continue; // Lanjut ke block berikutnya
         }
 
+        // ==========================================================
+        // CASE B: INVENTORY SECTION
+        // ==========================================================
         if (sec.key === "inventory" && key === "inventory") {
           let salesRows = [],
             jbRows = [];
           try {
             const resSales = await getAllDeliveryNotes(user?.token);
-            salesRows = filterByDate(rowsFromResponse(resSales));
+            // Note: Inventory biasanya tetap mencatat barang keluar fisik meski is_via.
+            // Jika ingin difilter juga, uncomment baris filter di bawah:
+            salesRows = filterByDate(rowsFromResponse(resSales))
+              // .filter(r => !(r.is_via === 1 || r.is_via === "1" || r.is_via === true))
+              ;
           } catch {}
           try {
             const resJB = await getAllJBDeliveryNotes(user?.token);
@@ -866,23 +887,19 @@ export default function Dashboard() {
           const salesTotal = salesRows.length;
           const jbTotal = jbRows.length;
 
-          const salesInv = salesRows.filter(
-            (r) => +r.delivered_status === 1
-          ).length;
+          const salesInv = salesRows.filter((r) => +r.delivered_status === 1).length;
           const jbInv = jbRows.filter((r) => +r.delivered_status === 1).length;
 
           blocks.push({
             key,
             label: b.label,
             mode: sec.key,
-
             chart: {
               items: ["Penjualan", "Jual Beli"],
               in: [salesTotal, jbTotal],
               out: [salesInv, jbInv],
               remaining: [salesTotal - salesInv, jbTotal - jbInv],
             },
-
             summaryCounts: {
               in: {
                 total: salesTotal + jbTotal,
@@ -895,81 +912,54 @@ export default function Dashboard() {
                 pending: 0,
               },
             },
-
             rowsIn: [...salesRows, ...jbRows],
             rowsOut: [...salesRows, ...jbRows],
           });
 
-          continue;
+          continue; // Lanjut ke block berikutnya
         }
 
-        // === BLOK PEMBELIAN / PENJUALAN (existing) ===
+        // ==========================================================
+        // CASE C: STANDARD BLOCKS (PEMBELIAN & PENJUALAN)
+        // ==========================================================
         const keySJList = SJ_LIST_FETCHER[key];
 
-        // 1) Ambil semua SJ (hanya untuk show count SJ)
-        let sjCount = 0;
+        // --- 1. Ambil List Surat Jalan (Untuk Card Total SJ) ---
         let sjRows = [];
         try {
           const sjList = await keySJList?.(user?.token);
           sjRows = filterByDate(rowsFromResponse(sjList));
-          sjCount = Array.isArray(sjRows) ? sjRows.length : 0;
         } catch {
-          sjCount = 0;
+          sjRows = [];
         }
 
-        // 2) Ambil semua PO (pembelian) / SO (penjualan)
+        // --- 2. Ambil List PO/SO (Untuk Chart & Table) ---
         let poRows = [];
         try {
           const poList = await PO_LIST_FETCHER[key]?.(user?.token);
           const list = filterByDate(rowsFromResponse(poList));
 
-          // FETCH DETAIL SETIAP PO UNTUK DAPATKAN DATA LENGKAP
+          // Fetch Detail setiap PO untuk kelengkapan data (items, is_via, dll)
           poRows = await Promise.all(
             list.map(async (po) => {
               try {
-                const detail = await PO_DETAIL_FETCHER[key]?.(
-                  po.id,
-                  user?.token
-                );
+                const detail = await PO_DETAIL_FETCHER[key]?.(po.id, user?.token);
 
-                // DEBUG DETAIL RESPONSE
-                // console.log(`=== DETAIL RESPONSE FOR PO ${po.id} (${key}) ===`);
-                // console.log("Detail response structure:", JSON.stringify({
-                //   hasDetail: !!detail,
-                //   detailKeys: detail ? Object.keys(detail) : [],
-                //   hasOrder: detail?.order ? Object.keys(detail.order) : [],
-                //   hasMainRow: detail?.mainRow ? Object.keys(detail.mainRow) : [],
-                //   orderItems: detail?.order?.items ? detail.order.items.length : 0,
-                //   mainRowItems: detail?.mainRow?.items ? detail.mainRow.items.length : 0
-                // }, null, 2));
-
-                // CARI ITEMS DARI BERBAGAI LOKASI YANG MUNGKIN
+                // Normalisasi items dari berbagai kemungkinan struktur response
                 let items = [];
-                if (detail?.order?.items) {
-                  items = detail.order.items;
-                  //console.log(`Using items from detail.order.items for PO ${po.id}`);
-                } else if (detail?.mainRow?.items) {
-                  items = detail.mainRow.items;
-                  //console.log(`Using items from detail.mainRow.items for PO ${po.id}`);
-                } else if (detail?.items) {
-                  items = detail.items;
-                  //console.log(`Using items from detail.items for PO ${po.id}`);
-                } else if (po.items) {
-                  items = po.items;
-                  //console.log(`Using items from po.items for PO ${po.id}`);
-                }
+                if (detail?.order?.items) items = detail.order.items;
+                else if (detail?.mainRow?.items) items = detail.mainRow.items;
+                else if (detail?.items) items = detail.items;
+                else if (po.items) items = po.items;
 
-                // DEBUG ITEMS STRUCTURE
-                // if (items.length > 0) {
-                //   console.log(`=== ITEMS STRUCTURE FOR PO ${po.id} ===`);
-                //   console.log("First item:", JSON.stringify(items[0], null, 2));
-                //   console.log("First item keys:", JSON.stringify(Object.keys(items[0]), null, 2));
-                // }
+                // Ambil is_via dari row atau detail
+                const isVia = po.is_via ?? detail?.order?.is_via ?? detail?.mainRow?.is_via ?? detail?.is_via;
 
                 return {
                   ...po,
                   items: items,
-                  // Pastikan supplier_id tersedia
+                  is_via: isVia, 
+                  // Pastikan supplier_id tersedia (terutama untuk filter outstanding pembelian)
                   supplier_id:
                     po.supplier_id ||
                     detail?.order?.supplier_id ||
@@ -977,7 +967,7 @@ export default function Dashboard() {
                 };
               } catch (error) {
                 console.error(`Gagal fetch detail PO ${po.id}:`, error);
-                return po; // Fallback ke data asli
+                return po; // Fallback ke data asli jika detail gagal
               }
             })
           );
@@ -986,53 +976,77 @@ export default function Dashboard() {
           poRows = [];
         }
 
-        // Simpan data asli customer
+        // Simpan data asli (sebelum filter customer) untuk dropdown list customer
         const originalPoRows = Array.isArray(poRows) ? poRows.slice() : [];
 
-        // Filter dengan nama customer ketika mode penjualan
+        // Ambil ID customer yang sedang dipilih di filter dropdown (khusus Penjualan)
         const selectedCustomerId =
           sec.key === "penjualan" ? salesCustomerForm().customer_id : null;
 
-        const filteredSJRows = (sjRows || []).filter((r) =>
-          matchesCustomer(r, selectedCustomerId)
-        );
-        const filteredPoRows = (poRows || []).filter((r) =>
-          matchesCustomer(r, selectedCustomerId)
-        );
+        // ==========================================================
+        // LOGIC FILTER UTAMA (Customer Match + IS_VIA CHECK)
+        // ==========================================================
+        
+        // Helper kecil untuk cek is_via
+        const checkIsViaSkip = (row) => {
+          // Logic: Jika mode penjualan DAN is_via = 1/true, maka SKIP (return true untuk skip)
+          if (sec.key === "penjualan") {
+            const val = row.is_via;
+            if (val === 1 || val === "1" || val === true) return true; 
+          }
+          return false;
+        };
 
-        // Terapkan filter outstanding untuk pembelian / penjualan
+        // Filter SJ Rows (Surat Jalan)
+        const filteredSJRows = (sjRows || []).filter((r) => {
+          // 1. Filter Customer
+          if (!matchesCustomer(r, selectedCustomerId)) return false;
+          // 2. Filter Is Via (Khusus Penjualan)
+          if (checkIsViaSkip(r)) return false; 
+          return true;
+        });
+
+        // Filter PO/SO Rows (Pesanan)
+        const filteredPoRows = (poRows || []).filter((r) => {
+          // 1. Filter Customer
+          if (!matchesCustomer(r, selectedCustomerId)) return false;
+          // 2. Filter Is Via (Khusus Penjualan)
+          if (checkIsViaSkip(r)) return false;
+          return true;
+        });
+
+        // --- 3. Terapkan Filter Outstanding (Jika ada) ---
         let finalPoRows = filteredPoRows;
         if (sec.key === "pembelian" || sec.key === "penjualan") {
           finalPoRows = filterPOByOutstanding(filteredPoRows, key, sec.key);
         }
 
-        // override with filtered results (only for penjualan this changes, for pembelian selectedCustomerId is null so no filter)
-        sjCount = filteredSJRows.length;
-        poRows = finalPoRows;
-
-        // continue processing
+        // --- 4. Hitung Data Akhir ---
+        const sjCount = filteredSJRows.length; // Jumlah SJ yang ditampilkan di Card
         const isGreige = key === "greige";
-        const chartSeries = buildChartSeriesFromPOs(poRows, isGreige);
+        const chartSeries = buildChartSeriesFromPOs(finalPoRows, isGreige); // Chart Selesai/Belum
+        const customers = buildCustomerListFromRows(originalPoRows); // List dropdown customer
 
-        // Ambil daftar nama customer asli agar dropdown konsisten
-        const customers = buildCustomerListFromRows(originalPoRows);
-
+        // --- 5. Push ke Blok ---
         blocks.push({
           key,
           label: b.label,
           mode: sec.key,
-          sjCount,
+          sjCount,     // Sudah bersih dari is_via
           chart: {
             series: chartSeries,
             categories: ["Selesai", "Belum Selesai"],
           },
-          poRows,
+          poRows: finalPoRows, // Sudah bersih dari is_via & terfilter outstanding
           rawFetcher: keySJList,
           customers,
         });
       }
-      if (blocks.length)
+
+      // Jika ada blok di section ini, masukkan ke hasil rakitan
+      if (blocks.length) {
         assembled.push({ key: sec.key, title: sec.title, blocks });
+      }
     }
 
     setSectionsData(assembled);

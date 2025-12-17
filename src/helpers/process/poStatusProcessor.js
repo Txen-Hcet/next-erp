@@ -27,7 +27,6 @@ const isDone = (po, isGreige) => {
 };
 
 // NEW: helper untuk mencocokkan PO dengan pilihan customer
-// customer_id bisa berupa number/string id ATAU string berformat "name:Nama Customer" atau plain name
 const matchesCustomer = (row, selectedCustomerId) => {
   if (!selectedCustomerId) return true;
 
@@ -51,10 +50,8 @@ const matchesCustomer = (row, selectedCustomerId) => {
 
   // 1) match id
   if (cid !== null && String(cid) === sel) return true;
-
   // 2) match name:key "name:Nama"
   if (cname && `name:${cname}` === sel) return true;
-
   // 3) direct name equality (in case UI passed plain name)
   if (cname && String(cname) === sel) return true;
 
@@ -91,6 +88,20 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
           dres = await safeDetailCall(poDetailFetcher, po.id, token);
         }
         const order = dres?.order || dres?.data || dres?.mainRow || dres || po;
+
+        // ============================================================
+        // LOGIC BARU: Filter is_via untuk Laporan Penjualan
+        // ============================================================
+        if (block.mode === 'penjualan') {
+           // Cek di row list (po) atau di detail (order)
+           const isViaValue = po.is_via ?? order.is_via;
+           
+           // Jika is_via = 1, "1", atau true -> SKIP (return null)
+           if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
+             return null;
+           }
+        }
+        // ============================================================
 
         if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
           return null;
@@ -160,5 +171,6 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
   );
   
   Swal.close();
+  // Filter(Boolean) akan otomatis menghapus yang return null di atas
   return processedData.filter(Boolean).sort((a, b) => new Date(a.mainData.tanggal) - new Date(b.mainData.tanggal));
 }

@@ -38,7 +38,7 @@ export default function OCXPurchaseOrderForm() {
 
   const filteredSatuanOptions = () =>
     satuanUnitOptions().filter((u) =>
-      ["meter", "yard"].includes(String(u.satuan).toLowerCase())
+      ["meter", "yard", "kilogram"].includes(String(u.satuan).toLowerCase())
     );
 
   const [purchaseContractData, setPurchaseContractData] = createSignal(null);
@@ -219,8 +219,10 @@ export default function OCXPurchaseOrderForm() {
           
           meter_total: 0,
           yard_total: 0,
+          kilogram_total: 0,
           meter_dalam_proses: 0,
           yard_dalam_proses: 0,
+          kilogram_dalam_proses: 0,
           
           std_susutValue: 0,
           std_susut: "",
@@ -229,6 +231,8 @@ export default function OCXPurchaseOrderForm() {
           meterValue: 0,
           yard: "",
           yardValue: 0,
+          kilogram: "",
+          kilogramValue: 0,
 
           harga: "0",
           hargaValue: 0,
@@ -329,19 +333,35 @@ export default function OCXPurchaseOrderForm() {
         if (res.status === 200) {
           const data = res.data;
           const dataItems = data.items || [];
+          const satuanUnitId = data.satuan_unit_id || 1;
           
           // Simpan data untuk print
           setPurchaseContractData(data);
 
           const normalizedItems = dataItems.map((item) => {
+            // Tentukan quantity berdasarkan satuan unit
+            let quantity = 0;
+            if (satuanUnitId === 1) {
+              quantity = parseFloat(item.meter_total || 0);
+            } else if (satuanUnitId === 2) {
+              quantity = parseFloat(item.yard_total || 0);
+            } else if (satuanUnitId === 3) {
+              quantity = parseFloat(item.kilogram_total || 0);
+            }
+            
+            const harga = parseFloat(item.harga || 0);
+            const subtotal = quantity * harga;
+
             return {
               id: item.id,
               po_ex_item_id: item.id,
               sj_item_id: item.sj_item_id || null, // Include sj_item_id
               meter_total: parseFloat(item.meter_total || 0),
               yard_total: parseFloat(item.yard_total || 0),
+              kilogram_total: parseFloat(item.kilogram_total || 0),
               meter_dalam_proses: parseFloat(item.meter_dalam_proses || 0),
               yard_dalam_proses: parseFloat(item.yard_dalam_proses || 0),
+              kilogram_dalam_proses: parseFloat(item.kilogram_dalam_proses || 0),
               corak_kain: item.corak_kain || "-",
               konstruksi_kain: item.konstruksi_kain || "-",
               
@@ -365,14 +385,15 @@ export default function OCXPurchaseOrderForm() {
               yard: formatNumber(parseFloat(item.yard_total || 0), { decimals: 2 }),
               yardValue: parseFloat(item.yard_total || 0),
 
+              kilogram: formatNumber(parseFloat(item.kilogram_total || 0), { decimals: 2 }),
+              kilogramValue: parseFloat(item.kilogram_total || 0),
+
               harga: item.harga || "0",
               hargaValue: parseFloat(item.harga || 0),
               hargaFormatted: formatIDR(parseFloat(item.harga || 0)),
 
-              subtotal: parseFloat(item.meter_total || 0) * parseFloat(item.harga || 0),
-              subtotalFormatted: formatIDR(
-                parseFloat(item.meter_total || 0) * parseFloat(item.harga || 0)
-              ),
+              subtotal: subtotal, // PERBAIKAN: Gunakan subtotal yang dihitung berdasarkan satuan
+              subtotalFormatted: formatIDR(subtotal),
               readOnly: false,
               is_from_sj: !!item.sj_item_id, // Set flag berdasarkan ada/tidaknya sj_item_id
             };
@@ -501,7 +522,16 @@ export default function OCXPurchaseOrderForm() {
       const satuanId = parseInt(newId);
       const items = (prev.items || []).map((it) => {
         const harga = it.hargaValue || 0;
-        const qty = satuanId === 2 ? it.yardValue || 0 : it.meterValue || 0;
+        let qty = 0;
+        
+        if (satuanId === 1) {
+          qty = it.meterValue || 0;
+        } else if (satuanId === 2) {
+          qty = it.yardValue || 0;
+        } else if (satuanId === 3) {
+          qty = it.kilogramValue || 0;
+        }
+
         const subtotal = qty * harga;
         return {
           ...it,
@@ -532,8 +562,10 @@ export default function OCXPurchaseOrderForm() {
       
       meter_total: 0,
       yard_total: 0,
+      kilogram_total: 0,
       meter_dalam_proses: 0,
       yard_dalam_proses: 0,
+      kilogram_dalam_proses: 0,
       
       std_susutValue: 0,
       std_susut: "",
@@ -542,6 +574,8 @@ export default function OCXPurchaseOrderForm() {
       meterValue: 0,
       yard: "",
       yardValue: 0,
+      kilogram: "",
+      kilogramValue: 0,
       
       harga: "",
       hargaValue: 0,
@@ -612,21 +646,31 @@ export default function OCXPurchaseOrderForm() {
           decimals: field === "lebar_greige" || field === "lebar_finish" ? 0 : 2,
         });
 
-        // Konversi dua arah tergantung satuan pilihan
-        if (satuanId === 1 && field === "meter") {
+        // PERBAIKAN: Konversi hanya untuk meter-yard, kilogram tetap terpisah
+        if (field === "meter" && satuanId === 1) {
           const yardValue = numValue * 1.093613;
           item.yardValue = yardValue;
           item.yard = formatNumber(yardValue, { decimals: 2 });
-        } else if (satuanId === 2 && field === "yard") {
+        } else if (field === "yard" && satuanId === 2) {
           const meterValue = numValue * 0.9144;
           item.meterValue = meterValue;
           item.meter = formatNumber(meterValue, { decimals: 2 });
         }
+        // Kilogram tidak ada konversi ke meter/yard
       }
 
       // Recalculate subtotal
       const harga = item.hargaValue || 0;
-      const qty = satuanId === 2 ? item.yardValue || 0 : item.meterValue || 0;
+      let qty = 0;
+      
+      if (satuanId === 1) {
+        qty = item.meterValue || 0;
+      } else if (satuanId === 2) {
+        qty = item.yardValue || 0;
+      } else if (satuanId === 3) {
+        qty = item.kilogramValue || 0;
+      }
+      
       const subtotal = qty * harga;
       item.subtotal = subtotal;
       item.subtotalFormatted = formatIDR(subtotal);
@@ -645,9 +689,25 @@ export default function OCXPurchaseOrderForm() {
   const totalYard = () =>
     form().items.reduce((sum, item) => sum + (item.yardValue || 0), 0);
 
+  const totalKilogram = () =>
+    form().items.reduce((sum, item) => sum + (item.kilogramValue || 0), 0);
+
   const totalAll = () => {
+    const satuanId = parseInt(form().satuan_unit_id || "1");
+    
     return form().items.reduce((sum, item) => {
-      return sum + (item.subtotal || 0);
+      let qty = 0;
+      
+      if (satuanId === 1) {
+        qty = item.meterValue || 0;
+      } else if (satuanId === 2) {
+        qty = item.yardValue || 0;
+      } else if (satuanId === 3) {
+        qty = item.kilogramValue || 0;
+      }
+      
+      const harga = item.hargaValue || 0;
+      return sum + (qty * harga);
     }, 0);
   };
 
@@ -741,6 +801,7 @@ export default function OCXPurchaseOrderForm() {
           std_susut: i.std_susutValue || 0,
           meter_total: i.meterValue || 0,
           yard_total: i.yardValue || 0,
+          kilogram_total: i.kilogramValue || 0,
           harga: i.hargaValue || 0,
         })),
       };
@@ -760,6 +821,7 @@ export default function OCXPurchaseOrderForm() {
         });
       } else {
         // Create OCX baru - perlu kirim no_po_ex dan sequence_number
+        //console.log("Data create OCX: ", JSON.stringify(payload, null ,2));
         await createOCX(user?.token, payload);
         Swal.fire({
           icon: "success",
@@ -799,6 +861,19 @@ export default function OCXPurchaseOrderForm() {
     const printUrl = `/print/ordercelup-purchaseocx?type=${printType}#${encodedData}`;
     window.open(printUrl, "_blank");
   }
+
+  // PERBAIKAN: Fungsi untuk menentukan apakah field tertentu bisa diinput
+  const canInputMeter = () => {
+    return canEditQty() && String(form().satuan_unit_id) === "1";
+  };
+
+  const canInputYard = () => {
+    return canEditQty() && String(form().satuan_unit_id) === "2";
+  };
+
+  const canInputKilogram = () => {
+    return canEditQty() && String(form().satuan_unit_id) === "3";
+  };
 
   return (
     <MainLayout>
@@ -1020,6 +1095,7 @@ export default function OCXPurchaseOrderForm() {
               <th hidden class="border p-2">Keterangan Warna</th>
               <th class="border p-2 w-28">Meter</th>
               <th class="border p-2 w-28">Yard</th>
+              <th class="border p-2 w-28">Kilogram</th>
               <th class="border p-2">Harga</th>
               <th class="border p-2">Subtotal</th>
               <th class="border p-2">Aksi</th>
@@ -1028,7 +1104,7 @@ export default function OCXPurchaseOrderForm() {
           <tbody>
             <For each={form().items}>
               {(item, i) => {
-                const unitIsMeter = String(form().satuan_unit_id) === "1";
+                const satuanId = String(form().satuan_unit_id);
                 return (
                   <tr>
                     <td class="border p-2 text-center">{i() + 1}</td>
@@ -1108,37 +1184,56 @@ export default function OCXPurchaseOrderForm() {
                       />
                     </td>
 
+                    {/* PERBAIKAN: Meter - hanya bisa input jika satuan = meter */}
                     <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
                         class="border p-1 rounded w-28"
-                        readOnly={isView || !canEditQty() || !unitIsMeter}
+                        readOnly={!canInputMeter()}
                         classList={{
-                          "bg-gray-200":
-                            isView || !canEditQty() || !unitIsMeter,
+                          "bg-gray-200": !canInputMeter(),
                         }}
                         value={item.meter}
                         onBlur={(e) => {
-                          if (!unitIsMeter || !canEditQty()) return;
+                          if (!canInputMeter()) return;
                           handleItemChange(i(), "meter", e.target.value);
                         }}
                       />
                     </td>
 
+                    {/* PERBAIKAN: Yard - hanya bisa input jika satuan = yard */}
                     <td class="border p-2">
                       <input
                         type="text"
                         inputmode="decimal"
                         class="border p-1 rounded w-28"
-                        readOnly={isView || !canEditQty() || unitIsMeter}
+                        readOnly={!canInputYard()}
                         classList={{
-                          "bg-gray-200": isView || !canEditQty() || unitIsMeter,
+                          "bg-gray-200": !canInputYard(),
                         }}
                         value={item.yard}
                         onBlur={(e) => {
-                          if (unitIsMeter || !canEditQty()) return;
+                          if (!canInputYard()) return;
                           handleItemChange(i(), "yard", e.target.value);
+                        }}
+                      />
+                    </td>
+
+                    {/* PERBAIKAN: Kilogram - hanya bisa input jika satuan = kilogram */}
+                    <td class="border p-2">
+                      <input
+                        type="text"
+                        inputmode="decimal"
+                        class="border p-1 rounded w-28"
+                        readOnly={!canInputKilogram()}
+                        classList={{
+                          "bg-gray-200": !canInputKilogram(),
+                        }}
+                        value={item.kilogram}
+                        onBlur={(e) => {
+                          if (!canInputKilogram()) return;
+                          handleItemChange(i(), "kilogram", e.target.value);
                         }}
                       />
                     </td>
@@ -1205,6 +1300,9 @@ export default function OCXPurchaseOrderForm() {
               </td>
               <td class="border p-2">
                 {formatNumber(totalYard(), { decimals: 2 })}
+              </td>
+              <td class="border p-2">
+                {formatNumber(totalKilogram(), { decimals: 2 })}
               </td>
               <td class="p-2"></td>
               <td class="border p-2">

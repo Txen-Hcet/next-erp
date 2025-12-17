@@ -24,6 +24,18 @@ export async function processSummaryData({ kind, data: baseRows, token }) {
         const det = await detailFetcher(row.id, token);
         const sj = det?.order ?? det?.suratJalan ?? det?.data ?? {};
 
+        // ============================================================
+        // LOGIC BARU: Filter is_via
+        // Hanya terapkan jika ini adalah Sales (Penjualan)
+        // Jika is_via = 1, "1", atau true, kembalikan null (skip data)
+        // ============================================================
+        if (isSales) {
+            const isViaValue = row.is_via ?? sj.is_via;
+            if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
+                return null;
+            }
+        }
+
         // ==== Mencari lokasi array 'items' pada response JSON endpoint ====
         // Untuk Penjualan, item ada di 'itemsWithRolls' atau di dalam 'packing_lists'.
         const items = sj.itemsWithRolls ?? sj.items ?? (sj.packing_lists?.[0]?.items) ?? [];
@@ -61,6 +73,7 @@ export async function processSummaryData({ kind, data: baseRows, token }) {
   );
 
   const groupedData = { invoiced: [], pending: [] };
+  // processedSJs.filter(Boolean) akan otomatis membuang yang return null (termasuk yang kena filter is_via)
   processedSJs.filter(Boolean).forEach(sj => {
     if (sj.mainData.delivered_status) {
       groupedData.invoiced.push(sj);

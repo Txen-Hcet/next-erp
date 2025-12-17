@@ -53,14 +53,18 @@ const calculateOCXStatus = (ocxData, detail) => {
   const items = detail.items;
   let totalMeter = 0;
   let totalYard = 0;
+  let totalKilogram = 0;
   let totalDeliveredMeter = 0;
   let totalDeliveredYard = 0;
+  let totalDeliveredKilogram = 0;
 
   items.forEach((item) => {
     totalMeter += parseFloat(item.meter_total || 0);
     totalYard += parseFloat(item.yard_total || 0);
+    totalKilogram += parseFloat(item.kilogram_total || 0);
     totalDeliveredMeter += parseFloat(item.delivered_meter_total || 0);
     totalDeliveredYard += parseFloat(item.delivered_yard_total || 0);
+    totalDeliveredKilogram += parseFloat(item.delivered_kilogram_total || 0);
   });
 
   let sisa = 0;
@@ -72,6 +76,9 @@ const calculateOCXStatus = (ocxData, detail) => {
       break;
     case 2: // Yard
       sisa = totalYard - totalDeliveredYard;
+      break;
+    case 3: // Kilogram
+      sisa = totalKilogram - totalDeliveredKilogram;
       break;
     default:
       sisa = 0;
@@ -142,12 +149,21 @@ export default function OCXDeliveryNoteForm() {
     )
   );
 
+  const totalKilogram = createMemo(() =>
+    form().itemGroups.reduce(
+      (sum, group) => sum + (parseFloat(group.kilogram_total) || 0),
+      0
+    )
+  );
+
   const totalQuantity = createMemo(() => {
     const satuanUnitId = form().satuan_unit_id;
     if (satuanUnitId === 1) {
       return totalMeter();
     } else if (satuanUnitId === 2) {
       return totalYard();
+    } else if (satuanUnitId === 3) {
+      return totalKilogram();
     } else {
       return totalMeter();
     }
@@ -181,14 +197,18 @@ export default function OCXDeliveryNoteForm() {
               const items = detail.items;
               let totalMeter = 0;
               let totalYard = 0;
+              let totalKilogram = 0;
               let totalDeliveredMeter = 0;
               let totalDeliveredYard = 0;
+              let totalDeliveredKilogram = 0;
 
               items.forEach((item) => {
                 totalMeter += parseFloat(item.meter_total || 0);
                 totalYard += parseFloat(item.yard_total || 0);
+                totalKilogram += parseFloat(item.kilogram_total || 0);
                 totalDeliveredMeter += parseFloat(item.delivered_meter_total || 0);
                 totalDeliveredYard += parseFloat(item.delivered_yard_total || 0);
+                totalDeliveredKilogram += parseFloat(item.delivered_kilogram_total || 0);
               });
 
               switch (parseInt(ocx.satuan_unit_id || 1)) {
@@ -199,6 +219,10 @@ export default function OCXDeliveryNoteForm() {
                 case 2: // Yard
                   sisa = totalYard - totalDeliveredYard;
                   total = totalYard;
+                  break;
+                case 3: // Kilogram
+                  sisa = totalKilogram - totalDeliveredKilogram;
+                  total = totalKilogram;
                   break;
               }
             }
@@ -321,6 +345,7 @@ export default function OCXDeliveryNoteForm() {
                 },
                 meter_total: parseFloat(group.meter_total) || 0,
                 yard_total: parseFloat(group.yard_total) || 0,
+                kilogram_total: parseFloat(group.kilogram_total) || 0,
                 gulung: typeof group.gulung === "number" ? group.gulung : 0,
                 lot: typeof group.lot === "number" ? group.lot : 0,
               };
@@ -395,14 +420,20 @@ export default function OCXDeliveryNoteForm() {
       const itemToUpdate = { ...updatedItemGroups[index] };
 
       if (satuanUnitId === 1) {
+        // Meter: update meter_total, konversi ke yard
         itemToUpdate.meter_total = numValue;
         itemToUpdate.yard_total = numValue * 1.093613;
+        itemToUpdate.kilogram_total = 0;
       } else if (satuanUnitId === 2) {
+        // Yard: update yard_total, konversi ke meter
         itemToUpdate.yard_total = numValue;
         itemToUpdate.meter_total = numValue / 1.093613;
-      } else {
-        itemToUpdate.meter_total = numValue;
-        itemToUpdate.yard_total = numValue;
+        itemToUpdate.kilogram_total = 0;
+      } else if (satuanUnitId === 3) {
+        // Kilogram: hanya update kilogram, tidak konversi
+        itemToUpdate.kilogram_total = numValue;
+        itemToUpdate.meter_total = 0;
+        itemToUpdate.yard_total = 0;
       }
 
       updatedItemGroups[index] = itemToUpdate;
@@ -536,6 +567,7 @@ export default function OCXDeliveryNoteForm() {
       },
       meter_total: 0,
       yard_total: 0,
+      kilogram_total: 0,
       gulung: 0,
       lot: 0,
     };
@@ -631,7 +663,15 @@ export default function OCXDeliveryNoteForm() {
     }
     
     const hasQuantity = form().itemGroups.some(group => {
-      const quantity = form().satuan_unit_id === 1 ? group.meter_total : group.yard_total;
+      const satuanUnitId = form().satuan_unit_id;
+      let quantity = 0;
+      if (satuanUnitId === 1) {
+        quantity = group.meter_total;
+      } else if (satuanUnitId === 2) {
+        quantity = group.yard_total;
+      } else if (satuanUnitId === 3) {
+        quantity = group.kilogram_total;
+      }
       return quantity > 0;
     });
     
@@ -658,7 +698,15 @@ export default function OCXDeliveryNoteForm() {
           satuan: unitName(),
           items: form()
             .itemGroups.filter((g) => {
-              const quantity = form().satuan_unit_id === 1 ? g.meter_total : g.yard_total;
+              const satuanUnitId = form().satuan_unit_id;
+              let quantity = 0;
+              if (satuanUnitId === 1) {
+                quantity = g.meter_total;
+              } else if (satuanUnitId === 2) {
+                quantity = g.yard_total;
+              } else if (satuanUnitId === 3) {
+                quantity = g.kilogram_total;
+              }
               return quantity > 0;
             })
             .map((g) => ({
@@ -666,6 +714,7 @@ export default function OCXDeliveryNoteForm() {
               po_ex_item_id: Number(g.purchase_order_item_id),
               meter_total: Number(g.meter_total) || 0,
               yard_total: Number(g.yard_total) || 0,
+              kilogram_total: Number(g.kilogram_total) || 0,
               gulung: Number(g.gulung) || 0,
               lot: Number(g.lot) || 0,
               sj_item_selected_status: 0,
@@ -684,13 +733,22 @@ export default function OCXDeliveryNoteForm() {
           satuan: unitName(),
           items: form()
             .itemGroups.filter((g) => {
-              const quantity = form().satuan_unit_id === 1 ? g.meter_total : g.yard_total;
+              const satuanUnitId = form().satuan_unit_id;
+              let quantity = 0;
+              if (satuanUnitId === 1) {
+                quantity = g.meter_total;
+              } else if (satuanUnitId === 2) {
+                quantity = g.yard_total;
+              } else if (satuanUnitId === 3) {
+                quantity = g.kilogram_total;
+              }
               return quantity > 0;
             })
             .map((g) => ({
               po_ex_item_id: Number(g.purchase_order_item_id),
               meter_total: Number(g.meter_total) || 0,
               yard_total: Number(g.yard_total) || 0,
+              kilogram_total: Number(g.kilogram_total) || 0,
               gulung: Number(g.gulung) || 0,
               lot: Number(g.lot) || 0,
               sj_item_selected_status: 0,
@@ -868,9 +926,19 @@ export default function OCXDeliveryNoteForm() {
                 {(item) => {
                   const satuanUnitId = form().satuan_unit_id;
                   
-                  const sisa = satuanUnitId === 1
-                    ? parseFloat(item.meter_total) - parseFloat(item.delivered_meter_total || 0)
-                    : parseFloat(item.yard_total) - parseFloat(item.delivered_yard_total || 0);
+                  let sisa = 0;
+                  let satuan = "";
+                  
+                  if (satuanUnitId === 1) {
+                    sisa = parseFloat(item.meter_total) - parseFloat(item.delivered_meter_total || 0);
+                    satuan = "m";
+                  } else if (satuanUnitId === 2) {
+                    sisa = parseFloat(item.yard_total) - parseFloat(item.delivered_yard_total || 0);
+                    satuan = "yd";
+                  } else if (satuanUnitId === 3) {
+                    sisa = parseFloat(item.kilogram_total) - parseFloat(item.delivered_kilogram_total || 0);
+                    satuan = "kg";
+                  }
 
                   return (
                     <li class="text-sm list-disc">
@@ -880,8 +948,7 @@ export default function OCXDeliveryNoteForm() {
                       - Quantity: 
                       {sisa > 0.01 ? (
                         <span class="font-bold text-blue-600">
-                          {formatNumber(sisa)}{" "}
-                          {unitName() === "Meter" ? "m" : "yd"}
+                          {formatNumber(sisa)} {satuan}
                         </span>
                       ) : (
                         <span class="font-bold text-red-600">HABIS</span>
@@ -923,9 +990,15 @@ export default function OCXDeliveryNoteForm() {
                 <For each={form().itemGroups}>
                   {(group, i) => {
                     const satuanUnitId = form().satuan_unit_id;
-                    const quantity = satuanUnitId === 1 
-                      ? group.meter_total 
-                      : group.yard_total;
+                    let quantity = 0;
+                    
+                    if (satuanUnitId === 1) {
+                      quantity = group.meter_total;
+                    } else if (satuanUnitId === 2) {
+                      quantity = group.yard_total;
+                    } else if (satuanUnitId === 3) {
+                      quantity = group.kilogram_total;
+                    }
 
                     return (
                       <tr>

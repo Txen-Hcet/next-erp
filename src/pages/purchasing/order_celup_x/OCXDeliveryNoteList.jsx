@@ -179,6 +179,10 @@ export default function OCXDeliveryNoteList() {
       // Jumlah yang diterima (yard_total) / jumlah yang dipesan (yard_order)
       totalOrder = sj.items.reduce((sum, item) => sum + parseFloat(item.yard_order || 0), 0);
       totalReceived = sj.items.reduce((sum, item) => sum + parseFloat(item.yard_total || 0), 0);
+    } else if (satuanUnit === "Kilogram") {
+      // Jumlah yang diterima (kilogram_total) / jumlah yang dipesan (kilogram_order)
+      totalOrder = sj.items.reduce((sum, item) => sum + parseFloat(item.kilogram_order || 0), 0);
+      totalReceived = sj.items.reduce((sum, item) => sum + parseFloat(item.kilogram_total || 0), 0);
     } else {
       return { display: "-", isSelesai: false };
     }

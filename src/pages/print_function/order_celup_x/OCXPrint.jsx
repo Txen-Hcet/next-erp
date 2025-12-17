@@ -85,6 +85,10 @@ export default function OCXPrint(props) {
     (data().items || []).reduce((sum, item) => sum + parseFloat(item.yard_total || 0), 0)
   );
 
+  const totalKilogram = createMemo(() => 
+    (data().items || []).reduce((sum, item) => sum + parseFloat(item.kilogram_total || 0), 0)
+  );
+
   // Hitung subtotal dari items (qty * harga)
   const subTotal = createMemo(() => {
     const items = data().items || [];
@@ -112,6 +116,7 @@ export default function OCXPrint(props) {
     grand: jumlahTotal(),
     totalMeter: totalMeter(),
     totalYard: totalYard(),
+    totalKilogram: totalKilogram(),
   }));
 
   // ===== Pagination =====
@@ -318,7 +323,7 @@ function PrintPage(props) {
     switch(satuanUnitName) {
       case 'Meter': return totals.totalMeter;
       case 'Yard': return totals.totalYard;
-      case 'Kilogram': return 0; // Jika ada kilogram_total, sesuaikan
+      case 'Kilogram': return totals.totalKilogram;
       default: return totals.totalMeter;
     }
   };

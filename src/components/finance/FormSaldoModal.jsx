@@ -31,7 +31,7 @@ export default function FormSaldoModal(props) {
       disc: Number(disc()),
       saldo_akhir: Number(saldoAkhir()),
       giro: Number(giro()),
-      saldo_gm: Number(saldo_gm()),
+      saldo_gm: Number(saldoGm()),
     };
 
     onSubmit(payload);
@@ -83,7 +83,7 @@ export default function FormSaldoModal(props) {
               onInput={setBayar}
             />
             <Field
-              label="Cash Disc/Komisi"
+              label="Disc/Komisi"
               type="number"
               value={disc()}
               onInput={setDisc}
@@ -91,8 +91,8 @@ export default function FormSaldoModal(props) {
             <Field
               label="Saldo Akhir"
               type="number"
-              value={giro()}
-              onInput={setGiro}
+              value={saldoAkhir()}
+              onInput={setSaldoAkhir}
             />
             <Field
               label="Giro Mundur"
@@ -103,8 +103,8 @@ export default function FormSaldoModal(props) {
             <Field
               label="Saldo sth GM"
               type="number"
-              value={giro()}
-              onInput={setGiro}
+              value={saldoGm()}
+              onInput={setSaldoGm}
             />
           </div>
 

@@ -28,7 +28,6 @@ const parseNum = (val) => {
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "");
 
 // NEW: helper lokal untuk mencocokkan baris dengan pilihan customer
-// selectedCustomerId bisa berupa number/string id asli ATAU string berformat "name:Nama Customer"
 const matchesCustomer = (row, selectedCustomerId) => {
   if (!selectedCustomerId) return true;
 
@@ -49,13 +48,8 @@ const matchesCustomer = (row, selectedCustomerId) => {
     row?.buyer?.nama ??
     null;
 
-  // 1) match id
   if (cid !== null && String(cid) === sel) return true;
-
-  // 2) match name:key "name:Nama"
   if (cname && `name:${cname}` === sel) return true;
-
-  // 3) direct name equality (in case UI passed plain name)
   if (cname && String(cname) === sel) return true;
 
   return false;
@@ -70,7 +64,6 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
     ? (baseRows || []).filter((r) => matchesCustomer(r, customer_id))
     : baseRows;
 
-  // jika setelah filter tidak ada baris, langsung kembalikan []
   if (!filteredBaseRows || filteredBaseRows.length === 0) return [];
 
   Swal.fire({
@@ -98,6 +91,16 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
 
         // Jika mode penjualan: gunakan struktur grouped { mainData, items }
         if (block.mode === "penjualan") {
+          // ============================================================
+          // LOGIC BARU: Filter is_via
+          // Cek di row (data list) atau data (data detail)
+          // Jika is_via bernilai 1, "1", atau true, skip data ini.
+          // ============================================================
+          const isViaValue = row.is_via ?? data.is_via; 
+          if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
+            return null;
+          }
+
           const itemsFromApi = Array.isArray(data.packing_lists)
             ? data.packing_lists.flatMap((pl) => pl.items || [])
             : Array.isArray(data.items)
