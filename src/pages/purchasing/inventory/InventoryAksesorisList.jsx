@@ -5,8 +5,8 @@ import Swal from "sweetalert2";
 import { Trash, Edit, Printer } from "lucide-solid";
 
 import {
-  getAllKainAdjustment,
-  softDeleteKainAdjustment,
+  getAllAksesorisAdjustment,
+  softDeleteAksesorisAdjustment,
   getUser,
 } from "../../../utils/auth";
 
@@ -18,13 +18,38 @@ export default function InventoryAksesorisList() {
   const navigate = useNavigate();
   const user = getUser();
 
+  // Format Tanggal: dd/mm/yyyy
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "-";
+      return new Intl.DateTimeFormat("id-ID", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(date);
+    } catch (e) {
+      return "-";
+    }
+  };
+
+  const formatNumber = (num) => {
+    const n = Number(num);
+    if (!Number.isFinite(n)) return "0,00";
+    return n.toLocaleString("id-ID", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   /* ================= FETCH ================= */
   const fetchInventory = async () => {
     try {
-      const res = await getAllKainAdjustment(user?.token);
+      const res = await getAllAksesorisAdjustment(user?.token);
       setRows(res?.data || []);
     } catch {
-      Swal.fire("Error", "Gagal mengambil data inventory kain", "error");
+      Swal.fire("Error", "Gagal mengambil data inventory aksesoris", "error");
     }
   };
 
@@ -57,11 +82,11 @@ export default function InventoryAksesorisList() {
     if (!confirm.isConfirmed) return;
 
     try {
-      await softDeleteKainAdjustment(user?.token, { id: row.id });
-      Swal.fire("Berhasil", "Inventory kain dihapus", "success");
+      await softDeleteAksesorisAdjustment(user?.token, { id: row.id });
+      Swal.fire("Berhasil", "Inventory aksesoris dihapus", "success");
       fetchInventory();
     } catch {
-      Swal.fire("Gagal", "Gagal menghapus inventory kain", "error");
+      Swal.fire("Gagal", "Gagal menghapus inventory aksesoris", "error");
     }
   };
 
@@ -80,7 +105,7 @@ export default function InventoryAksesorisList() {
       })
     );
 
-    window.open(`/print/inventory-kain#${payload}`, "_blank");
+    window.open(`/print/inventory-aksesoris#${payload}`, "_blank");
   };
 
   return (
@@ -107,7 +132,7 @@ export default function InventoryAksesorisList() {
 
           <button
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            onClick={() => navigate("/inventory/kain/form")}
+            onClick={() => navigate("/inventory/aksesoris/form")}
           >
             + Tambah
           </button>
@@ -120,9 +145,14 @@ export default function InventoryAksesorisList() {
           <thead>
             <tr class="bg-gray-100 text-sm uppercase">
               <th class="p-3 border">No</th>
-              <th class="p-3 border">Tanggal</th>
-              <th class="p-3 border">Jenis</th>
-              <th class="p-3 border">Qty</th>
+              {/* <th class="p-3 border">Tanggal</th> */}
+              {/* <th class="p-3 border">Jenis</th> */}
+              {/* <th class="p-3 border">Qty</th> */}
+
+              <th class="p-3 border">Nama Aksesoris</th>
+              <th class="p-3 border">Deskripsi Aksesoris</th>
+              <th class="p-3 border">Kuantitas Awal</th>
+              <th class="p-3 border">Tanggal Pembuatan</th>
               <th class="p-3 border text-center">Aksi</th>
             </tr>
           </thead>
@@ -134,7 +164,7 @@ export default function InventoryAksesorisList() {
                   {(currentPage() - 1) * pageSize + idx + 1}
                 </td>
 
-                <td class="p-3 border">{row.tanggal}</td>
+                {/* <td class="p-3 border">{row.tanggal}</td>
 
                 <td class="p-3 border">
                   <span
@@ -148,12 +178,17 @@ export default function InventoryAksesorisList() {
                   </span>
                 </td>
 
-                <td class="p-3 border">{row.qty}</td>
+                <td class="p-3 border">{row.qty}</td> */}
+
+                <td class="p-3 border text-center">{row.nama_aksesoris}</td>
+                <td class="p-3 border text-center">{row.deskripsi_aksesoris}</td>
+                <td class="p-3 border text-center">{formatNumber(row.kuantitas_awal)}</td>
+                <td class="p-3 border text-center">{formatDate(row.created_at)}</td>
 
                 <td class="p-3 border text-center space-x-2">
                   <button
                     class="text-blue-600"
-                    onClick={() => navigate(`/inventory/kain/form/${row.id}`)}
+                    onClick={() => navigate(`/inventory/aksesoris/form?id=${row.id}`)}
                   >
                     <Edit size={18} />
                   </button>

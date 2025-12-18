@@ -12,9 +12,32 @@ import {
   getAllGrades,
   getUser,
 } from "../../../utils/auth";
-import FabricDropdownSearch from "../../../components/FabricDropdownSearch";
-import ColorDropdownSearch from "../../../components/ColorDropdownSearch";
-import GradeDropdownSearch from "../../../components/GradeDropdownSearch";
+import FabricInventoryDropdownSearch from "../../../components/inventory/FabricInventoryDropdownSearch";
+import ColorInventoryDropdownSearch from "../../../components/inventory/ColorInventoryDropdownSearch";
+import GradeInventoryDropdownSearch from "../../../components/inventory/GradeInventoryDropdownSearch";
+
+// --- HELPER FORMATTER ---
+const formatDisplay = (val) => {
+  if (val === "" || val === null || val === undefined) return "";
+  const num = parseFloat(val);
+  if (isNaN(num)) return "";
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
+
+const parseNumber = (val) => {
+  if (!val) return 0;
+  // Hapus karakter non-angka/koma/titik/minus
+  let clean = val.replace(/[^0-9.,-]/g, "");
+  // Hapus titik (ribuan)
+  clean = clean.replace(/\./g, "");
+  // Ganti koma dengan titik (desimal)
+  clean = clean.replace(/,/g, ".");
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
+};
 
 export default function InventoryKainForm() {
   const navigate = useNavigate();
@@ -27,7 +50,7 @@ export default function InventoryKainForm() {
   const [colors, setColors] = createSignal([]);
   const [grades, setGrades] = createSignal([]);
 
-  // State form sesuai response BE
+  // State form sesuai response BE (Menyimpan Number Murni)
   const [form, setForm] = createSignal({
     kain_id: null,
     // Dikomen karena belum dipakai
@@ -46,6 +69,29 @@ export default function InventoryKainForm() {
     keterangan_adjustment_kain: "",
   });
 
+  // State untuk tampilan input (String Terformat)
+  const [displayValues, setDisplayValues] = createSignal({
+    meter: "",
+    yard: "",
+    kilogram: "",
+  });
+
+  // Handler Input: Update display (text) & form (number)
+  const handleInputNumber = (field, displayField, value) => {
+    setDisplayValues((prev) => ({ ...prev, [displayField]: value }));
+    const numVal = parseNumber(value);
+    setForm((prev) => ({ ...prev, [field]: numVal }));
+  };
+
+  // Handler Blur: Format tampilan jadi cantik (1.000,00) saat user selesai ketik
+  const handleBlurNumber = (field, displayField) => {
+    const rawValue = form()[field];
+    const formatted = formatDisplay(rawValue);
+    setDisplayValues((prev) => ({ ...prev, [displayField]: formatted }));
+  };
+
+  const handleFocus = (e) => e.target.select();
+
   /* ================= FETCH MASTER DATA ================= */
   onMount(async () => {
     setLoading(true);
@@ -56,65 +102,57 @@ export default function InventoryKainForm() {
         getAllColors(user?.token),
         getAllGrades(user?.token),
       ]);
-      
-      console.log("Fabrics Response:", fabricsRes);
-      console.log("Colors Response:", colorsRes);
-      console.log("Grades Response:", gradesRes);
-      
+
       // MENYESUAIKAN DENGAN CARA OCPurchaseOrderForm
       // Untuk Fabrics - ambil dari fabricsRes.kain seperti di OCPurchaseOrderForm
       let fabricsData = [];
       if (fabricsRes && fabricsRes.kain && Array.isArray(fabricsRes.kain)) {
         fabricsData = fabricsRes.kain;
-        console.log("Fabrics Data dari fabrics.kain:", fabricsData);
-      } else if (fabricsRes && fabricsRes.data && Array.isArray(fabricsRes.data)) {
+      } else if (
+        fabricsRes &&
+        fabricsRes.data &&
+        Array.isArray(fabricsRes.data)
+      ) {
         fabricsData = fabricsRes.data;
       } else if (Array.isArray(fabricsRes)) {
         fabricsData = fabricsRes;
       }
-      
-      // Pastikan data fabrics memiliki format yang benar untuk FabricDropdownSearch
-      // FabricDropdownSearch mengharapkan array dengan properti: id, corak, konstruksi
-      const normalizedFabrics = fabricsData.map(item => {
-        // Komponen FabricDropdownSearch mencari dengan f.id == item.fabric_id
-        // Jadi kita perlu memastikan id ada di properti 'id'
+
+      const normalizedFabrics = fabricsData.map((item) => {
         return {
           id: item.id || item.kain_id || item.fabric_id,
           corak: item.corak || item.nama || item.name || "",
-          konstruksi: item.konstruksi || item.deskripsi || item.description || "",
-          // Simpan properti asli juga untuk referensi
-          ...item
+          konstruksi:
+            item.konstruksi || item.deskripsi || item.description || "",
+          ...item,
         };
       });
-      
+
       setFabrics(normalizedFabrics);
-      console.log("Fabrics Data yang dikirim ke dropdown:", normalizedFabrics);
-      
+
       // Untuk Colors - dari log sebelumnya, data ada di properti 'warna'
       let colorsData = [];
       if (colorsRes && colorsRes.warna && Array.isArray(colorsRes.warna)) {
         colorsData = colorsRes.warna;
-        console.log("Colors Data dari colors.warna:", colorsData);
       } else if (Array.isArray(colorsRes)) {
         colorsData = colorsRes;
       } else if (colorsRes && colorsRes.data && Array.isArray(colorsRes.data)) {
         colorsData = colorsRes.data;
       }
-      
+
       // Normalisasi data colors untuk ColorDropdownSearch
       // ColorDropdownSearch mengharapkan: id, kode, deskripsi
-      const normalizedColors = colorsData.map(item => {
+      const normalizedColors = colorsData.map((item) => {
         return {
           id: item.id || item.warna_id,
           kode: item.kode || item.code || "",
           deskripsi: item.deskripsi || item.description || "",
-          ...item
+          ...item,
         };
       });
-      
+
       setColors(normalizedColors);
-      console.log("Colors Data yang dikirim ke dropdown:", normalizedColors);
-      
+
       // Untuk Grades
       let gradesData = [];
       if (gradesRes && gradesRes.data && Array.isArray(gradesRes.data)) {
@@ -122,26 +160,26 @@ export default function InventoryKainForm() {
       } else if (Array.isArray(gradesRes)) {
         gradesData = gradesRes;
       }
-      
+
       // Normalisasi data grades untuk GradeDropdownSearch
-      const normalizedGrades = gradesData.map(item => {
+      const normalizedGrades = gradesData.map((item) => {
         return {
           id: item.id || item.grade_id,
           grade: item.grade || item.nama || item.name || "",
-          ...item
+          ...item,
         };
       });
-      
+
       setGrades(normalizedGrades);
-      console.log("Grades Data yang dikirim ke dropdown:", normalizedGrades);
 
       // Jika mode edit, fetch data adjustment
       if (isEdit) {
         const res = await getKainAdjustment(params.id, user?.token);
-        console.log("Adjustment Response:", res);
-        
+
+        //console.log("Fetched kain adjustment:", JSON.stringify(res, null, 2));
+
         const data = res?.data || res || {};
-        
+
         // Pastikan kain_id dan warna_id dalam format yang benar
         // Komponen dropdown mencari dengan f.id == item.fabric_id dan s.id == item.warna_id
         setForm({
@@ -161,6 +199,13 @@ export default function InventoryKainForm() {
           // no_bal: data.no_bal || 0,
           keterangan_adjustment_kain: data.keterangan_adjustment_kain || "",
         });
+
+        // Update Display Values saat Edit Mode
+        setDisplayValues({
+          meter: formatDisplay(data.meter_awal),
+          yard: formatDisplay(data.yard_awal),
+          kilogram: formatDisplay(data.kilogram_awal),
+        });
       }
     } catch (err) {
       console.error("Error in onMount:", err);
@@ -177,13 +222,17 @@ export default function InventoryKainForm() {
       Swal.fire("Warning", "Pilih jenis kain terlebih dahulu", "warning");
       return false;
     }
-    
+
     // Validasi minimal salah satu dari meter, yard, atau kilogram harus diisi
     if (!form().meter_awal && !form().yard_awal && !form().kilogram_awal) {
-      Swal.fire("Warning", "Harap isi minimal satu dari: Meter, Yard, atau Kilogram", "warning");
+      Swal.fire(
+        "Warning",
+        "Harap isi minimal satu dari: Meter, Yard, atau Kilogram",
+        "warning"
+      );
       return false;
     }
-    
+
     return true;
   };
 
@@ -212,7 +261,10 @@ export default function InventoryKainForm() {
         keterangan_adjustment_kain: form().keterangan_adjustment_kain,
       };
 
-      console.log("Payload yang akan dikirim:", payload);
+      console.log(
+        "Payload yang akan dikirim:",
+        JSON.stringify(payload, null, 2)
+      );
 
       if (isEdit) {
         await updateKainAdjustment(user?.token, {
@@ -251,11 +303,11 @@ export default function InventoryKainForm() {
           <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
         </div>
       </Show>
-      
+
       <h1 class="text-2xl font-bold mb-6">
         {isEdit ? "Edit" : "Tambah"} Inventory Kain
       </h1>
-      
+
       <form
         onSubmit={handleSubmit}
         class="max-w-lg space-y-4"
@@ -264,11 +316,10 @@ export default function InventoryKainForm() {
         {/* 1. JENIS KAIN */}
         <div>
           <label class="block mb-1 font-medium">Jenis Kain *</label>
-          <FabricDropdownSearch
+          <FabricInventoryDropdownSearch
             fabrics={fabrics}
             item={{ fabric_id: form().kain_id }}
             onChange={(id) => {
-              console.log("Kain dipilih:", id);
               setForm({ ...form(), kain_id: id });
             }}
           />
@@ -277,11 +328,10 @@ export default function InventoryKainForm() {
         {/* 2. WARENA (optional) */}
         <div>
           <label class="block mb-1 font-medium">Warna (opsional)</label>
-          <ColorDropdownSearch
+          <ColorInventoryDropdownSearch
             colors={colors}
             item={{ warna_id: form().warna_id }}
             onChange={(id) => {
-              console.log("Warna dipilih:", id);
               setForm({ ...form(), warna_id: id });
             }}
           />
@@ -290,7 +340,7 @@ export default function InventoryKainForm() {
         {/* GRADE - Dikomen karena belum dipakai */}
         {/* <div>
           <label class="block mb-1 font-medium">Grade (opsional)</label>
-          <GradeDropdownSearch
+          <GradeInventoryDropdownSearch
             grades={grades}
             item={{ grade_id: form().grade_id }}
             onChange={(id) => setForm({ ...form(), grade_id: id })}
@@ -301,13 +351,15 @@ export default function InventoryKainForm() {
         <div>
           <label class="block mb-1 font-medium">Meter (opsional)</label>
           <input
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
             class="border p-2 w-full rounded"
-            placeholder="Masukkan meter"
-            value={form().meter_awal}
-            onInput={(e) => setForm({ ...form(), meter_awal: e.target.value })}
+            placeholder="0,00"
+            value={displayValues().meter}
+            onInput={(e) =>
+              handleInputNumber("meter_awal", "meter", e.target.value)
+            }
+            onBlur={() => handleBlurNumber("meter_awal", "meter")}
+            onFocus={handleFocus}
           />
         </div>
 
@@ -315,13 +367,15 @@ export default function InventoryKainForm() {
         <div>
           <label class="block mb-1 font-medium">Yard (opsional)</label>
           <input
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
             class="border p-2 w-full rounded"
-            placeholder="Masukkan yard"
-            value={form().yard_awal}
-            onInput={(e) => setForm({ ...form(), yard_awal: e.target.value })}
+            placeholder="0,00"
+            value={displayValues().yard}
+            onInput={(e) =>
+              handleInputNumber("yard_awal", "yard", e.target.value)
+            }
+            onBlur={() => handleBlurNumber("yard_awal", "yard")}
+            onFocus={handleFocus}
           />
         </div>
 
@@ -329,13 +383,15 @@ export default function InventoryKainForm() {
         <div>
           <label class="block mb-1 font-medium">Kilogram (opsional)</label>
           <input
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
             class="border p-2 w-full rounded"
-            placeholder="Masukkan kilogram"
-            value={form().kilogram_awal}
-            onInput={(e) => setForm({ ...form(), kilogram_awal: e.target.value })}
+            placeholder="0,00"
+            value={displayValues().kilogram}
+            onInput={(e) =>
+              handleInputNumber("kilogram_awal", "kilogram", e.target.value)
+            }
+            onBlur={() => handleBlurNumber("kilogram_awal", "kilogram")}
+            onFocus={handleFocus}
           />
         </div>
 
@@ -347,13 +403,17 @@ export default function InventoryKainForm() {
             rows="3"
             placeholder="Keterangan adjustment kain"
             value={form().keterangan_adjustment_kain}
-            onInput={(e) => setForm({ ...form(), keterangan_adjustment_kain: e.target.value })}
+            onInput={(e) =>
+              setForm({
+                ...form(),
+                keterangan_adjustment_kain: e.target.value,
+              })
+            }
           />
         </div>
 
         {/* FIELD TAMBAHAN YANG DIBUTUHKAN - Dikomen karena belum dipakai */}
-        {/* 
-        <div>
+        {/* <div>
           <label class="block mb-1 font-medium">Lebar Kain (opsional)</label>
           <input
             type="number"
@@ -387,7 +447,7 @@ export default function InventoryKainForm() {
             class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-blue-300"
             disabled={loading()}
           >
-            {loading() ? "Menyimpan..." : (isEdit ? "Update" : "Simpan")}
+            {loading() ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
           </button>
 
           <button

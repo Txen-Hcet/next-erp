@@ -6627,8 +6627,12 @@ export async function updateKainAdjustment(token, payload) {
 // DELETE – DELETE /delete-kain-adjustment
 export async function softDeleteKainAdjustment(token, payload) {
   try {
+    const { id } = payload; 
+
+    if (!id) throw new Error("ID tidak ditemukan");
+
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/delete-kain-adjustment`,
+      `${import.meta.env.VITE_API_URL}/delete-kain-adjustment/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -6636,7 +6640,7 @@ export async function softDeleteKainAdjustment(token, payload) {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
         },
-        body: JSON.stringify(payload), // { id }
+        // Jika Backend butuh body juga, gunakan: body: JSON.stringify(payload)
       }
     );
 
@@ -6771,8 +6775,12 @@ export async function updateAksesorisAdjustment(token, payload) {
 // DELETE – DELETE /delete-aksesoris-adjustment
 export async function softDeleteAksesorisAdjustment(token, payload) {
   try {
+    const { id } = payload; 
+
+    if (!id) throw new Error("ID tidak ditemukan");
+
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL}/delete-aksesoris-adjustment`,
+      `${import.meta.env.VITE_API_URL}/delete-aksesoris-adjustment/${id}`,
       {
         method: "DELETE",
         headers: {
@@ -6780,7 +6788,7 @@ export async function softDeleteAksesorisAdjustment(token, payload) {
           Authorization: `Bearer ${token}`,
           "ngrok-skip-browser-warning": "any-value",
         },
-        body: JSON.stringify(payload), // { id }
+        // Jika Backend butuh body juga, gunakan: body: JSON.stringify(payload)
       }
     );
 

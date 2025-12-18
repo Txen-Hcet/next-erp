@@ -38,6 +38,9 @@ import InventoryAksesorisList from "./pages/purchasing/inventory/InventoryAkseso
 import InventoryAksesorisForm from "./pages/purchasing/inventory/InventoryAksesorisForm";
 import InventoryKainForm from "./pages/purchasing/inventory/InventoryKainForm";
 
+import InventoryKainPrint from "./utils/inventory/InventoryKainDummyPrint"
+import InventoryAksesorisPrint from "./utils/inventory/InventoryAksesorisDummyPrint"
+
 // // PRINT OCX
 // import OCXDataDummyPrint from "./utils/buy/order_celup_x/OCXDummyPrint";
 // import SJOCXDataDummyPrint from "./utils/buy/order_celup_x/SJOCXDummyPrint";
@@ -249,6 +252,9 @@ function App() {
         path="/inventory/aksesoris/form"
         component={InventoryAksesorisForm}
       />
+
+      <Route path="/print/inventory-kain" component={InventoryKainPrint}/>
+      <Route path="/print/inventory-aksesoris" component={InventoryAksesorisPrint}/>
       {/* WAREHOUSE */}
 
       {/* PURCHASING */}
