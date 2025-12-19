@@ -63,9 +63,13 @@ export default function SalesContractDropdownSearch({
   //   });
   // });
 
+  const viaSalesContracts = createMemo(() => {
+    return salesContracts().filter(c => c.is_via === 0 || c.is_via === false);
+  });
+
   const filteredSalesContracts = createMemo(() => {
     const q = search().toLowerCase();
-    return salesContracts().filter((c) => {
+    return viaSalesContracts().filter((c) => {
       const no_sc = (c.no_sc || "").toLowerCase();
       const customer = (c.customer_name || "").toLowerCase();
 
@@ -83,7 +87,7 @@ export default function SalesContractDropdownSearch({
   });
 
   const selectedSalesContract = createMemo(() =>
-    salesContracts().find((c) => c.id == form().sales_contract_id)
+    viaSalesContracts().find((c) => c.id == form().sales_contract_id)
   );
 
   const selectContract = (contract) => {

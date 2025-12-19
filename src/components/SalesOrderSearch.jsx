@@ -88,10 +88,14 @@ export default function SalesOrderDropdownSearch({
     onCleanup(cleanup);
   });
 
+  const viaSalesOrders = createMemo(() => {
+    return salesOrders().filter(so => so.is_via === 0 || so.is_via === false);
+  });
+
   // 2. Logika filter diperbarui untuk menggunakan prop filterType
   const filteredSalesOrders = createMemo(() => {
     const q = search().toLowerCase();
-    return salesOrders().filter((so) => {
+    return viaSalesOrders().filter((so) => {
       const no_so = (so.no_so || "").toLowerCase();
       const customer = (so.customer_name || "").toLowerCase();
       
@@ -114,7 +118,7 @@ export default function SalesOrderDropdownSearch({
   });
 
   const selectedSalesOrder = createMemo(() =>
-    salesOrders().find((c) => c.id == form().sales_order_id)
+    viaSalesOrders().find((c) => c.id == form().sales_order_id)
   );
 
   const selectSalesOrder = (so) => {
