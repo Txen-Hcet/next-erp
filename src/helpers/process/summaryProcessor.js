@@ -24,11 +24,7 @@ export async function processSummaryData({ kind, data: baseRows, token }) {
         const det = await detailFetcher(row.id, token);
         const sj = det?.order ?? det?.suratJalan ?? det?.data ?? {};
 
-        // ============================================================
-        // LOGIC BARU: Filter is_via
-        // Hanya terapkan jika ini adalah Sales (Penjualan)
-        // Jika is_via = 1, "1", atau true, kembalikan null (skip data)
-        // ============================================================
+        // Filter is_via untuk Sales
         if (isSales) {
             const isViaValue = row.is_via ?? sj.is_via;
             if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
@@ -36,22 +32,27 @@ export async function processSummaryData({ kind, data: baseRows, token }) {
             }
         }
 
-        // ==== Mencari lokasi array 'items' pada response JSON endpoint ====
-        // Untuk Penjualan, item ada di 'itemsWithRolls' atau di dalam 'packing_lists'.
         const items = sj.itemsWithRolls ?? sj.items ?? (sj.packing_lists?.[0]?.items) ?? [];
         
         if (items.length === 0) return null;
+
+        // === AMBIL CURRENCY ===
+        // Prioritas: sj.currency -> sj.currency_id -> 'IDR'
+        let currencyCode = sj.currency || "IDR";
+        if (!sj.currency && sj.currency_id === 2) currencyCode = "USD";
+        if (!sj.currency && sj.currency_id === 1) currencyCode = "IDR";
 
         const mainData = {
           customer_name: sj.customer_name || row.customer_name || '-',
           supplier_name: isSales ? null : (sj.supplier_name || row.supplier_name || '-'),
           delivered_status: Number(row.delivered_status) === 1,
+          currency: currencyCode // Simpan Currency
         };
         
         const processedItems = items.map(item => {
-          // Untuk Penjualan, unit ada di level atas. Untuk Jual Beli, bisa di level atas atau item.
           const unit = sj.satuan_unit || item.satuan_unit_name || 'Meter';
-          const qty = unit === 'Yard' ? (+item.yard_total || 0) : (+item.meter_total || 0);
+          const qty = unit === 'Yard' ? (+item.yard_total || 0) : unit === 'Kilogram' ? (+item.kilogram_total || 0) : (+item.meter_total || 0);
+
           const harga = isFiniteNumber(item.harga) ? +item.harga : 0;
           
           return {
@@ -73,7 +74,6 @@ export async function processSummaryData({ kind, data: baseRows, token }) {
   );
 
   const groupedData = { invoiced: [], pending: [] };
-  // processedSJs.filter(Boolean) akan otomatis membuang yang return null (termasuk yang kena filter is_via)
   processedSJs.filter(Boolean).forEach(sj => {
     if (sj.mainData.delivered_status) {
       groupedData.invoiced.push(sj);

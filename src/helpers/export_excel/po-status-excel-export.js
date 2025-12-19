@@ -12,9 +12,15 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
+// HELPER: Format Excel Dinamis
+const getCurrencyFmt = (currencyCode) => {
+  if (currencyCode === 'USD') return '"$ "#,##0.00';
+  return '"Rp "#,##0.00';
+};
+
 export async function exportPOStatusToExcel({ block, status, filterLabel, token, poRows, isGreige, PO_DETAIL_FETCHER, customer_id = null }) {
   if (block.key !== "sales") {
-      customer_id = null; // hanya sales yang pakai customer filter
+      customer_id = null; 
   }
   
   const processedData = await processPOStatusData({
@@ -38,6 +44,7 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Laporan PO Status');
 
+  // Hapus numFmt statis dari definisi kolom harga/total agar bisa dinamis
   let columns = [
     { header: 'No', key: 'no', width: 5, style: { alignment: { horizontal: 'center' } } },
     { header: 'No. PO', key: 'ref', width: 27, style: { alignment: { horizontal: 'center' } } },
@@ -61,13 +68,13 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
 
   if (isKainJadi) {
     columns.push(
-      { header: 'Harga Greige', key: 'harga_greige', width: 18, style: { numFmt: '"Rp "#,##0.00' } },
-      { header: 'Harga Maklun', key: 'harga_maklun', width: 18, style: { numFmt: '"Rp "#,##0.00' } }
+      { header: 'Harga Greige', key: 'harga_greige', width: 18 }, // tanpa numFmt
+      { header: 'Harga Maklun', key: 'harga_maklun', width: 18 }  // tanpa numFmt
     );
   } else {
-    columns.push({ header: 'Harga', key: 'harga_satuan', width: 18, style: { numFmt: '"Rp "#,##0.00' } });
+    columns.push({ header: 'Harga', key: 'harga_satuan', width: 18 }); // tanpa numFmt
   }
-  columns.push({ header: 'Total', key: 'subtotal', width: 20, style: { numFmt: '"Rp "#,##0.00' } });
+  columns.push({ header: 'Total', key: 'subtotal', width: 20 }); // tanpa numFmt
 
   worksheet.columns = columns;
 
@@ -98,15 +105,28 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
     cell.border = borderStyle;
   });
 
-  let grandTotal = 0;
+  // TOTALING
+  let grandTotalIDR = 0;
+  let grandTotalUSD = 0;
+
   processedData.forEach((po, index) => {
     const { mainData, items } = po;
     if (!Array.isArray(items) || items.length === 0) return;
 
+    // Ambil Currency per PO dari mainData
+    const currentCurrency = mainData.currency || 'IDR';
+    const currentFmt = getCurrencyFmt(currentCurrency);
+
     const startRow = worksheet.rowCount + 1;
 
     items.forEach((item, itemIndex) => {
-      grandTotal += Number(item.subtotal || 0);
+      const subTotal = Number(item.subtotal || 0);
+      
+      if (currentCurrency === 'USD') {
+        grandTotalUSD += subTotal;
+      } else {
+        grandTotalIDR += subTotal;
+      }
       
       const rowData = {
         ...item
@@ -132,6 +152,19 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
           cell.numFmt = `#,##0.00" ${mainData.unit || ''}"`;
         } catch (e) {}
       });
+
+      // APPLY FORMAT CURRENCY DINAMIS PER SEL
+      if (isKainJadi) {
+        const c1 = addedRow.getCell('harga_greige');
+        const c2 = addedRow.getCell('harga_maklun');
+        c1.numFmt = currentFmt;
+        c2.numFmt = currentFmt;
+      } else {
+        const c = addedRow.getCell('harga_satuan');
+        c.numFmt = currentFmt;
+      }
+      const ct = addedRow.getCell('subtotal');
+      ct.numFmt = currentFmt;
     });
 
     if (items.length > 1) {
@@ -152,23 +185,35 @@ export async function exportPOStatusToExcel({ block, status, filterLabel, token,
   });
 
   worksheet.addRow([]);
-  const totalRowNumber = worksheet.lastRow.number + 1;
-  const totalRow = worksheet.addRow([]);
-  worksheet.mergeCells(totalRowNumber, 1, totalRowNumber, columns.length - 1);
 
-  const totalLabelCell = totalRow.getCell(1);
-  totalLabelCell.value = 'TOTAL AKHIR';
-  totalLabelCell.font = { bold: true };
-  totalLabelCell.alignment = { horizontal: 'right' };
+  // RENDER GRAND TOTAL ROWS
+  const renderTotalRow = (label, value, fmt) => {
+    const r = worksheet.addRow([]);
+    const rowNum = r.number;
+    
+    worksheet.mergeCells(rowNum, 1, rowNum, columns.length - 1);
+    const labelCell = r.getCell(1);
+    labelCell.value = label;
+    labelCell.font = { bold: true };
+    labelCell.alignment = { horizontal: 'right' };
 
-  for (let i = 1; i <= columns.length; i++) {
-    totalRow.getCell(i).border = borderStyle;
+    for (let i = 1; i <= columns.length; i++) {
+        r.getCell(i).border = borderStyle;
+    }
+
+    const valCell = r.getCell(columns.length);
+    valCell.value = value;
+    valCell.font = { bold: true };
+    valCell.numFmt = fmt;
+  };
+
+  if (grandTotalIDR > 0 || grandTotalUSD === 0) {
+    renderTotalRow('TOTAL AKHIR (IDR)', grandTotalIDR, '"Rp "#,##0.00');
   }
 
-  const totalValueCell = totalRow.getCell(columns.length);
-  totalValueCell.value = grandTotal;
-  totalValueCell.font = { bold: true };
-  totalValueCell.numFmt = '"Rp "#,##0.00';
+  if (grandTotalUSD > 0) {
+    renderTotalRow('TOTAL AKHIR (USD)', grandTotalUSD, '"$ "#,##0.00');
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

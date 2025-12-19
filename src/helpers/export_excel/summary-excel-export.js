@@ -12,6 +12,12 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
+// HELPER: Format Excel Dinamis
+const getCurrencyFmt = (currencyCode) => {
+  if (currencyCode === 'USD') return '"$ "#,##0.00';
+  return '"Rp "#,##0.00'; // Default IDR
+};
+
 export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
   const isSales = kind === 'sales';
   const title = `Summary ${isSales ? 'Penjualan' : 'Jual Beli'}`;
@@ -26,6 +32,7 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
     return Swal.fire("Info", "Tidak ada data detail yang dapat diolah untuk ekspor.", "info");
   }
 
+  // Hapus numFmt statis dari Harga & Total agar bisa dinamis
   const columnConfig = [
     { header: 'No', key: 'no', width: 5 },
     { header: 'Nama Customer', key: 'customer_name', width: 25, style: { alignment: { horizontal: 'center' } } },
@@ -36,8 +43,8 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
     { header: 'Meter', key: 'meter', width: 15, style: { numFmt: '#,##0.00' } },
     { header: 'Yard', key: 'yard', width: 15, style: { numFmt: '#,##0.00' } },
     { header: 'Kilogram', key: 'kg', width: 15, style: { numFmt: '#,##0.00' } },
-    { header: 'Harga', key: 'harga', width: 18, style: { numFmt: '"Rp "#,##0.00' } },
-    { header: 'Total', key: 'total', width: 20, style: { numFmt: '"Rp "#,##0.00' } }
+    { header: 'Harga', key: 'harga', width: 18 }, // Hapus numFmt statis
+    { header: 'Total', key: 'total', width: 20 }  // Hapus numFmt statis
   );
 
   const workbook = new ExcelJS.Workbook();
@@ -80,19 +87,32 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
     });
 
     let no = startNo;
-    let groupTotal = { meter: 0, yard: 0, kg: 0, amount: 0 };
+    // PISAHKAN TOTAL IDR DAN USD
+    let groupTotal = { meter: 0, yard: 0, kg: 0, amountIDR: 0, amountUSD: 0 };
 
     groupData.forEach((sj) => {
       const { mainData, items } = sj;
       if (!Array.isArray(items) || items.length === 0) return;
 
+      // Ambil currency dari mainData (pastikan processor menyediakannya)
+      // Jika tidak ada di mainData, coba ambil dari item pertama atau default IDR
+      const currentCurrency = mainData.currency || items[0]?.currency || 'IDR';
+      const currentFmt = getCurrencyFmt(currentCurrency);
+
       no += 1;
       const startRowNumber = worksheet.rowCount + 1;
+      
       items.forEach((item) => {
         groupTotal.meter += Number(item.meter || 0);
         groupTotal.yard += Number(item.yard || 0);
         groupTotal.kg += Number(item.kg || 0);
-        groupTotal.amount += Number(item.subtotal || 0);
+        
+        const subTotal = Number(item.subtotal || 0);
+        if (currentCurrency === 'USD') {
+            groupTotal.amountUSD += subTotal;
+        } else {
+            groupTotal.amountIDR += subTotal;
+        }
 
         const rowValues = [];
         rowValues.push('', '');
@@ -102,39 +122,26 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
         rowValues.push(Number(item.yard ?? 0));
         rowValues.push(Number(item.kg ?? 0));
         rowValues.push(Number(item.harga_satuan ?? 0));
-        rowValues.push(Number(item.subtotal ?? 0));
+        rowValues.push(subTotal);
 
         const added = worksheet.addRow(rowValues);
 
-        // Apply number formats (columns already have styles, but set explicitly on cells too)
+        // Apply number formats
         const meterIdx = columnConfig.findIndex(c => c.key === 'meter') + 1;
         const yardIdx = columnConfig.findIndex(c => c.key === 'yard') + 1;
         const kgIdx = columnConfig.findIndex(c => c.key === 'kg') + 1;
         const hargaIdx = columnConfig.findIndex(c => c.key === 'harga') + 1;
         const totalIdx = columnConfig.findIndex(c => c.key === 'total') + 1;
 
-        if (meterIdx) {
-          const c = added.getCell(meterIdx);
-          c.numFmt = '#,##0.00';
-        }
-        if (yardIdx) {
-          const c = added.getCell(yardIdx);
-          c.numFmt = '#,##0.00';
-        }
-        if (kgIdx) {
-          const c = added.getCell(kgIdx);
-          c.numFmt = '#,##0.00';
-        }
-        if (hargaIdx) {
-          const c = added.getCell(hargaIdx);
-          c.numFmt = '"Rp "#,##0.00';
-        }
-        if (totalIdx) {
-          const c = added.getCell(totalIdx);
-          c.numFmt = '"Rp "#,##0.00';
-        }
+        if (meterIdx) added.getCell(meterIdx).numFmt = '#,##0.00';
+        if (yardIdx) added.getCell(yardIdx).numFmt = '#,##0.00';
+        if (kgIdx) added.getCell(kgIdx).numFmt = '#,##0.00';
+        
+        // APPLY FORMAT DINAMIS
+        if (hargaIdx) added.getCell(hargaIdx).numFmt = currentFmt;
+        if (totalIdx) added.getCell(totalIdx).numFmt = currentFmt;
 
-        // Apply border to the row
+        // Apply border
         added.eachCell((cell) => {
           cell.border = borderStyle;
         });
@@ -173,23 +180,52 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
       }
     });
 
-    const totalRowVals = new Array(columnConfig.length).fill('');
-    const labelIndex = columnConfig.findIndex(c => c.key === 'corak');
-    if (labelIndex >= 0) totalRowVals[labelIndex] = 'Grand Total';
-    const meterIdx = columnConfig.findIndex(c => c.key === 'meter');
-    const yardIdx = columnConfig.findIndex(c => c.key === 'yard');
-    const kgIdx = columnConfig.findIndex(c => c.key === 'kg');
-    const totalIdx = columnConfig.findIndex(c => c.key === 'total');
-    if (meterIdx >= 0) totalRowVals[meterIdx] = groupTotal.meter;
-    if (yardIdx >= 0) totalRowVals[yardIdx] = groupTotal.yard;
-    if (kgIdx >= 0) totalRowVals[kgIdx] = groupTotal.kg;
-    if (totalIdx >= 0) totalRowVals[totalIdx] = groupTotal.amount;
+    // --- RENDER TOTAL ---
+    const renderTotalRow = (labelSuffix, amount, fmt) => {
+        const totalRowVals = new Array(columnConfig.length).fill('');
+        const labelIndex = columnConfig.findIndex(c => c.key === 'corak');
+        if (labelIndex >= 0) totalRowVals[labelIndex] = `Grand Total ${labelSuffix}`;
+        
+        const meterIdx = columnConfig.findIndex(c => c.key === 'meter');
+        const yardIdx = columnConfig.findIndex(c => c.key === 'yard');
+        const kgIdx = columnConfig.findIndex(c => c.key === 'kg');
+        const totalIdx = columnConfig.findIndex(c => c.key === 'total');
+        
+        if (meterIdx >= 0) totalRowVals[meterIdx] = groupTotal.meter;
+        if (yardIdx >= 0) totalRowVals[yardIdx] = groupTotal.yard;
+        if (kgIdx >= 0) totalRowVals[kgIdx] = groupTotal.kg;
+        if (totalIdx >= 0) totalRowVals[totalIdx] = amount;
 
-    const totalRow = worksheet.addRow(totalRowVals);
-    totalRow.eachCell((cell) => {
-      cell.font = { bold: true };
-      cell.border = borderStyle;
-    });
+        const totalRow = worksheet.addRow(totalRowVals);
+        totalRow.eachCell((cell, colNumber) => {
+          cell.font = { bold: true };
+          cell.border = borderStyle;
+          // Apply format mata uang khusus ke kolom Total
+          if (colNumber === totalIdx + 1) {
+             cell.numFmt = fmt;
+          }
+          // Apply format quantity
+          if ([meterIdx+1, yardIdx+1, kgIdx+1].includes(colNumber)) {
+             cell.numFmt = '#,##0.00';
+          }
+        });
+    };
+
+    // Render Total IDR (Selalu muncul atau jika ada)
+    if (groupTotal.amountIDR > 0 || groupTotal.amountUSD === 0) {
+        renderTotalRow('(IDR)', groupTotal.amountIDR, '"Rp "#,##0.00');
+    }
+
+    // Render Total USD (Jika ada)
+    if (groupTotal.amountUSD > 0) {
+        // Reset qty di baris kedua agar tidak double counting (opsional, tergantung preferensi)
+        // Disini saya biarkan quantity tetap muncul di baris USD juga sebagai total kumulatif yang sama
+        // Atau set 0 jika ingin quantity hanya muncul sekali
+        groupTotal.meter = 0; 
+        groupTotal.yard = 0; 
+        groupTotal.kg = 0;
+        renderTotalRow('(USD)', groupTotal.amountUSD, '"$ "#,##0.00');
+    }
 
     worksheet.addRow([]);
     return no;
@@ -198,7 +234,6 @@ export async function exportSummaryToExcel({ kind, data, filterLabel, token }) {
   let startNo = 0;
   startNo = renderGroup('Sudah Terbit Invoice', processedData.invoiced || [], startNo);
   startNo = renderGroup('Belum Terbit Invoice', processedData.pending || [], startNo);
-
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

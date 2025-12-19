@@ -12,6 +12,12 @@ function excelColLetter(colNumber) {
   return letters;
 }
 
+// HELPER: Tentukan format Excel berdasarkan kode mata uang
+const getCurrencyFmt = (currencyCode) => {
+  if (currencyCode === 'USD') return '"$ "#,##0.00';
+  return '"Rp "#,##0.00'; // Default IDR
+};
+
 export async function exportDeliveryNotesToExcel({ block, token, startDate, endDate, filterLabel, customer_id = null }) {
   const title = `Laporan - ${block.label}`;
   const isSales = block.mode === "penjualan";
@@ -19,7 +25,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   const isKainJadi = block.key === "kain_jadi";
 
   if (block.key !== "sales") {
-      customer_id = null; // hanya sales yang pakai customer filter
+      customer_id = null;
   }
 
   const normalizeDate = (d) => {
@@ -59,6 +65,8 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
             no_sj: r.no_sj ?? '',
             no_ref: r.no_ref ?? '',
             relasi: r.relasi ?? '',
+            // Ambil currency jika ada di data flat (jika backend mendukung)
+            currency: r.currency || 'IDR' 
           },
           items: []
         });
@@ -87,6 +95,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
     return ta - tb;
   });
 
+  // --- DEFINISI KOLOM (Tanpa numFmt statis untuk Harga/Total) ---
   const columnConfig = [
     { header: 'No', key: 'no', width: 5, style: { alignment: { horizontal: 'center' } } },
     { header: 'Tgl', key: 'tanggal', width: 12, style: { alignment: { horizontal: 'center' } } },
@@ -96,21 +105,25 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   ];
   if (!isGreige) columnConfig.push({ header: 'Warna', key: 'warna', width: 15, style: { alignment: { horizontal: 'center' } } });
   if (isSales) columnConfig.push({ header: 'Grade', key: 'grade', width: 10, style: { alignment: { horizontal: 'center' } } });
+  
+  // Qty tetap format angka biasa
   columnConfig.push(
     { header: 'Kain', key: 'kain', width: 15, style: { alignment: { horizontal: 'center' } } },
     { header: 'Total Meter', key: 'meter', width: 12, style: { numFmt: '#,##0.00' } },
     { header: 'Total Yard', key: 'yard', width: 12, style: { numFmt: '#,##0.00' } },
     { header: 'Total Kilogram', key: 'kilogram', width: 15, style: { numFmt: '#,##0.00' } }
   );
+
+  // Harga & Total TIDAK dikasih numFmt di sini, nanti di-set per row
   if (isKainJadi) {
     columnConfig.push(
-      { header: 'Harga Greige', key: 'harga1', width: 15, style: { numFmt: '"Rp "#,##0.00' } },
-      { header: 'Harga Maklun', key: 'harga2', width: 15, style: { numFmt: '"Rp "#,##0.00' } }
+      { header: 'Harga Greige', key: 'harga1', width: 15 },
+      { header: 'Harga Maklun', key: 'harga2', width: 15 }
     );
   } else {
-    columnConfig.push({ header: 'Harga', key: 'harga1', width: 15, style: { numFmt: '"Rp "#,##0.00' } });
+    columnConfig.push({ header: 'Harga', key: 'harga1', width: 15 });
   }
-  columnConfig.push({ header: 'Total', key: 'total', width: 20, style: { numFmt: '"Rp "#,##0.00' } });
+  columnConfig.push({ header: 'Total', key: 'total', width: 20 });
 
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Laporan');
@@ -142,12 +155,27 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
     cell.border = borderStyle;
   });
 
-  let grandTotal = 0;
+  // --- LOGIC TOTAL ---
+  let grandTotalIDR = 0;
+  let grandTotalUSD = 0;
+
   processedData.forEach((sj, index) => {
     if (!Array.isArray(sj.items) || sj.items.length === 0) return;
     const addedRowNums = [];
+
+    // Ambil Currency per Surat Jalan
+    const currentCurrency = sj.mainData.currency || 'IDR';
+    const currentFmt = getCurrencyFmt(currentCurrency);
+
     sj.items.forEach((item, itemIndex) => {
-      grandTotal += Number(item.total || 0);
+      const subTotal = Number(item.total || 0);
+      
+      // Akumulasi Total sesuai Mata Uang
+      if (currentCurrency === 'USD') {
+        grandTotalUSD += subTotal;
+      } else {
+        grandTotalIDR += subTotal;
+      }
 
       const dateRaw = sj.mainData?.tanggal ?? '';
       let formattedDate = '';
@@ -177,7 +205,7 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
         kilogram: Number(item.kilogram ?? 0),
         harga1: Number(item.harga1 ?? 0),
         harga2: isKainJadi ? Number(item.harga2 ?? 0) : undefined,
-        total: Number(item.total ?? 0)
+        total: subTotal
       };
 
       const rowToAdd = columnConfig.map(col => {
@@ -193,35 +221,25 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
       });
       addedRowNums.push(added.number);
 
-      const meterColIdx = columnConfig.findIndex(c => c.key === 'meter') + 1;
-      const yardColIdx = columnConfig.findIndex(c => c.key === 'yard') + 1;
-      const kilogramColIdx = columnConfig.findIndex(c => c.key === 'kilogram') + 1;
+      // Set NumFmt PER SEL
       const harga1Idx = columnConfig.findIndex(c => c.key === 'harga1') + 1;
-      const totalIdx = columnConfig.length;
+      const harga2Idx = columnConfig.findIndex(c => c.key === 'harga2') + 1;
+      const totalIdx = columnConfig.length; // Asumsi Total selalu kolom terakhir
 
-      if (meterColIdx > 0) {
-        const c = added.getCell(meterColIdx);
-        c.numFmt = '#,##0.00';
-        c.value = Number(item.meter ?? 0);
-      }
-      if (yardColIdx > 0) {
-        const c = added.getCell(yardColIdx);
-        c.numFmt = '#,##0.00';
-        c.value = Number(item.yard ?? 0);
-      }
-      if (kilogramColIdx > 0) {
-        const c = added.getCell(kilogramColIdx);
-        c.numFmt = '#,##0.00';
-        c.value = Number(item.kilogram ?? 0);
-      }      
       if (harga1Idx > 0) {
         const c = added.getCell(harga1Idx);
-        c.numFmt = '"Rp "#,##0.00';
+        c.numFmt = currentFmt; // Gunakan format dinamis
         c.value = Number(item.harga1 ?? 0);
       }
+      if (harga2Idx > 0 && isKainJadi) {
+        const c = added.getCell(harga2Idx);
+        c.numFmt = currentFmt;
+        c.value = Number(item.harga2 ?? 0);
+      }
+      
       const totalCell = added.getCell(totalIdx);
-      totalCell.numFmt = '"Rp "#,##0.00';
-      totalCell.value = Number(item.total ?? 0);
+      totalCell.numFmt = currentFmt;
+      totalCell.value = subTotal;
     });
 
     if (addedRowNums.length > 1) {
@@ -238,22 +256,43 @@ export async function exportDeliveryNotesToExcel({ block, token, startDate, endD
   });
 
   worksheet.addRow([]);
-  const lastRowNumber = worksheet.lastRow.number + 1;
-  const totalRow = worksheet.addRow([]);
-  worksheet.mergeCells(lastRowNumber, 1, lastRowNumber, columnConfig.length - 1);
-  const totalLabelCell = totalRow.getCell(1);
-  totalLabelCell.value = 'TOTAL AKHIR';
-  totalLabelCell.font = { bold: true };
-  totalLabelCell.alignment = { horizontal: 'right' };
 
-  for (let i = 1; i <= columnConfig.length; i++) {
-    totalRow.getCell(i).border = borderStyle;
+  // --- RENDER GRAND TOTAL ---
+  
+  // Fungsi Helper Render Baris Total
+  const renderTotalRow = (label, value, fmt) => {
+    const r = worksheet.addRow([]);
+    const rowNum = r.number;
+    
+    // Merge cell untuk label
+    worksheet.mergeCells(rowNum, 1, rowNum, columnConfig.length - 1);
+    
+    const labelCell = r.getCell(1);
+    labelCell.value = label;
+    labelCell.font = { bold: true };
+    labelCell.alignment = { horizontal: 'right' };
+
+    // Styling border semua kolom
+    for (let i = 1; i <= columnConfig.length; i++) {
+      r.getCell(i).border = borderStyle;
+    }
+
+    // Isi value total
+    const valCell = r.getCell(columnConfig.length);
+    valCell.value = value;
+    valCell.font = { bold: true };
+    valCell.numFmt = fmt;
+  };
+
+  // Render Total IDR (Jika ada atau default)
+  if (grandTotalIDR > 0 || grandTotalUSD === 0) {
+    renderTotalRow('TOTAL AKHIR (IDR)', grandTotalIDR, '"Rp "#,##0.00');
   }
 
-  const totalValueCell = totalRow.getCell(columnConfig.length);
-  totalValueCell.value = grandTotal;
-  totalValueCell.font = { bold: true };
-  totalValueCell.numFmt = '"Rp "#,##0.00';
+  // Render Total USD (Hanya jika ada)
+  if (grandTotalUSD > 0) {
+    renderTotalRow('TOTAL AKHIR (USD)', grandTotalUSD, '"$ "#,##0.00');
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

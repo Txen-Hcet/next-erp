@@ -1,15 +1,30 @@
 import { processPOStatusData } from '../../helpers/process/poStatusProcessor';
 
-// Helper formatting tidak berubah
 const formatNum = (n) => new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(+n || 0);
+
 const formatDatePrint = (d) => {
   const x = new Date(d);
   if (Number.isNaN(x.getTime())) return "-";
   return `${String(x.getDate()).padStart(2, "0")}-${String(x.getMonth() + 1).padStart(2, "0")}-${x.getFullYear()}`;
 };
-const formatCurrency = (n) => {
+
+// HELPER BARU DENGAN CURRENCY CODE
+const formatCurrency = (n, currencyCode = "IDR") => {
   if (n === null || n === undefined) return "-";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 2 }).format(+n);
+  
+  if (currencyCode === "USD") {
+    return new Intl.NumberFormat("en-US", { 
+      style: "currency", 
+      currency: "USD", 
+      minimumFractionDigits: 2 
+    }).format(+n);
+  }
+
+  return new Intl.NumberFormat("id-ID", { 
+    style: "currency", 
+    currency: "IDR", 
+    minimumFractionDigits: 2 
+  }).format(+n);
 };
 
 const openPrintWindow = (title, processedData, block, filterLabel) => {
@@ -20,45 +35,16 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
     const refHeader = isSales ? "No. SO" : (block.key === 'jual_beli' ? 'No. JB' : "No. PO");
     
     const style = `<style>
-    @page { 
-        size: A4; 
-        margin: 11mm; 
-    }
-    body { 
-        font-family: Arial, sans-serif; 
-        margin: 0; 
-    }
-    .paper { 
-        width: 100%; 
-    }
-    h1 { 
-        font-size: 16px; 
-        margin: 0 0 8mm 0; 
-    }
-    table { 
-        border-collapse: collapse; 
-        width: 100%; 
-    }
-    th, td { 
-        border: 1px solid #000; 
-        padding: 3px 4px; 
-        font-size: 9px; 
-        word-wrap: break-word; 
-    }
-    th { 
-        background: #DADBDD; 
-        text-align: center; 
-    }
-    thead { 
-        display: table-header-group; 
-    }
-    tfoot { 
-        display: table-row-group; 
-    }
-    .grand-total-row { 
-        page-break-inside: avoid; 
-        font-weight: bold; 
-    }
+    @page { size: A4; margin: 11mm; }
+    body { font-family: Arial, sans-serif; margin: 0; }
+    .paper { width: 100%; }
+    h1 { font-size: 16px; margin: 0 0 8mm 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #000; padding: 3px 4px; font-size: 9px; word-wrap: break-word; }
+    th { background: #DADBDD; text-align: center; }
+    thead { display: table-header-group; }
+    tfoot { display: table-row-group; }
+    .grand-total-row { page-break-inside: avoid; font-weight: bold; }
     </style>`;
     
     const headerHtml = `<h1>${title}</h1>
@@ -76,12 +62,24 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
     headers.push('Total');
     const thead = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
 
-    let grandTotal = 0;
+    // TOTALING LOGIC (Pisahkan IDR dan USD)
+    let grandTotalIDR = 0;
+    let grandTotalUSD = 0;
+
     const tbody = processedData.map((po, index) => {
         const { mainData, items } = po;
         if (items.length === 0) return '';
         
-        grandTotal += items.reduce((sum, item) => sum + item.subtotal, 0);
+        // Ambil currency per PO dari mainData
+        const currentCurrency = mainData.currency || 'IDR';
+
+        const poSubTotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+        
+        if (currentCurrency === 'USD') {
+            grandTotalUSD += poSubTotal;
+        } else {
+            grandTotalIDR += poSubTotal;
+        }
         
         const rowCount = items.length;
         const unitLabel = mainData.unit || 'Meter';
@@ -99,9 +97,8 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
         firstItemRow += `<td>${firstItem.warna}</td><td>${firstItem.ketWarna}</td>`;
         }
 
-        // tampilkan qty per ITEM (jangan rowspan) — gunakan field per-item jika ada, fallback ke mainData
-        const qtyPO_item = Number(firstItem.totalPO ?? firstItem.totalPO ?? firstItem.totalPO ?? mainData.totalPO ?? 0);
-        const masukPO_item = Number(firstItem.masukPO ?? firstItem.masukPO ?? firstItem.masukPO ?? mainData.masukPO ?? 0);
+        const qtyPO_item = Number(firstItem.totalPO ?? mainData.totalPO ?? 0);
+        const masukPO_item = Number(firstItem.masukPO ?? mainData.masukPO ?? 0);
         const sisaPO_item = Number(firstItem.sisaPO ?? Math.max(0, (qtyPO_item - masukPO_item)));
 
         firstItemRow += `
@@ -111,16 +108,16 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
         `;
 
         if (isKainJadi) {
-        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_greige)}</td>
-                        <td style="text-align:right;">${formatCurrency(firstItem.harga_maklun)}</td>`;
+        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_greige, currentCurrency)}</td>
+                         <td style="text-align:right;">${formatCurrency(firstItem.harga_maklun, currentCurrency)}</td>`;
         } else {
-        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_satuan)}</td>`;
+        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.harga_satuan, currentCurrency)}</td>`;
         }
-        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.subtotal)}</td></tr>`;
+        firstItemRow += `<td style="text-align:right;">${formatCurrency(firstItem.subtotal, currentCurrency)}</td></tr>`;
 
         const subsequentItemRows = items.slice(1).map(item => {
-        const qtyPO = Number(item.totalPO ?? item.total ?? mainData.totalPO ?? 0);
-        const masukPO = Number(item.masukPO ?? item.masukPO ?? mainData.masukPO ?? 0);
+        const qtyPO = Number(item.totalPO ?? mainData.totalPO ?? 0);
+        const masukPO = Number(item.masukPO ?? mainData.masukPO ?? 0);
         const sisaPO = Number(item.sisaPO ?? Math.max(0, (qtyPO - masukPO)));
 
         let rowHtml = `<tr><td>${item.corak}</td>`;
@@ -135,12 +132,12 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
         `;
 
         if (isKainJadi) {
-            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_greige)}</td>
-                        <td style="text-align:right;">${formatCurrency(item.harga_maklun)}</td>`;
+            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_greige, currentCurrency)}</td>
+                        <td style="text-align:right;">${formatCurrency(item.harga_maklun, currentCurrency)}</td>`;
         } else {
-            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_satuan)}</td>`;
+            rowHtml += `<td style="text-align:right;">${formatCurrency(item.harga_satuan, currentCurrency)}</td>`;
         }
-        rowHtml += `<td style="text-align:right;">${formatCurrency(item.subtotal)}</td></tr>`;
+        rowHtml += `<td style="text-align:right;">${formatCurrency(item.subtotal, currentCurrency)}</td></tr>`;
         return rowHtml;
         }).join('');
 
@@ -149,10 +146,25 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
     }).join('');
 
     const colspanForLabel = headers.length - 1;
-    const tfoot = `<tfoot><tr class="grand-total-row">
-        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR</td>
-        <td style="text-align:right;">${formatCurrency(grandTotal)}</td>
-    </tr></tfoot>`;
+    
+    // BUILD TFOOT WITH MULTIPLE CURRENCIES
+    let tfootContent = '';
+    
+    if (grandTotalIDR > 0 || grandTotalUSD === 0) {
+        tfootContent += `<tr class="grand-total-row">
+        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR (IDR)</td>
+        <td style="text-align:right;">${formatCurrency(grandTotalIDR, 'IDR')}</td>
+        </tr>`;
+    }
+    
+    if (grandTotalUSD > 0) {
+        tfootContent += `<tr class="grand-total-row">
+        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR (USD)</td>
+        <td style="text-align:right;">${formatCurrency(grandTotalUSD, 'USD')}</td>
+        </tr>`;
+    }
+
+    const tfoot = `<tfoot>${tfootContent}</tfoot>`;
 
     const w = window.open("", "", "height=700,width=980");
     w.document.write(`<html><head><title>${title}</title>${style}</head><body>
@@ -163,7 +175,7 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
 
 export async function printPOStatus({ block, status, poRows, startDate, endDate, token, PO_DETAIL_FETCHER, customer_id = null }) {
     if (block.key !== "sales") {
-        customer_id = null; // hanya sales yang pakai customer filter
+        customer_id = null;
     }
     const title = `Rekap ${block.label} - ${status === "done" ? "Selesai" : "Belum Selesai"}`;
     const filterLabel = (!startDate && !endDate) ? "Semua Data" : `${startDate} s/d ${endDate}`;
@@ -175,4 +187,4 @@ export async function printPOStatus({ block, status, poRows, startDate, endDate,
     }
 
     openPrintWindow(title, processedData, block, filterLabel);
-    }
+}

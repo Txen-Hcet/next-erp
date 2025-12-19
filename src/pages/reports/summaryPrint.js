@@ -3,14 +3,28 @@ import { getAllDeliveryNotes, getAllJBDeliveryNotes } from "../../utils/auth";
 
 // Helper Formatting
 const fmt2 = (n) => new Intl.NumberFormat("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(+n || 0);
-const fmtRp = (n) => {
+
+// Helper Mata Uang Dinamis
+const formatCurrency = (n, currencyCode = "IDR") => {
   if (n === null || n === undefined) return "-";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 2 }).format(+n);
+  
+  if (currencyCode === "USD") {
+    return new Intl.NumberFormat("en-US", { 
+      style: "currency", 
+      currency: "USD", 
+      minimumFractionDigits: 2 
+    }).format(+n);
+  }
+
+  return new Intl.NumberFormat("id-ID", { 
+    style: "currency", 
+    currency: "IDR", 
+    minimumFractionDigits: 2 
+  }).format(+n);
 };
 
-// Fungsi untuk membangun satu buah tabel HTML (misal: "Sudah Invoice")
 const buildTableHtml = (label, data, isSales) => {
-  const emptyCols = isSales ? 8 : 9;
+  const emptyCols = isSales ? 8 : 9; // Sesuaikan colspan jika data kosong
   if (data.length === 0) {
     return `<h3>${label}</h3><table border="1"><thead><tr><th colspan="${emptyCols}">Tidak ada data</th></tr></thead></table>`;
   }
@@ -27,7 +41,13 @@ const buildTableHtml = (label, data, isSales) => {
     </tr>
     <tr><th>Meter</th><th>Yard</th><th>Kg</th></tr>`;
 
-  let groupTotal = { meter: 0, yard: 0, kg: 0, amount: 0 };
+  // Akumulator Total
+  let totalMeter = 0;
+  let totalYard = 0;
+  let totalKg = 0;
+  let totalAmountIDR = 0;
+  let totalAmountUSD = 0;
+
   let currentNo = 0;
 
   const tbody = data.map(sj => {
@@ -35,11 +55,19 @@ const buildTableHtml = (label, data, isSales) => {
     if (items.length === 0) return '';
     currentNo++;
 
+    // Ambil currency per SJ
+    const currentCurrency = mainData.currency || 'IDR';
+
     items.forEach(item => {
-      groupTotal.meter += item.meter;
-      groupTotal.yard += item.yard;
-      groupTotal.kg += item.kg;
-      groupTotal.amount += item.subtotal;
+      totalMeter += item.meter;
+      totalYard += item.yard;
+      totalKg += item.kg;
+      
+      if (currentCurrency === 'USD') {
+          totalAmountUSD += item.subtotal;
+      } else {
+          totalAmountIDR += item.subtotal;
+      }
     });
     
     const rowCount = items.length;
@@ -56,8 +84,8 @@ const buildTableHtml = (label, data, isSales) => {
         <td style="text-align:right;">${fmt2(firstItem.meter)}</td>
         <td style="text-align:right;">${fmt2(firstItem.yard)}</td>
         <td style="text-align:right;">${fmt2(firstItem.kg)}</td>
-        <td style="text-align:right;">${fmtRp(firstItem.harga_satuan)}</td>
-        <td style="text-align:right;">${fmtRp(firstItem.subtotal)}</td>
+        <td style="text-align:right;">${formatCurrency(firstItem.harga_satuan, currentCurrency)}</td>
+        <td style="text-align:right;">${formatCurrency(firstItem.subtotal, currentCurrency)}</td>
       </tr>`;
       
     const subsequentItemRows = items.slice(1).map(item => `
@@ -66,32 +94,54 @@ const buildTableHtml = (label, data, isSales) => {
         <td style="text-align:right;">${fmt2(item.meter)}</td>
         <td style="text-align:right;">${fmt2(item.yard)}</td>
         <td style="text-align:right;">${fmt2(item.kg)}</td>
-        <td style="text-align:right;">${fmtRp(item.harga_satuan)}</td>
-        <td style="text-align:right;">${fmtRp(item.subtotal)}</td>
+        <td style="text-align:right;">${formatCurrency(item.harga_satuan, currentCurrency)}</td>
+        <td style="text-align:right;">${formatCurrency(item.subtotal, currentCurrency)}</td>
       </tr>`).join('');
 
     return firstItemRow + subsequentItemRows;
   }).join('');
 
   const colspan = isSales ? 3 : 4;
-  const tfoot = `
-    <tfoot>
-      <tr style="font-weight:bold;">
-        <td colspan="${colspan}" style="text-align:right;">Grand Total</td>
-        <td style="text-align:right;">${fmt2(groupTotal.meter)}</td>
-        <td style="text-align:right;">${fmt2(groupTotal.yard)}</td>
-        <td style="text-align:right;">${fmt2(groupTotal.kg)}</td>
-        <td></td>
-        <td style="text-align:right;">${fmtRp(groupTotal.amount)}</td>
-      </tr>
-    </tfoot>`;
+  
+  // Build Footer Rows (IDR & USD)
+  let tfootContent = '';
+
+  // Baris Total IDR (Default/Selalu muncul jika tidak ada USD, atau jika ada nilai IDR)
+  if (totalAmountIDR > 0 || totalAmountUSD === 0) {
+      tfootContent += `
+        <tr style="font-weight:bold;">
+          <td colspan="${colspan}" style="text-align:right;">Grand Total (IDR)</td>
+          <td style="text-align:right;">${fmt2(totalMeter)}</td>
+          <td style="text-align:right;">${fmt2(totalYard)}</td>
+          <td style="text-align:right;">${fmt2(totalKg)}</td>
+          <td></td>
+          <td style="text-align:right;">${formatCurrency(totalAmountIDR, 'IDR')}</td>
+        </tr>`;
+  }
+
+  // Baris Total USD (Hanya jika ada nilai USD)
+  if (totalAmountUSD > 0) {
+      // Opsi: Tampilkan Qty lagi atau kosongkan agar tidak double?
+      // Di sini saya kosongkan qty di baris USD agar terlihat lebih bersih, 
+      // karena qty sudah diakumulasi di baris pertama (atau bisa ditampilkan lagi jika mau).
+      // Atau, logic yang lebih baik: pisahkan juga total Qty berdasarkan mata uang jika perlu.
+      // Untuk kesederhanaan, saya tampilkan Qty 0 di baris kedua.
+      tfootContent += `
+        <tr style="font-weight:bold;">
+          <td colspan="${colspan}" style="text-align:right;">Grand Total (USD)</td>
+          <td style="text-align:right;">-</td>
+          <td style="text-align:right;">-</td>
+          <td style="text-align:right;">-</td>
+          <td></td>
+          <td style="text-align:right;">${formatCurrency(totalAmountUSD, 'USD')}</td>
+        </tr>`;
+  }
 
   return `
     <h3>${label}</h3>
-    <table><thead>${headers}</thead><tbody>${tbody}</tbody>${tfoot}</table>`;
+    <table><thead>${headers}</thead><tbody>${tbody}</tbody><tfoot>${tfootContent}</tfoot></table>`;
 };
 
-// Fungsi utama yang dipanggil dari Dashboard
 export async function printSummaryReport({ kind, token, startDate = "", endDate = "" }) {
   const isSales = kind === "sales";
   const title = `Summary ${isSales ? "Penjualan" : "Jual Beli"}`;
@@ -119,54 +169,16 @@ export async function printSummaryReport({ kind, token, startDate = "", endDate 
   const pendingHtml = buildTableHtml("Belum Terbit Invoice", processedData.pending, isSales);
   
   const style = `<style>
-    @page { 
-        size: A4; 
-        margin: 11mm; 
-    }
-
-    body { 
-        font-family: Arial, sans-serif; 
-        margin: 0; 
-    }
-
-    .paper { 
-        width: 100%; 
-    }
-
-    h1 { 
-        font-size: 16px; 
-        margin: 0 0 8mm 0; 
-    }
-
-    h3 { 
-        font-size: 14px; 
-        margin: 12px 0 6px 0; 
-    }
-
-    table { 
-        border-collapse: collapse; 
-        width: 100%; 
-    }
-
-    th, td { 
-        border: 1px solid #000; 
-        padding: 3px 4px; 
-        font-size: 9px; 
-        word-wrap: break-word; 
-    }
-
-    th { 
-        background: #DADBDD; 
-        text-align: center; 
-    }
-
-    thead { 
-        display: table-header-group; 
-    }
-
-    tfoot tr { 
-        page-break-inside: avoid; 
-    }
+    @page { size: A4; margin: 11mm; }
+    body { font-family: Arial, sans-serif; margin: 0; }
+    .paper { width: 100%; }
+    h1 { font-size: 16px; margin: 0 0 8mm 0; }
+    h3 { font-size: 14px; margin: 12px 0 6px 0; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #000; padding: 3px 4px; font-size: 9px; word-wrap: break-word; }
+    th { background: #DADBDD; text-align: center; }
+    thead { display: table-header-group; }
+    tfoot tr { page-break-inside: avoid; }
   </style>`;
   
   const headerHtml = `<h1>${title}</h1>

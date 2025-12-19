@@ -6,25 +6,40 @@ const formatNum = (n) => new Intl.NumberFormat("id-ID", {
     minimumFractionDigits: 2, 
     maximumFractionDigits: 2 
 }).format(+n || 0);
+
 const formatDatePrint = (d) => {
   const x = new Date(d);
   if (Number.isNaN(x.getTime())) return "-";
   return `${String(x.getDate()).padStart(2, "0")}-${String(x.getMonth() + 1).padStart(2, "0")}-${x.getFullYear()}`;
 };
-const formatCurrency = (n) => {
+
+// HELPER CURRENCY DINAMIS
+const formatCurrency = (n, currencyCode = "IDR") => {
   if (n === null || n === undefined) return "-";
+  
+  if (currencyCode === "USD") {
+    return new Intl.NumberFormat("en-US", { 
+      style: "currency", 
+      currency: "USD", 
+      minimumFractionDigits: 2 
+    }).format(+n);
+  }
+
   return new Intl.NumberFormat("id-ID", { 
     style: "currency", 
     currency: "IDR", 
     minimumFractionDigits: 2 
- }).format(+n);
+  }).format(+n);
 };
 
 export default function OutstandingPreviewModal(props) {
   const [activeTab, setActiveTab] = createSignal("done");
   const [processedData, setProcessedData] = createSignal([]);
   const [loading, setLoading] = createSignal(false);
-  const [grandTotal, setGrandTotal] = createSignal(0);
+  
+  // STATE TOTAL TERPISAH
+  const [grandTotalIDR, setGrandTotalIDR] = createSignal(0);
+  const [grandTotalUSD, setGrandTotalUSD] = createSignal(0);
 
   const isSales = props.block?.mode === "penjualan";
   const isGreige = props.block?.key === "greige";
@@ -49,31 +64,37 @@ export default function OutstandingPreviewModal(props) {
         token: props.token,
         PO_DETAIL_FETCHER: props.PO_DETAIL_FETCHER,
         customer_id: props.customer_id,
-        outstanding_filter: props.outstanding_filter
+        outstanding_filter: props.outstanding_filter // Pastikan parameter ini digunakan di processor jika logic filter ada di sana
       });
 
       setProcessedData(data);
       
-      // Hitung grand total
-      const total = data.reduce((sum, po) => {
-        return sum + (po.items?.reduce((itemSum, item) => itemSum + (item.subtotal || 0), 0) || 0);
-      }, 0);
-      setGrandTotal(total);
+      // HITUNG TOTAL TERPISAH
+      let totalIDR = 0;
+      let totalUSD = 0;
+
+      data.forEach(po => {
+        const currentCurrency = po.mainData.currency || "IDR";
+        const poTotal = po.items?.reduce((itemSum, item) => itemSum + (item.subtotal || 0), 0) || 0;
+
+        if (currentCurrency === "USD") {
+            totalUSD += poTotal;
+        } else {
+            totalIDR += poTotal;
+        }
+      });
+
+      setGrandTotalIDR(totalIDR);
+      setGrandTotalUSD(totalUSD);
+
     } catch (error) {
       console.error("Error loading preview data:", error);
       setProcessedData([]);
-      setGrandTotal(0);
+      setGrandTotalIDR(0);
+      setGrandTotalUSD(0);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleApply = () => {
-    props.onApply();
-  };
-
-  const handleCancel = () => {
-    props.onCancel();
   };
 
   const headers = ['No', refHeader, `Nama ${relasiHeader}`, 'Tanggal', 'Corak Kain'];
@@ -174,6 +195,8 @@ export default function OutstandingPreviewModal(props) {
                         const { mainData, items } = po;
                         if (items.length === 0) return null;
                         
+                        // AMBIL CURRENCY DARI MAIN DATA
+                        const currentCurrency = mainData.currency || "IDR";
                         const unitLabel = mainData.unit || 'Meter';
                         
                         return (
@@ -221,19 +244,19 @@ export default function OutstandingPreviewModal(props) {
                                   {isKainJadi ? (
                                     <>
                                       <td class="border border-gray-300 px-3 py-2 text-right">
-                                        {formatCurrency(item.harga_greige)}
+                                        {formatCurrency(item.harga_greige, currentCurrency)}
                                       </td>
                                       <td class="border border-gray-300 px-3 py-2 text-right">
-                                        {formatCurrency(item.harga_maklun)}
+                                        {formatCurrency(item.harga_maklun, currentCurrency)}
                                       </td>
                                     </>
                                   ) : (
                                     <td class="border border-gray-300 px-3 py-2 text-right">
-                                      {formatCurrency(item.harga_satuan)}
+                                      {formatCurrency(item.harga_satuan, currentCurrency)}
                                     </td>
                                   )}
                                   <td class="border border-gray-300 px-3 py-2 text-right">
-                                    {formatCurrency(item.subtotal)}
+                                    {formatCurrency(item.subtotal, currentCurrency)}
                                   </td>
                                 </tr>
                               );
@@ -243,25 +266,45 @@ export default function OutstandingPreviewModal(props) {
                       }}
                     </For>
                   </tbody>
-                  <tfoot class="bg-gray-100">
-                    <tr>
-                      <td 
-                        class="border border-gray-300 px-3 py-2 text-right font-bold" 
-                        colspan={headers.length - 1}
-                      >
-                        TOTAL AKHIR
-                      </td>
-                      <td class="border border-gray-300 px-3 py-2 text-right font-bold">
-                        {formatCurrency(grandTotal())}
-                      </td>
-                    </tr>
+                  
+                  {/* FOOTER TOTAL */}
+                  <tfoot class="bg-gray-100 font-bold">
+                    {/* Baris Total IDR (Selalu muncul atau jika > 0) */}
+                    {(grandTotalIDR() > 0 || grandTotalUSD() === 0) && (
+                        <tr>
+                        <td 
+                            class="border border-gray-300 px-3 py-2 text-right" 
+                            colspan={headers.length - 1}
+                        >
+                            TOTAL AKHIR (IDR)
+                        </td>
+                        <td class="border border-gray-300 px-3 py-2 text-right">
+                            {formatCurrency(grandTotalIDR(), 'IDR')}
+                        </td>
+                        </tr>
+                    )}
+
+                    {/* Baris Total USD (Hanya jika > 0) */}
+                    {grandTotalUSD() > 0 && (
+                        <tr>
+                        <td 
+                            class="border border-gray-300 px-3 py-2 text-right" 
+                            colspan={headers.length - 1}
+                        >
+                            TOTAL AKHIR (USD)
+                        </td>
+                        <td class="border border-gray-300 px-3 py-2 text-right">
+                            {formatCurrency(grandTotalUSD(), 'USD')}
+                        </td>
+                        </tr>
+                    )}
                   </tfoot>
                 </table>
               </div>
               
               <div class="mt-4 text-sm text-gray-600">
                 <p>Total Data: {processedData().length} PO</p>
-                <p>Grand Total: {formatCurrency(grandTotal())}</p>
+                {/* Info total di bawah tabel (opsional, karena sudah ada di footer tabel) */}
               </div>
             </Show>
           </div>
@@ -270,7 +313,7 @@ export default function OutstandingPreviewModal(props) {
           <div class="p-4 border-t bg-gray-50 flex justify-end gap-3">
             <button
               class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              onClick={handleCancel}
+              onClick={props.onCancel}
               disabled={loading()}
             >
               Cancel
@@ -298,7 +341,6 @@ function formatOutstandingFilter(filter, masterData) {
   
   const parts = [];
   
-  // Format tanggal
   if (filter.start_date && filter.end_date) {
     parts.push(`Tanggal: ${filter.start_date} s/d ${filter.end_date}`);
   } else if (filter.start_date) {
@@ -307,7 +349,6 @@ function formatOutstandingFilter(filter, masterData) {
     parts.push(`Tanggal akhir: ${filter.end_date}`);
   }
   
-  // Format supplier
   if (filter.supplier_id) {
     const supplier = masterData.suppliers.find(s => s.id == filter.supplier_id);
     if (supplier) {
@@ -326,7 +367,6 @@ function formatOutstandingFilter(filter, masterData) {
     }
   }
   
-  // Format warna
   if (filter.color_id) {
     const color = masterData.colors.find(c => c.id == filter.color_id);
     if (color) {
@@ -337,7 +377,6 @@ function formatOutstandingFilter(filter, masterData) {
     }
   }
   
-  // Format kain
   if (filter.fabric_id) {
     const fabric = masterData.fabrics.find(f => f.id == filter.fabric_id);
     if (fabric) {

@@ -27,7 +27,6 @@ const parseNum = (val) => {
 
 const pick = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== "");
 
-// NEW: helper lokal untuk mencocokkan baris dengan pilihan customer
 const matchesCustomer = (row, selectedCustomerId) => {
   if (!selectedCustomerId) return true;
 
@@ -56,10 +55,8 @@ const matchesCustomer = (row, selectedCustomerId) => {
 };
 
 export async function processDeliveryNotesData({ baseRows, block, token, customer_id }) {
-  // kalau baseRows kosong -> kembalikan array kosong
   if (!baseRows || baseRows.length === 0) return [];
 
-  // === filter baseRows berdasarkan customer_id jika diberikan ===
   const filteredBaseRows = customer_id
     ? (baseRows || []).filter((r) => matchesCustomer(r, customer_id))
     : baseRows;
@@ -85,17 +82,12 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
       try {
         if (!row || !row.id) return null;
 
-        // --- Get detail response ---
         const res = await detailFetcher(row.id, token);
         const data = res?.suratJalan ?? res?.order ?? res ?? {};
 
-        // Jika mode penjualan: gunakan struktur grouped { mainData, items }
+        // === LOGIC PENJUALAN ===
         if (block.mode === "penjualan") {
-          // ============================================================
-          // LOGIC BARU: Filter is_via
-          // Cek di row (data list) atau data (data detail)
-          // Jika is_via bernilai 1, "1", atau true, skip data ini.
-          // ============================================================
+          // Filter is_via
           const isViaValue = row.is_via ?? data.is_via; 
           if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
             return null;
@@ -109,6 +101,14 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
 
           if (!itemsFromApi || itemsFromApi.length === 0) return null;
 
+          // 1. AMBIL CURRENCY DARI DATA API
+          // Prioritas: data.currency -> data.currency_id (mapping manual jika perlu) -> Default "IDR"
+          let currencyCode = data.currency || "IDR";
+          
+          // Fallback jika API kadang hanya return ID tanpa string
+          if (!data.currency && data.currency_id === 2) currencyCode = "USD";
+          if (!data.currency && data.currency_id === 1) currencyCode = "IDR";
+
           const mainData = {
             id: row.id,
             tanggal: row.created_at ?? data.created_at ?? null,
@@ -120,6 +120,8 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
               "-",
             no_ref: pick(data.no_po, data.no_pc, data.no_jb, data.no_so, "-"),
             unit: data.satuan_unit_name || data.satuan_unit || "Meter",
+            // 2. SIMPAN CURRENCY KE MAIN DATA
+            currency: currencyCode 
           };
 
           const items = itemsFromApi.map((item) => {
@@ -159,7 +161,7 @@ export async function processDeliveryNotesData({ baseRows, block, token, custome
           return { mainData, items };
         }
 
-        // --- Jika pembelian fallback ke flat rows per item) ---
+        // === LOGIC PEMBELIAN (TIDAK BERUBAH) ===
         const itemsForPurchase = Array.isArray(data.items) ? data.items : [];
         if (itemsForPurchase.length === 0) return [];
 

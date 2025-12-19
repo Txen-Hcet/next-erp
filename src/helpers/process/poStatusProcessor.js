@@ -1,11 +1,13 @@
 import Swal from 'sweetalert2';
 
 const isFiniteNumber = (v) => v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v));
+
 async function safeDetailCall(fn, id, token) {
   try { return await fn(id, token); } catch { try { return await fn(token, id); } catch { return null; } }
 }
 
 const unitName = (po) => po?.satuan_unit_name || po?.satuan_unit || "Meter";
+
 const totalsByUnit = (po) => {
   const u = unitName(po);
   const s = po?.summary || {};
@@ -19,42 +21,21 @@ const isDone = (po, isGreige) => {
   const { total, masuk } = totalsByUnit(po);
   const sisa = total - masuk;
   if (total <= 0) return false;
-  
   if (isGreige) {
     return sisa <= total * 0.1 + 1e-9;
   }
   return sisa <= 0 + 1e-9;
 };
 
-// NEW: helper untuk mencocokkan PO dengan pilihan customer
 const matchesCustomer = (row, selectedCustomerId) => {
   if (!selectedCustomerId) return true;
-
   const sel = String(selectedCustomerId);
+  const cid = row?.customer_id ?? row?.customer?.id ?? row?.buyer_id ?? row?.buyer?.id ?? null;
+  const cname = row?.customer_name ?? row?.customer?.name ?? row?.customer?.nama ?? row?.buyer_name ?? row?.buyer?.nama ?? row?.supplier_name ?? null;
 
-  const cid =
-    row?.customer_id ??
-    row?.customer?.id ??
-    row?.buyer_id ??
-    row?.buyer?.id ??
-    null;
-
-  const cname =
-    row?.customer_name ??
-    row?.customer?.name ??
-    row?.customer?.nama ??
-    row?.buyer_name ??
-    row?.buyer?.nama ??
-    row?.supplier_name ??
-    null;
-
-  // 1) match id
   if (cid !== null && String(cid) === sel) return true;
-  // 2) match name:key "name:Nama"
   if (cname && `name:${cname}` === sel) return true;
-  // 3) direct name equality (in case UI passed plain name)
   if (cname && String(cname) === sel) return true;
-
   return false;
 };
 
@@ -69,9 +50,7 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
   const isGreige = block.key === "greige";
   const isKainJadi = block.key === "kain_jadi";
 
-  // APPLY customer filter (jika diberikan)
   const poRowsFiltered = customer_id ? (poRows || []).filter((r) => matchesCustomer(r, customer_id)) : (poRows || []);
-
   const filteredPOs = poRowsFiltered.filter(po => (status === "done" ? isDone(po, isGreige) : !isDone(po, isGreige)));
 
   if (filteredPOs.length === 0) {
@@ -87,24 +66,30 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
         if (poDetailFetcher) {
           dres = await safeDetailCall(poDetailFetcher, po.id, token);
         }
+        // order adalah hasil detail, po adalah data dari list
         const order = dres?.order || dres?.data || dres?.mainRow || dres || po;
 
-        // ============================================================
-        // LOGIC BARU: Filter is_via untuk Laporan Penjualan
-        // ============================================================
         if (block.mode === 'penjualan') {
-           // Cek di row list (po) atau di detail (order)
            const isViaValue = po.is_via ?? order.is_via;
-           
-           // Jika is_via = 1, "1", atau true -> SKIP (return null)
            if (isViaValue === 1 || isViaValue === "1" || isViaValue === true) {
              return null;
            }
         }
-        // ============================================================
 
         if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
           return null;
+        }
+
+        // === PERBAIKAN LOGIC CURRENCY DISINI ===
+        // Cek currency di Detail (order) -> Cek di List (po) -> Default IDR
+        let rawCurrency = order.currency || po.currency || "";
+        let currencyCode = rawCurrency.trim().toUpperCase();
+        
+        if (!currencyCode) currencyCode = "IDR";
+
+        // Cek juga currency_id jika string currency kosong
+        if (currencyCode === "IDR" && (order.currency_id === 2 || po.currency_id === 2)) {
+            currencyCode = "USD";
         }
 
         const unit = unitName(order);
@@ -120,6 +105,7 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
                   ? (order.customer_name || po.customer_name || '-')
                   : (order.supplier_name || po.supplier_name || '-')),
           unit,
+          currency: currencyCode // Simpan Currency yang sudah valid
         };
 
         const items = order.items.map(item => {
@@ -171,6 +157,5 @@ export async function processPOStatusData({ poRows, status, block, token, PO_DET
   );
   
   Swal.close();
-  // Filter(Boolean) akan otomatis menghapus yang return null di atas
   return processedData.filter(Boolean).sort((a, b) => new Date(a.mainData.tanggal) - new Date(b.mainData.tanggal));
 }

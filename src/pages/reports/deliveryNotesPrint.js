@@ -1,6 +1,5 @@
 import { processDeliveryNotesData } from "../../helpers/process/deliveryNotesProcessor";
 
-// Pastikan Anda memiliki formatter ini di file yang sama atau mengimpornya
 const formatTanggalIndo = (tanggalString) => {
   if (!tanggalString) return "-";
   const tanggal = new Date(tanggalString);
@@ -8,11 +7,27 @@ const formatTanggalIndo = (tanggalString) => {
   return `${tanggal.getDate()} ${bulanIndo[tanggal.getMonth()]} ${tanggal.getFullYear()}`;
 };
 
-const fmtRp = (val) => {
+// HELPER BARU UNTUK FORMAT DINAMIS
+const fmtMoney = (val, currencyCode = "IDR") => {
   if (val === undefined || val === null || val === "") return "-";
   const n = Number(String(val).replace(/,/g, ""));
   if (!Number.isFinite(n)) return "-";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+  if (currencyCode === "USD") {
+    return new Intl.NumberFormat("en-US", { 
+      style: "currency", 
+      currency: "USD", 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(n); 
+  }
+
+  return new Intl.NumberFormat("id-ID", { 
+    style: "currency", 
+    currency: "IDR", 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  }).format(n);
 };
 
 const fmt2 = (val) => {
@@ -26,16 +41,13 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
   const normalizeProcessedData = (pd) => {
     if (!pd || pd.length === 0) return [];
 
-    // Jika sudah berbentuk grouped { mainData, items }
     const first = pd[0];
     if (first && first.mainData && Array.isArray(first.items)) {
-      return pd; // sudah siap
+      return pd; 
     }
 
-    // Jika flat rows: kumpulkan berdasarkan row_id atau no_sj
     const groups = {};
     pd.forEach((r, idx) => {
-      // tentukan key group (prioritaskan row_id, lalu no_sj, lalu kombinasi relasi+tanggal)
       const groupKey = r.row_id ?? r.rowId ?? r.row_id?.toString() ?? r.no_sj ?? `${r.no_sj}_${r.relasi}_${r.tanggal}` ?? `g_${idx}`;
 
       if (!groups[groupKey]) {
@@ -47,12 +59,13 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
             relasi: r.relasi ?? (r.supplier_name ?? r.customer_name) ?? '-',
             no_ref: r.no_ref ?? '-',
             unit: r.unit ?? (r.satuan_unit ?? r.satuan_unit_name) ?? 'Meter',
+            // Pastikan currency terbawa jika data flat punya field currency
+            currency: r.currency || 'IDR' 
           },
           items: []
         };
       }
 
-      // push item normalized
       groups[groupKey].items.push({
         item_id: r.item_id ?? r.so_item_id ?? r.sj_item_id ?? `${groups[groupKey].mainData.no_sj}_${groups[groupKey].items.length}`,
         kain: r.kain ?? r.corak_kain ?? '-',
@@ -71,10 +84,8 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
     return Object.values(groups);
   };
 
-  // normalize dulu
   const normalized = normalizeProcessedData(processedData);
 
-  // sort aman: kalau mainData.tanggal tidak ada, biarkan urutan asli
   normalized.sort((a, b) => {
     const ta = a?.mainData?.tanggal ? new Date(a.mainData.tanggal).getTime() : null;
     const tb = b?.mainData?.tanggal ? new Date(b.mainData.tanggal).getTime() : null;
@@ -119,14 +130,28 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
   headers.push('Total');
   const thead = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
 
-  let grandTotal = 0;
+  // --- LOGIC TOTALING ---
+  // Kita perlu memisahkan total IDR dan USD
+  let grandTotalIDR = 0;
+  let grandTotalUSD = 0;
+
   const tbody = normalized.map((sj, index) => {
     if (!sj.items || sj.items.length === 0) return '';
 
-    const items = sj.items;
-    grandTotal += items.reduce((s, it) => s + (Number(it.total) || 0), 0);
+    // Ambil currency dari mainData (yang sudah diproses di processor.js)
+    const currentCurrency = sj.mainData.currency || 'IDR';
 
-    const rowCount = items.length;
+    // Hitung subtotal per SJ
+    const subTotal = sj.items.reduce((s, it) => s + (Number(it.total) || 0), 0);
+
+    // Tambahkan ke Grand Total sesuai mata uang
+    if (currentCurrency === 'USD') {
+      grandTotalUSD += subTotal;
+    } else {
+      grandTotalIDR += subTotal;
+    }
+
+    const rowCount = sj.items.length;
     const mainInfoCells = `
       <td rowspan="${rowCount}" style="text-align:center;">${index + 1}</td>
       <td rowspan="${rowCount}">${formatTanggalIndo(sj.mainData.tanggal)}</td>
@@ -135,7 +160,7 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
       <td rowspan="${rowCount}">${sj.mainData.relasi}</td>
     `;
 
-    const first = items[0];
+    const first = sj.items[0];
     let firstRow = `<tr>${mainInfoCells}`;
     if (!isGreige) firstRow += `<td>${first.warna}</td>`;
     if (isSales) firstRow += `<td>${first.grade}</td>`;
@@ -145,13 +170,13 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
       <td style="text-align:right;">${fmt2(first.yard)}</td>
       <td style="text-align:right;">${fmt2(first.kilogram)}</td>
       ${isKainJadi
-        ? `<td style="text-align:right;">${fmtRp(first.harga1)}</td><td style="text-align:right;">${fmtRp(first.harga2)}</td>`
-        : `<td style="text-align:right;">${fmtRp(first.harga1)}</td>`
+        ? `<td style="text-align:right;">${fmtMoney(first.harga1, currentCurrency)}</td><td style="text-align:right;">${fmtMoney(first.harga2, currentCurrency)}</td>`
+        : `<td style="text-align:right;">${fmtMoney(first.harga1, currentCurrency)}</td>`
       }
-      <td style="text-align:right;">${fmtRp(first.total)}</td>
+      <td style="text-align:right;">${fmtMoney(first.total, currentCurrency)}</td>
     </tr>`;
 
-    const restRows = items.slice(1).map(it => {
+    const restRows = sj.items.slice(1).map(it => {
       let r = `<tr>`;
       if (!isGreige) r += `<td>${it.warna}</td>`;
       if (isSales) r += `<td>${it.grade}</td>`;
@@ -161,10 +186,10 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
         <td style="text-align:right;">${fmt2(it.yard)}</td>
         <td style="text-align:right;">${fmt2(it.kilogram)}</td>
         ${isKainJadi
-          ? `<td style="text-align:right;">${fmtRp(it.harga1)}</td><td style="text-align:right;">${fmtRp(it.harga2)}</td>`
-          : `<td style="text-align:right;">${fmtRp(it.harga1)}</td>`
+          ? `<td style="text-align:right;">${fmtMoney(it.harga1, currentCurrency)}</td><td style="text-align:right;">${fmtMoney(it.harga2, currentCurrency)}</td>`
+          : `<td style="text-align:right;">${fmtMoney(it.harga1, currentCurrency)}</td>`
         }
-        <td style="text-align:right;">${fmtRp(it.total)}</td>
+        <td style="text-align:right;">${fmtMoney(it.total, currentCurrency)}</td>
       </tr>`;
       return r;
     }).join('');
@@ -173,14 +198,29 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
   }).join('');
 
   const colspanForLabel = headers.length - 1;
-  const tfoot = `
-    <tfoot>
+  
+  // Tampilkan Grand Total. Jika ada USD, tampilkan baris terpisah
+  let tfootContent = '';
+  
+  // Baris Total IDR
+  if (grandTotalIDR > 0 || grandTotalUSD === 0) { // Tampilkan IDR jika ada nilainya ATAU jika keduanya 0 (default)
+     tfootContent += `
       <tr class="grand-total-row">
-        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR</td>
-        <td style="text-align:right;">${fmtRp(grandTotal)}</td>
-      </tr>
-    </tfoot>
-  `;
+        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR (IDR)</td>
+        <td style="text-align:right;">${fmtMoney(grandTotalIDR, 'IDR')}</td>
+      </tr>`;
+  }
+
+  // Baris Total USD (hanya jika ada nilai USD)
+  if (grandTotalUSD > 0) {
+     tfootContent += `
+      <tr class="grand-total-row">
+        <td colspan="${colspanForLabel}" style="text-align:right;">TOTAL AKHIR (USD)</td>
+        <td style="text-align:right;">${fmtMoney(grandTotalUSD, 'USD')}</td>
+      </tr>`;
+  }
+
+  const tfoot = `<tfoot>${tfootContent}</tfoot>`;
 
   const table = `<table><thead>${thead}</thead><tbody>${tbody}</tbody>${tfoot}</table>`;
   const bodyHtml = `<div class="paper">${header}${table}</div>`;
@@ -192,7 +232,7 @@ const openPrintWindow = (title, processedData, block, filterLabel) => {
 
 export async function printDeliveryNotes(block, { token, startDate = "", endDate = "", customer_id = null } = {}) {
   if (block.key !== "sales") {
-    customer_id = null; // hanya sales yang pakai customer filter
+    customer_id = null;
   }
 
   const normalizeDate = (d) => {
@@ -214,8 +254,6 @@ export async function printDeliveryNotes(block, { token, startDate = "", endDate
   
   const processedData = await processDeliveryNotesData({ baseRows, block, token, customer_id });
 
-  //console.log('processedData sample:', JSON.stringify(processedData.slice(0,3), null, 2));
-  
   if (processedData.length === 0) {
       return alert("Gagal memproses detail data untuk dicetak.");
   }
