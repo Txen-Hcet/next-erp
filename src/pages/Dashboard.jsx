@@ -1879,7 +1879,10 @@ export default function Dashboard() {
                       {section.key === "penjualan" && block.key === "sales" && (
                         <div class="p-4 border-b">
                           <CustomerDropdownSearch
-                            customersList={() => block.customers || []}
+                            customersList={() => 
+                              (masterData().customers || [])
+                                .filter(customer => customer.id !== 62) // EXCLUDE customer dengan ID 62
+                            }
                             form={salesCustomerForm}
                             setForm={setSalesCustomerForm}
                           />
