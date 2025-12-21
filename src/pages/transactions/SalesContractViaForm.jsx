@@ -55,7 +55,7 @@ export default function SalesContractViaForm() {
     ppn_percent: "11.00", // SELALU 11%
     keterangan: "",
     satuan_unit_id: "",
-    is_via: 0,
+    is_via: 1,
     items: [],
   });
 
