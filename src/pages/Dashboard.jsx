@@ -14,6 +14,7 @@ import Swal from "sweetalert2";
 import { exportDeliveryNotesToExcel } from "../helpers/export_excel/delivery-notes-excel-export";
 import { exportPOStatusToExcel } from "../helpers/export_excel/po-status-excel-export";
 import { exportSummaryToExcel } from "../helpers/export_excel/summary-excel-export";
+import { exportInventoryAdjustmentToExcel } from "../helpers/export_excel/exportInventoryExcel";
 
 import OutstandingPreviewModal from "./reports/OutstandingPreviewModal";
 import CustomerDropdownSearch from "../components/CustomerDropdownSearch";
@@ -54,6 +55,10 @@ import {
   getOrderCelupOrders,
   getKainJadiOrders,
   getJualBelis,
+
+  // ==== KAIN ADJUSTMENT & AKSESORIS ADJUSTMENT ====
+  getAllKainAdjustment,
+  getAllAksesorisAdjustment,
 
   // ==== DATA MASTER ====
   getAllSuppliers,
@@ -241,14 +246,26 @@ export default function Dashboard() {
       title: "Laporan Inventory",
       blocks: [
         // tampil jika user punya salah satu izin penjualan/jual beli
+        // {
+        //   key: "inventory",
+        //   label: "Inventory Warehouse",
+        //   anyPerm: [
+        //     "view_surat_jalan",
+        //     "view_jual_beli_surat_jalan",
+        //     "print_invoice",
+        //   ],
+        // },
+        // Blok Baru: Kain Adjustment
         {
-          key: "inventory",
-          label: "Inventory Invoice",
-          anyPerm: [
-            "view_surat_jalan",
-            "view_jual_beli_surat_jalan",
-            "print_invoice",
-          ],
+          key: "kain_adjustment",
+          label: "Inventory Kain",
+          anyPerm: ["view_surat_jalan", "view_jual_beli_surat_jalan"], // Sesuaikan permission
+        },
+        // Blok Baru: Aksesoris Adjustment
+        {
+          key: "aksesoris_adjustment",
+          label: "Inventory Aksesoris",
+          anyPerm: ["view_surat_jalan", "view_jual_beli_surat_jalan"], // Sesuaikan permission
         },
       ],
     },
@@ -811,6 +828,65 @@ export default function Dashboard() {
 
         const key = b.key; // greige | oc | kain_jadi | jual_beli | sales | summary | inventory
 
+        // ------------------------------------------------------------
+        // CASE A: KAIN ADJUSTMENT (Stok Kain)
+        // ------------------------------------------------------------
+        if (key === "kain_adjustment") {
+          let rows = [];
+          try {
+            const res = await getAllKainAdjustment(user?.token);
+            rows = filterByDate(rowsFromResponse(res));
+          } catch (e) { console.error(e); }
+
+          // Siapkan data untuk Chart (contoh: Top 5 kain terbanyak by Meter)
+          // Group by corak_kain
+          const grouped = {};
+          rows.forEach(r => {
+            const name = r.corak_kain || "Unknown";
+            if (!grouped[name]) grouped[name] = 0;
+            grouped[name] += parseFloat(r.meter_awal || 0);
+          });
+          
+          // Sort & ambil top 10
+          const sortedKeys = Object.keys(grouped).sort((a, b) => grouped[b] - grouped[a]).slice(0, 10);
+          const chartSeries = [{ name: "Total Meter", data: sortedKeys.map(k => grouped[k]) }];
+          const chartCategories = sortedKeys;
+
+          blocks.push({
+            key,
+            label: b.label,
+            mode: sec.key,
+            rows,
+            chart: { series: chartSeries, categories: chartCategories },
+          });
+          continue;
+        }
+
+        // ------------------------------------------------------------
+        // CASE B: AKSESORIS ADJUSTMENT (Stok Aksesoris)
+        // ------------------------------------------------------------
+        if (key === "aksesoris_adjustment") {
+          let rows = [];
+          try {
+            const res = await getAllAksesorisAdjustment(user?.token);
+            rows = filterByDate(rowsFromResponse(res));
+          } catch (e) { console.error(e); }
+
+          // Siapkan data untuk Chart (Top 10 aksesoris by qty)
+          const sortedRows = [...rows].sort((a, b) => parseFloat(b.kuantitas_awal) - parseFloat(a.kuantitas_awal)).slice(0, 10);
+          const chartSeries = [{ name: "Quantity", data: sortedRows.map(r => parseFloat(r.kuantitas_awal || 0)) }];
+          const chartCategories = sortedRows.map(r => r.nama_aksesoris || "Unknown");
+
+          blocks.push({
+            key,
+            label: b.label,
+            mode: sec.key,
+            rows,
+            chart: { series: chartSeries, categories: chartCategories },
+          });
+          continue;
+        }
+
         // ==========================================================
         // CASE A: SUMMARY SECTION
         // ==========================================================
@@ -1060,6 +1136,16 @@ export default function Dashboard() {
     // jika ingin debounce, bisa ditambahkan, tapi ini langsung dan sederhana
     reloadData();
   });
+
+  // UI Render Helpers
+  const handlePrintAdjustment = (rows, title) => {
+    if (!rows.length) return Swal.fire("Kosong", "Tidak ada data", "warning");
+    const payload = encodeURIComponent(JSON.stringify({ title, printed_at: new Date(), data: rows }));
+    // Arahkan ke URL print yang sesuai (sesuaikan path rute Anda)
+    // Asumsi rute print adalah /print/inventory-kain atau /print/inventory-aksesoris
+    const path = title.toLowerCase().includes("kain") ? "inventory-kain" : "inventory-aksesoris";
+    window.open(`/print/${path}#${payload}`, "_blank");
+  };
 
   // ===== Dialog pilih mode (Semua / Rentang) =====
   const askFilterMode = async () => {
@@ -1660,160 +1746,307 @@ export default function Dashboard() {
                   );
                 }
 
-                // ==== RENDER KHUSUS INVENTORY ====
-                if (section.key === "inventory" && block.key === "inventory") {
-                  const masuk = block.summaryCounts?.in ?? {
-                    total: 0,
-                    approved: 0,
-                    pending: 0,
-                  };
-
-                  const keluar = block.summaryCounts?.out ?? {
-                    total: 0,
-                    approved: 0,
-                    pending: 0,
-                  };
-
+                // RENDER BLOCK: KAIN ADJUSTMENT
+                if (block.key === "kain_adjustment") {
                   return (
-                    <div class="bg-white rounded shadow mb-6 overflow-y-auto">
-                      {/* HEADER */}
-                      <div class="p-4 border-b flex items-center justify-between">
-                        <h3 class="text-base font-semibold">{block.label}</h3>
-
-                        <div class="flex gap-2">
-                          <button
-                            class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
-                            onClick={() => navigate("/inventory/kain")}
-                          >
-                            Kelola Inventory Kain
-                          </button>
-
-                          <button
-                            class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
-                            onClick={() => navigate("/inventory/aksesoris")}
-                          >
-                            Kelola Inventory Aksesoris
-                          </button>
-                        </div>
+                    <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                          <h3 class="text-lg font-semibold">{block.label}</h3>
+                          
+                          {/* Tambahan Tombol Navigasi & Print */}
+                          <div class="flex gap-2 items-center">
+                              <button
+                                  class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                                  onClick={() => navigate("/inventory/kain")}
+                              >
+                                  Kelola Inventory Kain
+                              </button>
+                              <button 
+                                class="text-gray-500 hover:text-green-600" title="Export Excel"
+                                onClick={() => exportInventoryAdjustmentToExcel({
+                                    kind: 'kain',
+                                    data: block.rows,
+                                    filterLabel: currentFilterLabel(),
+                                    startDate: startDate(),
+                                    endDate: endDate()
+                                })}
+                              >
+                                <FileSpreadsheet size={20} />
+                              </button>
+                              <button 
+                                  class="text-gray-500 hover:text-blue-600" title="Print"
+                                  onClick={() => handlePrintAdjustment(block.rows, "Inventory Kain")}
+                              >
+                                  <Printer size={20} />
+                              </button>
+                          </div>
                       </div>
-
-                      {/* CHART */}
-                      <div class="p-4">
-                        <div class="h-fit">
-                          <ApexChart
-                            type="bar"
-                            height="100%"
-                            series={[
-                              { name: "Masuk", data: block.chart.in },
-                              { name: "Keluar", data: block.chart.out },
-                              { name: "Sisa", data: block.chart.remaining },
-                            ]}
-                            options={{
-                              chart: { stacked: false },
-                              plotOptions: {
-                                bar: { horizontal: false, columnWidth: "45%" },
-                              },
-                              dataLabels: { enabled: false },
-                              xaxis: { categories: block.chart.items },
-                              legend: { position: "bottom" },
-                            }}
+                      <div class="p-6">
+                          <ApexChart 
+                              type="line" height={300}
+                              series={block.chart.series}
+                              options={{
+                                  xaxis: { categories: block.chart.categories },
+                                  // title: { text: 'Top 10 Kain (Meter)' }
+                              }}
                           />
-                        </div>
-                      </div>
-
-                      {/* CONTENT BAWAH (2 CARD) */}
-                      <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* CARD MASUK */}
-                        <div class="bg-white p-4 rounded border shadow-sm relative">
-                          <p class="text-sm text-gray-600">Total Stok Masuk</p>
-                          <p class="text-2xl font-bold text-blue-600">
-                            {masuk.total}
-                          </p>
-
-                          <div class="mt-1 text-sm text-gray-700">
-                            <div>
-                              Diproses: <b>{masuk.approved}</b>
-                            </div>
-                            <div>
-                              Pending: <b>{masuk.pending}</b>
-                            </div>
+                          {/* Simple Table Preview */}
+                          <div class="mt-4 max-h-60 overflow-y-auto border rounded">
+                              <table class="w-full text-sm text-left">
+                                  <thead class="bg-gray-50 sticky top-0">
+                                      <tr>
+                                          <th class="p-2 border">Corak Kain</th>
+                                          <th class="p-2 border">Warna</th>
+                                          <th class="p-2 border text-right">Meter</th>
+                                          <th class="p-2 border text-right">Yard</th>
+                                          <th class="p-2 border text-right">Kg</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <For each={block.rows}>
+                                          {row => (
+                                              <tr class="border-b">
+                                                  <td class="p-2 border">{row.corak_kain}</td>
+                                                  <td class="p-2 border">{row.kode_warna || '-'}</td>
+                                                  <td class="p-2 border text-right">{formatAngka(row.meter_awal)}</td>
+                                                  <td class="p-2 border text-right">{formatAngka(row.yard_awal)}</td>
+                                                  <td class="p-2 border text-right">{formatAngka(row.kilogram_awal)}</td>
+                                              </tr>
+                                          )}
+                                      </For>
+                                  </tbody>
+                              </table>
                           </div>
-
-                          <div class="absolute top-3 right-3 flex gap-2">
-                            <FileSpreadsheet
-                              size={18}
-                              class="text-gray-500 hover:text-green-600 cursor-pointer"
-                              onClick={() =>
-                                exportSummaryToExcel({
-                                  kind: "stock_in",
-                                  data: block.rowsIn,
-                                  filterLabel: currentFilterLabel(),
-                                  token: user?.token,
-                                })
-                              }
-                            />
-                            <Printer
-                              size={18}
-                              class="text-gray-500 hover:text-blue-600 cursor-pointer"
-                              onClick={() =>
-                                printSummaryReport({
-                                  kind: "stock_in",
-                                  token: user?.token,
-                                  startDate: startDate(),
-                                  endDate: endDate(),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
-
-                        {/* CARD KELUAR */}
-                        <div class="bg-white p-4 rounded border shadow-sm relative">
-                          <p class="text-sm text-gray-600">Total Stok Keluar</p>
-                          <p class="text-2xl font-bold text-blue-600">
-                            {keluar.total}
-                          </p>
-
-                          <div class="mt-1 text-sm text-gray-700">
-                            <div>
-                              Diproses: <b>{keluar.approved}</b>
-                            </div>
-                            <div>
-                              Pending: <b>{keluar.pending}</b>
-                            </div>
-                          </div>
-
-                          <div class="absolute top-3 right-3 flex gap-2">
-                            <FileSpreadsheet
-                              size={18}
-                              class="text-gray-500 hover:text-green-600 cursor-pointer"
-                              onClick={() =>
-                                exportSummaryToExcel({
-                                  kind: "stock_out",
-                                  data: block.rowsOut,
-                                  filterLabel: currentFilterLabel(),
-                                  token: user?.token,
-                                })
-                              }
-                            />
-                            <Printer
-                              size={18}
-                              class="text-gray-500 hover:text-blue-600 cursor-pointer"
-                              onClick={() =>
-                                printSummaryReport({
-                                  kind: "stock_out",
-                                  token: user?.token,
-                                  startDate: startDate(),
-                                  endDate: endDate(),
-                                })
-                              }
-                            />
-                          </div>
-                        </div>
                       </div>
                     </div>
                   );
                 }
+
+                // RENDER BLOCK: AKSESORIS ADJUSTMENT
+                if (block.key === "aksesoris_adjustment") {
+                  return (
+                      <div class="bg-white rounded shadow mb-8">
+                      <div class="p-6 border-b flex justify-between items-center">
+                          <h3 class="text-lg font-semibold">{block.label}</h3>
+                          
+                          {/* Tambahan Tombol Navigasi & Print */}
+                          <div class="flex gap-2 items-center">
+                              <button
+                                  class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                                  onClick={() => navigate("/inventory/aksesoris")}
+                              >
+                                  Kelola Inventory Aksesoris
+                              </button>
+                              <button 
+                                class="text-gray-500 hover:text-green-600" title="Export Excel"
+                                onClick={() => exportInventoryAdjustmentToExcel({
+                                    kind: 'aksesoris',
+                                    data: block.rows,
+                                    filterLabel: currentFilterLabel(),
+                                    startDate: startDate(),
+                                    endDate: endDate()
+                                })}
+                              >
+                                <FileSpreadsheet size={20} />
+                              </button>
+                              <button 
+                                  class="text-gray-500 hover:text-blue-600" title="Print"
+                                  onClick={() => handlePrintAdjustment(block.rows, "Inventory Aksesoris")}
+                              >
+                                  <Printer size={20} />
+                              </button>
+                          </div>
+                      </div>
+                      <div class="p-6">
+                          <ApexChart 
+                              type="line" height={300}
+                              series={block.chart.series}
+                              options={{
+                                  xaxis: { categories: block.chart.categories },
+                                  // title: { text: 'Top 10 Aksesoris (Qty)' }
+                              }}
+                          />
+                            <div class="mt-4 max-h-60 overflow-y-auto border rounded">
+                              <table class="w-full text-sm text-left">
+                                  <thead class="bg-gray-50 sticky top-0">
+                                      <tr>
+                                          <th class="p-2 border">Nama Aksesoris</th>
+                                          <th class="p-2 border">Deskripsi</th>
+                                          <th class="p-2 border text-right">Qty Awal</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <For each={block.rows}>
+                                          {row => (
+                                              <tr class="border-b">
+                                                  <td class="p-2 border">{row.nama_aksesoris}</td>
+                                                  <td class="p-2 border">{row.deskripsi_aksesoris}</td>
+                                                  <td class="p-2 border text-right">{formatAngka(row.kuantitas_awal)}</td>
+                                              </tr>
+                                          )}
+                                      </For>
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // // ==== RENDER KHUSUS INVENTORY ====
+                // if (section.key === "inventory" && block.key === "inventory") {
+                //   const masuk = block.summaryCounts?.in ?? {
+                //     total: 0,
+                //     approved: 0,
+                //     pending: 0,
+                //   };
+
+                //   const keluar = block.summaryCounts?.out ?? {
+                //     total: 0,
+                //     approved: 0,
+                //     pending: 0,
+                //   };
+
+                //   return (
+                //     <div class="bg-white rounded shadow mb-6 overflow-y-auto">
+                //       {/* HEADER */}
+                //       <div class="p-4 border-b flex items-center justify-between">
+                //         <h3 class="text-base font-semibold">{block.label}</h3>
+
+                //         <div class="flex gap-2">
+                //           <button
+                //             class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                //             onClick={() => navigate("/inventory/kain")}
+                //           >
+                //             Kelola Inventory Kain
+                //           </button>
+
+                //           <button
+                //             class="px-3 py-1 text-sm bg-white text-blue-600 border-2 rounded hover:bg-blue-700 hover:text-white"
+                //             onClick={() => navigate("/inventory/aksesoris")}
+                //           >
+                //             Kelola Inventory Aksesoris
+                //           </button>
+                //         </div>
+                //       </div>
+
+                //       {/* CHART */}
+                //       <div class="p-4">
+                //         <div class="h-fit">
+                //           <ApexChart
+                //             type="bar"
+                //             height="100%"
+                //             series={[
+                //               { name: "Masuk", data: block.chart.in },
+                //               { name: "Keluar", data: block.chart.out },
+                //               { name: "Sisa", data: block.chart.remaining },
+                //             ]}
+                //             options={{
+                //               chart: { stacked: false },
+                //               plotOptions: {
+                //                 bar: { horizontal: false, columnWidth: "45%" },
+                //               },
+                //               dataLabels: { enabled: false },
+                //               xaxis: { categories: block.chart.items },
+                //               legend: { position: "bottom" },
+                //             }}
+                //           />
+                //         </div>
+                //       </div>
+
+                //       {/* CONTENT BAWAH (2 CARD) */}
+                //       <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                //         {/* CARD MASUK */}
+                //         <div class="bg-white p-4 rounded border shadow-sm relative">
+                //           <p class="text-sm text-gray-600">Total Stok Masuk</p>
+                //           <p class="text-2xl font-bold text-blue-600">
+                //             {masuk.total}
+                //           </p>
+
+                //           <div class="mt-1 text-sm text-gray-700">
+                //             <div>
+                //               Diproses: <b>{masuk.approved}</b>
+                //             </div>
+                //             <div>
+                //               Pending: <b>{masuk.pending}</b>
+                //             </div>
+                //           </div>
+
+                //           <div class="absolute top-3 right-3 flex gap-2">
+                //             <FileSpreadsheet
+                //               size={18}
+                //               class="text-gray-500 hover:text-green-600 cursor-pointer"
+                //               onClick={() =>
+                //                 exportSummaryToExcel({
+                //                   kind: "stock_in",
+                //                   data: block.rowsIn,
+                //                   filterLabel: currentFilterLabel(),
+                //                   token: user?.token,
+                //                 })
+                //               }
+                //             />
+                //             <Printer
+                //               size={18}
+                //               class="text-gray-500 hover:text-blue-600 cursor-pointer"
+                //               onClick={() =>
+                //                 printSummaryReport({
+                //                   kind: "stock_in",
+                //                   token: user?.token,
+                //                   startDate: startDate(),
+                //                   endDate: endDate(),
+                //                 })
+                //               }
+                //             />
+                //           </div>
+                //         </div>
+
+                //         {/* CARD KELUAR */}
+                //         <div class="bg-white p-4 rounded border shadow-sm relative">
+                //           <p class="text-sm text-gray-600">Total Stok Keluar</p>
+                //           <p class="text-2xl font-bold text-blue-600">
+                //             {keluar.total}
+                //           </p>
+
+                //           <div class="mt-1 text-sm text-gray-700">
+                //             <div>
+                //               Diproses: <b>{keluar.approved}</b>
+                //             </div>
+                //             <div>
+                //               Pending: <b>{keluar.pending}</b>
+                //             </div>
+                //           </div>
+
+                //           <div class="absolute top-3 right-3 flex gap-2">
+                //             <FileSpreadsheet
+                //               size={18}
+                //               class="text-gray-500 hover:text-green-600 cursor-pointer"
+                //               onClick={() =>
+                //                 exportSummaryToExcel({
+                //                   kind: "stock_out",
+                //                   data: block.rowsOut,
+                //                   filterLabel: currentFilterLabel(),
+                //                   token: user?.token,
+                //                 })
+                //               }
+                //             />
+                //             <Printer
+                //               size={18}
+                //               class="text-gray-500 hover:text-blue-600 cursor-pointer"
+                //               onClick={() =>
+                //                 printSummaryReport({
+                //                   kind: "stock_out",
+                //                   token: user?.token,
+                //                   startDate: startDate(),
+                //                   endDate: endDate(),
+                //                 })
+                //               }
+                //             />
+                //           </div>
+                //         </div>
+                //       </div>
+                //     </div>
+                //   );
+                // }
 
                 // ==== RENDER BLOK LAIN (PEMBELIAN / PENJUALAN) ====
                 const [done, notDone] = block.chart.series || [0, 0];
